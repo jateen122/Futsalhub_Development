@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Find Futsal | FutsalHub</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="../css/find-futsal.css">
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar navbar-expand-lg navbar-dark fixed-top main-navbar">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="index.html">FutsalHub</a>
+
+        <div class="ms-auto nav-links">
+            <a href="index.html">Home</a>
+            <a href="find-futsal.html" class="active">Find Futsal</a>
+            <a href="#">Register</a>
+            <a href="#" class="btn btn-danger ms-3">Login</a>
+        </div>
+    </div>
+</nav>
+
+<!-- PAGE HEADER -->
+<section class="page-header">
+    <div class="container">
+        <h1>Find Your Futsal</h1>
+        <p>Search, filter and book instantly.</p>
+    </div>
+</section>
+
+<!-- FILTER SECTION -->
+<section class="filter-section">
+    <div class="container">
+        <div class="card shadow-sm p-4">
+
+            <div class="row g-3">
+
+                <div class="col-md-3">
+                    <label>Location</label>
+                    <input type="text" id="filterLocation" class="form-control" placeholder="Enter location">
+                </div>
+
+                <div class="col-md-3">
+                    <label>Date</label>
+                    <input type="date" id="filterDate" class="form-control">
+                </div>
+
+                <div class="col-md-3">
+                    <label>Price Range</label>
+                    <select id="filterPrice" class="form-select">
+                        <option value="">All</option>
+                        <option value="1000">Below 1000</option>
+                        <option value="2000">Below 2000</option>
+                        <option value="3000">Below 3000</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3 d-flex align-items-end">
+                    <button class="btn btn-danger w-100" id="searchBtn">
+                        Search
+                    </button>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<!-- FUTSAL LIST SECTION -->
+<section class="futsal-list py-5">
+    <div class="container">
+
+        <div class="row g-4" id="futsalContainer">
+            <!-- FUTSAL CARDS WILL BE LOADED HERE FROM BACKEND -->
+
+            <!-- SAMPLE STATIC CARD (for design only) -->
+            <div class="col-md-4">
+                <div class="card futsal-card shadow-sm">
+
+                    <img src="../images/sample.jpg" class="card-img-top" alt="Futsal Image">
+
+                    <div class="card-body">
+                        <h5 class="card-title">Kathmandu Arena</h5>
+                        <p class="text-muted">Location: Kathmandu</p>
+                        <p class="price">Rs. 1500 / Hour</p>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="#" class="btn btn-outline-dark btn-sm">
+                                View Details
+                            </a>
+                            <a href="#" class="btn btn-danger btn-sm">
+                                Book Now
+                            </a>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="main-footer text-center">
+    <div class="container">
+        © 2026 FutsalHub
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../js/find-futsal.js"></script>
+</body>
+</html>

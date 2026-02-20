@@ -1,0 +1,56 @@
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background-color: #f8f9fa;
+}
+
+.main-navbar {
+    background: rgba(0, 0, 0, 0.85);
+    padding: 15px 0;
+}
+
+.nav-links a {
+    color: white;
+    margin-left: 20px;
+    text-decoration: none;
+}
+
+.nav-links a.active {
+    border-bottom: 2px solid #ff3b3b;
+}
+
+.page-header {
+    padding: 120px 0 60px;
+    background: linear-gradient(to right, #111, #222);
+    color: white;
+    text-align: center;
+}
+
+.filter-section {
+    margin-top: -30px;
+}
+
+.futsal-card {
+    border: none;
+    border-radius: 10px;
+    transition: 0.3s;
+}
+
+.futsal-card:hover {
+    transform: translateY(-5px);
+}
+
+.futsal-card img {
+    height: 220px;
+    object-fit: cover;
+}
+
+.price {
+    font-weight: bold;
+    color: #ff3b3b;
+}
+
+.main-footer {
+    background: #111;
+    color: white;
+    padding: 20px 0;
+}
