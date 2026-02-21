@@ -1,0 +1,66 @@
+body {
+    font-family: 'Segoe UI', sans-serif;
+    margin: 0;
+    background-color: #f8f9fa;
+}
+
+/* HERO SECTION */
+.about-hero {
+    height: 60vh;
+    background-size: cover;
+    background-position: center;
+    position: relative;
+    display: flex;
+    align-items: center;
+    color: white;
+}
+
+.hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+}
+
+.hero-content {
+    position: relative;
+    z-index: 2;
+}
+
+.about-hero h1 {
+    font-size: 48px;
+    font-weight: bold;
+}
+
+.about-hero p {
+    font-size: 18px;
+}
+
+/* ABOUT SECTION */
+.about-section h2 {
+    font-weight: bold;
+}
+
+.about-section p {
+    font-size: 16px;
+    line-height: 1.7;
+}
+
+/* MISSION */
+.mission-section {
+    background: #111;
+    color: white;
+}
+
+.mission-text {
+    max-width: 700px;
+    margin: auto;
+    font-size: 18px;
+}
+
+/* FOOTER */
+.main-footer {
+    background: #111;
+    color: white;
+    padding: 20px 0;
+}
