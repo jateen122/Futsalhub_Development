@@ -27,10 +27,10 @@ urlpatterns = [
 
     # ── App routes ────────────────────────────────────────────────────────────
     path("api/accounts/",      include("accounts.urls",      namespace="accounts")),
-    path("api/grounds/",       include("grounds.urls")),
-    path("api/bookings/",      include("bookings.urls")),
-    path("api/payments/",      include("payments.urls")),
-    path("api/notifications/", include("notifications.urls")),
+    #path("api/grounds/",       include("grounds.urls")),
+    #path("api/bookings/",      include("bookings.urls")),
+    #path("api/payments/",      include("payments.urls")),
+    #path("api/notifications/", include("notifications.urls")),
 ]
 
 # Serve uploaded media & static files during development
