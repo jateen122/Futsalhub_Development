@@ -24,7 +24,7 @@ export default function Login() {
     setMessage("");
 
     try {
-      // Step 1: Get JWT token
+      // STEP 1: Get token
       const tokenRes = await axios.post(
         "http://127.0.0.1:8000/api/token/",
         formData
@@ -36,7 +36,7 @@ export default function Login() {
       localStorage.setItem("access", access);
       localStorage.setItem("refresh", refresh);
 
-      // Step 2: Get user profile
+      // STEP 2: Get profile using token
       const profileRes = await axios.get(
         "http://127.0.0.1:8000/api/accounts/profile/",
         {
@@ -48,7 +48,7 @@ export default function Login() {
 
       const role = profileRes.data.role;
 
-      // Step 3: Redirect based on role
+      // STEP 3: Redirect based on role
       if (role === "player") {
         navigate("/player-dashboard");
       } else if (role === "owner") {
@@ -63,20 +63,38 @@ export default function Login() {
   };
 
   return (
-    <div style={{ padding: "40px" }}>
-      <h2>Login</h2>
+    <div className="min-h-screen flex items-center justify-center bg-gray-200 pt-20">
+      <div className="bg-white shadow-lg rounded-xl p-8 w-96">
+        <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
 
-      {message && <p style={{ color: "red" }}>{message}</p>}
+        {message && (
+          <p className="text-center text-red-500 mb-4">{message}</p>
+        )}
 
-      <form onSubmit={handleSubmit}>
-        <input type="email" name="email" placeholder="Email" onChange={handleChange} required />
-        <br /><br />
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="email"
+            name="email"
+            placeholder="Email"
+            className="w-full border p-2 rounded"
+            onChange={handleChange}
+            required
+          />
 
-        <input type="password" name="password" placeholder="Password" onChange={handleChange} required />
-        <br /><br />
+          <input
+            type="password"
+            name="password"
+            placeholder="Password"
+            className="w-full border p-2 rounded"
+            onChange={handleChange}
+            required
+          />
 
-        <button type="submit">Login</button>
-      </form>
+          <button className="w-full bg-black hover:bg-gray-800 text-white py-2 rounded transition">
+            Login
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
