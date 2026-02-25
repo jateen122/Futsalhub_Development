@@ -5,6 +5,7 @@ import Home from "./pages/Home";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
 import About from "./pages/About";
+import Grounds from "./pages/Grounds";
 
 import PlayerDashboard from "./pages/PlayerDashboard";
 import OwnerDashboard from "./pages/OwnerDashboard";
@@ -25,6 +26,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
           <Route path="/about" element={<About />} />
+          <Route path="/grounds" element={<Grounds />} />
 
           {/* Role Dashboards */}
           <Route path="/player-dashboard" element={<PlayerDashboard />} />

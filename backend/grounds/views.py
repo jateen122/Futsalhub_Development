@@ -1,9 +1,13 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import ValidationError
 
 from .models import Ground
-from .serializers import GroundSerializer, GroundApprovalSerializer, PublicGroundSerializer
+from .serializers import (
+    GroundSerializer,
+    GroundApprovalSerializer,
+    PublicGroundSerializer,
+)
 from .permissions import IsOwnerRole, IsGroundOwner, IsAdminRole
 
 
@@ -16,25 +20,31 @@ class CreateGroundView(generics.CreateAPIView):
     Create a new ground listing.
 
     Access  : Authenticated users with role='owner' only.
-    Behavior: request.user is automatically saved as the owner.
-              The ground starts with is_approved=False and will not appear
-              in the public listing until an admin approves it.
+    Behavior:
+        - One owner can only create ONE ground.
+        - request.user automatically assigned as owner.
+        - Ground starts with is_approved=False.
     """
 
     serializer_class   = GroundSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerRole]
 
     def perform_create(self, serializer):
-        serializer.save(owner=self.request.user)
+        # 🚨 Restrict one ground per owner
+        if Ground.objects.filter(owner=self.request.user).exists():
+            raise ValidationError("You can only create one ground.")
+
+        serializer.save(owner=self.request.user, is_approved=False)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
+
         return Response(
             {
                 "message": "Ground created successfully. Awaiting admin approval.",
-                "ground" : serializer.data,
+                "ground": serializer.data,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -48,9 +58,10 @@ class UpdateGroundView(generics.UpdateAPIView):
     """
     Update an existing ground.
 
-    Access      : Authenticated users with role='owner' who own this ground.
-    Behavior    : Supports both PUT (full) and PATCH (partial) updates.
-                  is_approved cannot be changed here — use the approve endpoint.
+    Access   : Only the owner of the ground.
+    Behavior :
+        - Owner cannot change is_approved.
+        - Supports PUT and PATCH.
     """
 
     queryset           = Ground.objects.all()
@@ -58,15 +69,19 @@ class UpdateGroundView(generics.UpdateAPIView):
     permission_classes = [permissions.IsAuthenticated, IsGroundOwner]
 
     def update(self, request, *args, **kwargs):
+        if "is_approved" in request.data:
+            raise ValidationError("You cannot change approval status.")
+
         partial = kwargs.pop("partial", False)
-        instance = self.get_object()           # triggers has_object_permission
+        instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
+
         return Response(
             {
                 "message": "Ground updated successfully.",
-                "ground" : serializer.data,
+                "ground": serializer.data,
             }
         )
 
@@ -77,20 +92,21 @@ class UpdateGroundView(generics.UpdateAPIView):
 
 class ApproveGroundView(generics.UpdateAPIView):
     """
-    Approve (or revoke approval of) a ground.
+    Approve or revoke approval of a ground.
 
     Access  : Admin role only.
-    Behavior: Accepts { "is_approved": true/false }.
-              Uses a minimal serializer so only is_approved can be changed.
+    Behavior:
+        - Accepts { "is_approved": true/false }
+        - Only updates is_approved field.
     """
 
     queryset           = Ground.objects.all()
     serializer_class   = GroundApprovalSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdminRole]
-    http_method_names  = ["patch"]          # only PATCH, not PUT
+    http_method_names  = ["patch"]
 
     def patch(self, request, *args, **kwargs):
-        instance   = self.get_object()
+        instance = self.get_object()
         is_approved = request.data.get("is_approved")
 
         if is_approved is None:
@@ -102,11 +118,12 @@ class ApproveGroundView(generics.UpdateAPIView):
         instance.is_approved = bool(is_approved)
         instance.save(update_fields=["is_approved"])
 
-        action  = "approved" if instance.is_approved else "disapproved"
+        action = "approved" if instance.is_approved else "disapproved"
+
         return Response(
             {
                 "message": f"Ground '{instance.name}' has been {action}.",
-                "ground" : GroundApprovalSerializer(instance).data,
+                "ground": GroundApprovalSerializer(instance).data,
             }
         )
 
@@ -117,13 +134,13 @@ class ApproveGroundView(generics.UpdateAPIView):
 
 class PublicGroundListView(generics.ListAPIView):
     """
-    Public listing of all approved grounds.
+    Public listing of approved grounds.
 
-    Access    : Anyone (no authentication required).
-    Filtering : Optional query params —
-                  ?location=kathmandu
-                  ?min_price=500
-                  ?max_price=2000
+    Access    : Anyone.
+    Filtering :
+        ?location=kathmandu
+        ?min_price=500
+        ?max_price=2000
     """
 
     serializer_class   = PublicGroundSerializer
@@ -138,8 +155,10 @@ class PublicGroundListView(generics.ListAPIView):
 
         if location:
             qs = qs.filter(location__icontains=location)
+
         if min_price:
             qs = qs.filter(price_per_hour__gte=min_price)
+
         if max_price:
             qs = qs.filter(price_per_hour__lte=max_price)
 
@@ -152,10 +171,9 @@ class PublicGroundListView(generics.ListAPIView):
 
 class OwnerGroundListView(generics.ListAPIView):
     """
-    Returns all grounds belonging to the authenticated owner,
-    including unapproved ones.
+    Owner sees their own ground (including unapproved).
 
-    Access: Authenticated users with role='owner'.
+    Access: Authenticated owner only.
     """
 
     serializer_class   = GroundSerializer
