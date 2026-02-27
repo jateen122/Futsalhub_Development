@@ -6,27 +6,27 @@ User = get_user_model()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Registration
+# Registration Serializer
 # ─────────────────────────────────────────────────────────────────────────────
 
 class RegisterSerializer(serializers.ModelSerializer):
     """
-    Handles new-user registration.
+    Handles new user registration.
 
-    Business rules applied here:
-      • role = PLAYER  →  is_verified = True  (auto-verified)
-      • role = OWNER   →  is_verified = False (requires manual verification)
-      • Password is validated against Django's AUTH_PASSWORD_VALIDATORS and
-        stored as a bcrypt hash (via set_password).
+    Rules:
+      • PLAYER  → auto verified
+      • OWNER   → requires admin verification
+      • ADMIN   → cannot be self-registered
+      • Password is validated and properly hashed
     """
 
-    password  = serializers.CharField(
+    password = serializers.CharField(
         write_only=True,
         required=True,
-        style={"input_type": "password"},
         validators=[validate_password],
-        help_text="Must meet Django's password strength requirements.",
+        style={"input_type": "password"},
     )
+
     password2 = serializers.CharField(
         write_only=True,
         required=True,
@@ -35,7 +35,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     )
 
     class Meta:
-        model  = User
+        model = User
         fields = [
             "id",
             "email",
@@ -47,61 +47,63 @@ class RegisterSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id"]
 
-    # ── Validation ────────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────────────
+    # FIELD VALIDATION
+    # ─────────────────────────────────────────────────────────────────────────
 
     def validate_email(self, value):
-        """Normalise and check uniqueness."""
         value = value.lower().strip()
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError("A user with this email already exists.")
         return value
 
     def validate_role(self, value):
-        """Prevent self-assigning the ADMIN role via the public API."""
+        value = value.lower()
         if value == User.Role.ADMIN:
-            raise serializers.ValidationError(
-                "You cannot register with the 'admin' role."
-            )
+            raise serializers.ValidationError("You cannot register as admin.")
         return value
 
     def validate(self, attrs):
-        if attrs["password"] != attrs.pop("password2"):
+        if attrs["password"] != attrs["password2"]:
             raise serializers.ValidationError({"password": "Passwords do not match."})
         return attrs
 
-    # ── Creation ──────────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────────────
+    # CREATE USER (IMPORTANT PART)
+    # ─────────────────────────────────────────────────────────────────────────
 
     def create(self, validated_data):
+        validated_data.pop("password2")
+
+        password = validated_data.pop("password")
         role = validated_data.get("role", User.Role.PLAYER)
 
-        # Core verification rule
-        is_verified = role == User.Role.PLAYER
+        # Verification rule
+        is_verified = True if role == User.Role.PLAYER else False
 
         user = User.objects.create_user(
-            email       = validated_data["email"],
-            full_name   = validated_data["full_name"],
-            password    = validated_data["password"],
-            phone       = validated_data.get("phone", ""),
-            role        = role,
-            is_verified = is_verified,
+            email=validated_data["email"],
+            full_name=validated_data["full_name"],
+            password=password,   # hashed automatically
+            phone=validated_data.get("phone", ""),
+            role=role,
+            is_verified=is_verified,
         )
+
         return user
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Profile (read / update)
+# Profile Serializer
 # ─────────────────────────────────────────────────────────────────────────────
 
 class ProfileSerializer(serializers.ModelSerializer):
     """
-    Read / partial-update for the authenticated user's own profile.
-
-    Sensitive fields (password, is_staff, is_superuser) are excluded.
-    Role and is_verified are read-only so they cannot be self-modified.
+    Read-only / partial update serializer for authenticated user.
     """
 
     class Meta:
-        model  = User
+        model = User
         fields = [
             "id",
             "email",
@@ -114,8 +116,8 @@ class ProfileSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
-            "email",      # email changes go through a dedicated endpoint
-            "role",       # role changes are an admin action
+            "email",
+            "role",
             "is_verified",
             "is_active",
             "created_at",

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 
 import Home from "./pages/Home";
@@ -10,6 +10,23 @@ import Grounds from "./pages/Grounds";
 import PlayerDashboard from "./pages/PlayerDashboard";
 import OwnerDashboard from "./pages/OwnerDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import AddGround from "./pages/AddGround";
+/* ------------------------------
+   Protected Route Component
+--------------------------------*/
+function ProtectedRoute({ children, allowedRole }) {
+  const role = localStorage.getItem("role");
+
+  if (!role) {
+    return <Navigate to="/login" />;
+  }
+
+  if (allowedRole && role !== allowedRole) {
+    return <Navigate to="/" />;
+  }
+
+  return children;
+}
 
 function App() {
   return (
@@ -21,19 +38,56 @@ function App() {
 
         {/* Main Content */}
         <Routes>
-          {/* Public Pages */}
+
+          {/* ---------------- PUBLIC ROUTES ---------------- */}
           <Route path="/" element={<Home />} />
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
           <Route path="/about" element={<About />} />
           <Route path="/grounds" element={<Grounds />} />
 
-          {/* Role Dashboards */}
-          <Route path="/player-dashboard" element={<PlayerDashboard />} />
-          <Route path="/owner-dashboard" element={<OwnerDashboard />} />
-          <Route path="/admin-dashboard" element={<AdminDashboard />} />
-        </Routes>
+          {/* ---------------- PLAYER ROUTE ---------------- */}
+          <Route
+            path="/player-dashboard"
+            element={
+              <ProtectedRoute allowedRole="player">
+                <PlayerDashboard />
+              </ProtectedRoute>
+            }
+          />
 
+          {/* ---------------- OWNER ROUTE ---------------- */}
+          <Route
+            path="/owner-dashboard"
+            element={
+              <ProtectedRoute allowedRole="owner">
+                <OwnerDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ---------------- ADMIN ROUTE ---------------- */}
+          <Route
+            path="/admin-dashboard"
+            element={
+              <ProtectedRoute allowedRole="admin">
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+  path="/add-ground"
+  element={
+    <ProtectedRoute allowedRole="owner">
+      <AddGround />
+    </ProtectedRoute>
+  }
+/>
+
+          {/* ---------------- UNKNOWN ROUTE ---------------- */}
+          <Route path="*" element={<Navigate to="/" />} />
+
+        </Routes>
       </div>
     </BrowserRouter>
   );
