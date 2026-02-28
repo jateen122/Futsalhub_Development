@@ -1,6 +1,6 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
-from rest_framework.exceptions import ValidationError, PermissionDenied
+from rest_framework.exceptions import ValidationError
 
 from .models import Ground
 from .serializers import (
@@ -29,7 +29,6 @@ class CreateGroundView(generics.CreateAPIView):
     permission_classes = [permissions.IsAuthenticated, IsOwnerRole]
 
     def perform_create(self, serializer):
-        # Restrict to one ground per owner
         if Ground.objects.filter(owner=self.request.user).exists():
             raise ValidationError("You already have a ground registered.")
 
@@ -59,7 +58,6 @@ class CreateGroundView(generics.CreateAPIView):
 class UpdateGroundView(generics.UpdateAPIView):
     """
     Owner can update their own ground.
-
     Cannot modify is_approved.
     """
 
@@ -132,7 +130,6 @@ class ApproveGroundView(generics.UpdateAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Convert to boolean properly
         if isinstance(is_approved, str):
             is_approved = is_approved.lower() == "true"
 
@@ -201,3 +198,33 @@ class OwnerGroundListView(generics.ListAPIView):
         return Ground.objects.filter(
             owner=self.request.user
         ).select_related("owner")
+
+
+# ─────────────────────────────────────────────────────────────
+# GET /api/grounds/admin/all/
+# ─────────────────────────────────────────────────────────────
+
+class AdminGroundListView(generics.ListAPIView):
+    """
+    Admin sees ALL grounds (approved + pending).
+    """
+
+    serializer_class = GroundSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminRole]
+
+    def get_queryset(self):
+        return Ground.objects.all().select_related("owner")
+
+
+# ─────────────────────────────────────────────────────────────
+# GET /api/grounds/admin/<id>/
+# ─────────────────────────────────────────────────────────────
+
+class AdminGroundDetailView(generics.RetrieveAPIView):
+    """
+    Admin views full details of a specific ground.
+    """
+
+    queryset = Ground.objects.all()
+    serializer_class = GroundSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminRole]

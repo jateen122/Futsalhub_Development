@@ -17,18 +17,22 @@ class User(AbstractBaseUser, PermissionsMixin):
         ADMIN  = "admin",  "Admin"
 
     # ── Core identity fields ──────────────────────────────────────────────────
-    email     = models.EmailField(
+    email = models.EmailField(
         unique=True,
         verbose_name="Email address",
         help_text="Required. Used as the login credential.",
     )
+
     full_name = models.CharField(
         max_length=150,
         verbose_name="Full name",
     )
-    phone     = models.CharField(
+
+
+    phone = models.CharField(
         max_length=20,
         blank=True,
+        default="0000000000",
         verbose_name="Phone number",
     )
 
@@ -39,6 +43,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         default=Role.PLAYER,
         verbose_name="Role",
     )
+
     is_verified = models.BooleanField(
         default=False,
         verbose_name="Verified",
@@ -54,6 +59,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         verbose_name="Active",
         help_text="Uncheck to deactivate the account without deleting it.",
     )
+
     is_staff = models.BooleanField(
         default=False,
         verbose_name="Staff status",
@@ -61,19 +67,22 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
 
     # ── Timestamps ────────────────────────────────────────────────────────────
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Joined at")
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Joined at"
+    )
 
     # ── Manager ───────────────────────────────────────────────────────────────
     objects = UserManager()
 
     # ── Auth configuration ────────────────────────────────────────────────────
-    USERNAME_FIELD  = "email"
-    REQUIRED_FIELDS = ["full_name"]   # asked by createsuperuser in addition to email
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["full_name"]
 
     class Meta:
-        verbose_name        = "User"
+        verbose_name = "User"
         verbose_name_plural = "Users"
-        ordering            = ["-created_at"]
+        ordering = ["-created_at"]
 
     # ── Helpers ───────────────────────────────────────────────────────────────
     def __str__(self):

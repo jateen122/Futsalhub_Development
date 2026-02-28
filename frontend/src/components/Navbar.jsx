@@ -56,13 +56,16 @@ export default function Navbar() {
 
         {/* ADMIN NAVBAR */}
         {role === "admin" && (
-          <>
-            <Link to="/admin-dashboard">Admin Panel</Link>
-            <button onClick={handleLogout} className="text-red-400">
-              Logout
-            </button>
-          </>
-        )}
+  <>
+    <Link to="/admin-dashboard">Admin Panel</Link>
+    <button
+      onClick={handleLogout}
+      className="text-red-400"
+    >
+      Logout
+    </button>
+  </>
+)}
 
       </div>
     </nav>

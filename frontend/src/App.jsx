@@ -10,7 +10,9 @@ import Grounds from "./pages/Grounds";
 import PlayerDashboard from "./pages/PlayerDashboard";
 import OwnerDashboard from "./pages/OwnerDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminGroundDetail from "./pages/AdminGroundDetail";
 import AddGround from "./pages/AddGround";
+
 /* ------------------------------
    Protected Route Component
 --------------------------------*/
@@ -75,6 +77,14 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+  path="/admin/ground/:id"
+  element={
+    <ProtectedRoute allowedRole="admin">
+      <AdminGroundDetail />
+    </ProtectedRoute>
+  }
+/>
           <Route
   path="/add-ground"
   element={
