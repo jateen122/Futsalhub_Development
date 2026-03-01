@@ -13,42 +13,71 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminGroundDetail from "./pages/AdminGroundDetail";
 import AddGround from "./pages/AddGround";
 
-/* ------------------------------
-   Protected Route Component
---------------------------------*/
+/* =====================================================
+   PROTECTED ROUTE COMPONENT
+   - Checks login
+   - Checks role
+===================================================== */
 function ProtectedRoute({ children, allowedRole }) {
+  const token = localStorage.getItem("access");
   const role = localStorage.getItem("role");
 
-  if (!role) {
-    return <Navigate to="/login" />;
+  // Not logged in
+  if (!token) {
+    return <Navigate to="/login" replace />;
   }
 
+  // Role mismatch
   if (allowedRole && role !== allowedRole) {
-    return <Navigate to="/" />;
+    return <Navigate to="/" replace />;
   }
 
   return children;
 }
 
+/* =====================================================
+   MAIN APP
+===================================================== */
 function App() {
+  const token = localStorage.getItem("access");
+  const role = localStorage.getItem("role");
+
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-gray-100">
 
-        {/* Navbar */}
+        {/* NAVBAR */}
         <Navbar />
 
-        {/* Main Content */}
+        {/* ROUTES */}
         <Routes>
 
-          {/* ---------------- PUBLIC ROUTES ---------------- */}
+          {/* ================= PUBLIC ROUTES ================= */}
           <Route path="/" element={<Home />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/login" element={<Login />} />
+          <Route
+            path="/login"
+            element={
+              token ? (
+                role === "admin" ? (
+                  <Navigate to="/admin-dashboard" />
+                ) : role === "owner" ? (
+                  <Navigate to="/owner-dashboard" />
+                ) : (
+                  <Navigate to="/player-dashboard" />
+                )
+              ) : (
+                <Login />
+              )
+            }
+          />
+          <Route
+            path="/register"
+            element={token ? <Navigate to="/" /> : <Register />}
+          />
           <Route path="/about" element={<About />} />
           <Route path="/grounds" element={<Grounds />} />
 
-          {/* ---------------- PLAYER ROUTE ---------------- */}
+          {/* ================= PLAYER ROUTE ================= */}
           <Route
             path="/player-dashboard"
             element={
@@ -58,7 +87,7 @@ function App() {
             }
           />
 
-          {/* ---------------- OWNER ROUTE ---------------- */}
+          {/* ================= OWNER ROUTES ================= */}
           <Route
             path="/owner-dashboard"
             element={
@@ -68,7 +97,16 @@ function App() {
             }
           />
 
-          {/* ---------------- ADMIN ROUTE ---------------- */}
+          <Route
+            path="/add-ground"
+            element={
+              <ProtectedRoute allowedRole="owner">
+                <AddGround />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ================= ADMIN ROUTES ================= */}
           <Route
             path="/admin-dashboard"
             element={
@@ -77,24 +115,17 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-  path="/admin/ground/:id"
-  element={
-    <ProtectedRoute allowedRole="admin">
-      <AdminGroundDetail />
-    </ProtectedRoute>
-  }
-/>
-          <Route
-  path="/add-ground"
-  element={
-    <ProtectedRoute allowedRole="owner">
-      <AddGround />
-    </ProtectedRoute>
-  }
-/>
 
-          {/* ---------------- UNKNOWN ROUTE ---------------- */}
+          <Route
+            path="/admin/ground/:id"
+            element={
+              <ProtectedRoute allowedRole="admin">
+                <AdminGroundDetail />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ================= FALLBACK ================= */}
           <Route path="*" element={<Navigate to="/" />} />
 
         </Routes>
