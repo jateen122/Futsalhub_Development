@@ -3,268 +3,416 @@ import { useState, useEffect } from "react";
 const BASE_URL = "http://127.0.0.1:8000";
 
 export default function AddGround() {
+
   const token = localStorage.getItem("access");
 
-  const [formData, setFormData] = useState({
-    name: "",
-    location: "",
-    description: "",
-    price_per_hour: "",
-    opening_time: "",
-    closing_time: "",
-    facilities: "",
-    image: null,
-  });
+  const [formData,setFormData] = useState({
+    name:"",
+    location:"",
+    description:"",
+    price_per_hour:"",
+    opening_time:"",
+    closing_time:"",
+    facilities:"",
+    image:null
+  })
 
-  const [myGround, setMyGround] = useState(null);
-  const [preview, setPreview] = useState(null);
-  const [editMode, setEditMode] = useState(false);
-  const [message, setMessage] = useState("");
+  const [myGround,setMyGround] = useState(null)
+  const [preview,setPreview] = useState(null)
+  const [editMode,setEditMode] = useState(false)
+  const [message,setMessage] = useState("")
 
-  // 🔥 Load Owner Ground
-  useEffect(() => {
-    const fetchGround = async () => {
-      try {
-        const res = await fetch(`${BASE_URL}/api/grounds/my/`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+  /* ================= FETCH GROUND ================= */
 
-        const data = await res.json();
+  const fetchMyGround = async () => {
 
-        if (data.results && data.results.length > 0) {
-          setMyGround(data.results[0]);
-        }
-      } catch (err) {
-        console.error(err);
+    try{
+
+      const res = await fetch(`${BASE_URL}/api/grounds/my/`,{
+        headers:{Authorization:`Bearer ${token}`}
+      })
+
+      const data = await res.json()
+
+      if(data.results && data.results.length > 0){
+
+        const ground = data.results[0]
+
+        setMyGround(ground)
+
+        setPreview(
+          ground.image
+          ? ground.image.startsWith("http")
+            ? ground.image
+            : `${BASE_URL}${ground.image}`
+          : null
+        )
+
       }
-    };
 
-    fetchGround();
-  }, [token]);
+    }catch(err){
+      console.log(err)
+    }
 
-  // 🔥 Handle Input Change
-  const handleChange = (e) => {
-    if (e.target.name === "image") {
-      const file = e.target.files[0];
-      setFormData({ ...formData, image: file });
+  }
 
-      if (file) {
-        setPreview(URL.createObjectURL(file));
+  useEffect(()=>{
+    fetchMyGround()
+  },[])
+
+
+  /* ================= HANDLE INPUT ================= */
+
+  const handleChange = (e)=>{
+
+    if(e.target.name === "image"){
+
+      const file = e.target.files[0]
+
+      setFormData({...formData,image:file})
+
+      if(file){
+        setPreview(URL.createObjectURL(file))
       }
-    } else {
-      setFormData({ ...formData, [e.target.name]: e.target.value });
+
+    }else{
+
+      setFormData({
+        ...formData,
+        [e.target.name]:e.target.value
+      })
+
     }
-  };
 
-  // 🔥 Create Ground
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  }
 
-    const data = new FormData();
-    Object.keys(formData).forEach((key) => {
-      if (formData[key]) data.append(key, formData[key]);
-    });
 
-    const res = await fetch(`${BASE_URL}/api/grounds/create/`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: data,
-    });
+  /* ================= CREATE ================= */
 
-    const result = await res.json();
+  const handleSubmit = async(e)=>{
 
-    if (res.ok) {
-      setMessage("Ground created successfully ✅");
-      setMyGround(result);
-      setPreview(null);
-    } else {
-      setMessage("Error creating ground ❌");
+    e.preventDefault()
+
+    const data = new FormData()
+
+    Object.keys(formData).forEach(key=>{
+      if(formData[key]){
+        data.append(key,formData[key])
+      }
+    })
+
+    const res = await fetch(`${BASE_URL}/api/grounds/create/`,{
+      method:"POST",
+      headers:{Authorization:`Bearer ${token}`},
+      body:data
+    })
+
+    if(res.ok){
+
+      setMessage("Ground created successfully ✅")
+
+      await fetchMyGround()
+
     }
-  };
 
-  // 🔥 Update Ground
-  const handleUpdate = async (e) => {
-    e.preventDefault();
+  }
 
-    const data = new FormData();
-    Object.keys(formData).forEach((key) => {
-      if (formData[key]) data.append(key, formData[key]);
-    });
+
+  /* ================= UPDATE ================= */
+
+  const handleUpdate = async(e)=>{
+
+    e.preventDefault()
+
+    const data = new FormData()
+
+    Object.keys(formData).forEach(key=>{
+      if(formData[key]){
+        data.append(key,formData[key])
+      }
+    })
 
     const res = await fetch(
       `${BASE_URL}/api/grounds/${myGround.id}/update/`,
       {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
-        body: data,
+        method:"PATCH",
+        headers:{Authorization:`Bearer ${token}`},
+        body:data
       }
-    );
+    )
 
-    const result = await res.json();
+    if(res.ok){
 
-    if (res.ok) {
-      setMessage("Ground updated successfully ✅");
-      setMyGround(result);
-      setEditMode(false);
-      setPreview(null);
-    } else {
-      setMessage("Update failed ❌");
+      setMessage("Ground updated successfully ✅")
+
+      setEditMode(false)
+
+      await fetchMyGround()
+
     }
-  };
 
-  // 🔥 Delete Ground
-  const handleDelete = async () => {
-    const confirmDelete = window.confirm(
-      "Are you sure you want to delete this ground?"
-    );
+  }
 
-    if (!confirmDelete) return;
 
-    const res = await fetch(
-      `${BASE_URL}/api/grounds/${myGround.id}/delete/`,
-      {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
+  /* ================= DELETE ================= */
 
-    if (res.ok) {
-      setMyGround(null);
-      setMessage("Ground deleted successfully ✅");
-    } else {
-      setMessage("Delete failed ❌");
-    }
-  };
+  const handleDelete = async()=>{
 
-  // 🔥 Enable Edit Mode
-  const enableEdit = () => {
-    setEditMode(true);
+    if(!window.confirm("Delete this ground?")) return
+
+    await fetch(`${BASE_URL}/api/grounds/${myGround.id}/delete/`,{
+      method:"DELETE",
+      headers:{Authorization:`Bearer ${token}`}
+    })
+
+    setMyGround(null)
+    setPreview(null)
+
+  }
+
+
+  /* ================= ENABLE EDIT ================= */
+
+  const enableEdit = ()=>{
+
+    setEditMode(true)
+
     setFormData({
-      name: myGround.name,
-      location: myGround.location,
-      description: myGround.description,
-      price_per_hour: myGround.price_per_hour,
-      opening_time: myGround.opening_time,
-      closing_time: myGround.closing_time,
-      facilities: myGround.facilities,
-      image: null,
-    });
-  };
+      name:myGround.name || "",
+      location:myGround.location || "",
+      description:myGround.description || "",
+      price_per_hour:myGround.price_per_hour || "",
+      opening_time:myGround.opening_time || "",
+      closing_time:myGround.closing_time || "",
+      facilities:myGround.facilities || "",
+      image:null
+    })
 
-  return (
-    <div className="min-h-screen bg-gradient-to-r from-black via-blue-900 to-black pt-24 px-6 text-white">
-      <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10">
+  }
 
-        {/* LEFT FORM */}
-        <div className="bg-white text-black p-8 rounded-2xl shadow-2xl">
-          <h2 className="text-2xl font-bold mb-6 text-center">
-            {editMode ? "Edit Ground ✏️" : "Add New Ground 🏟"}
-          </h2>
+  const cancelEdit = ()=>{
+    setEditMode(false)
+  }
 
-          {message && (
-            <p className="text-center text-green-600 mb-4">{message}</p>
-          )}
 
-          {(!myGround || editMode) && (
-            <form
-              onSubmit={editMode ? handleUpdate : handleSubmit}
-              className="space-y-4"
-            >
-              <input type="text" name="name" placeholder="Ground Name"
-                value={formData.name} onChange={handleChange}
-                className="w-full p-2 border rounded" required />
 
-              <input type="text" name="location" placeholder="Location"
-                value={formData.location} onChange={handleChange}
-                className="w-full p-2 border rounded" required />
+  return(
 
-              <textarea name="description" placeholder="Description"
-                value={formData.description} onChange={handleChange}
-                className="w-full p-2 border rounded" />
+  <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-black pt-28 px-6 pb-16">
 
-              <input type="number" name="price_per_hour"
-                placeholder="Price per Hour"
-                value={formData.price_per_hour}
-                onChange={handleChange}
-                className="w-full p-2 border rounded" required />
+  <div className="max-w-5xl mx-auto">
 
-              <div className="flex gap-4">
-                <input type="time" name="opening_time"
-                  value={formData.opening_time}
-                  onChange={handleChange}
-                  className="w-full p-2 border rounded" required />
+  <h1 className="text-4xl text-white text-center font-bold mb-10">
+  Ground Management Dashboard 🏟
+  </h1>
 
-                <input type="time" name="closing_time"
-                  value={formData.closing_time}
-                  onChange={handleChange}
-                  className="w-full p-2 border rounded" required />
-              </div>
+  {message && (
+  <p className="text-green-400 text-center mb-6">
+  {message}
+  </p>
+  )}
 
-              <input type="text" name="facilities"
-                placeholder="Facilities"
-                value={formData.facilities}
-                onChange={handleChange}
-                className="w-full p-2 border rounded" />
 
-              <input type="file" name="image"
-                onChange={handleChange}
-                className="w-full" />
+  {/* ================= FORM ================= */}
 
-              {preview && (
-                <img src={preview}
-                  alt="preview"
-                  className="w-full h-40 object-cover rounded border" />
-              )}
+  {(!myGround || editMode) && (
 
-              <button className="w-full bg-black text-white py-2 rounded hover:bg-gray-800">
-                {editMode ? "Update Ground" : "Add Ground"}
-              </button>
-            </form>
-          )}
-        </div>
+  <div className="bg-white rounded-3xl p-10 shadow-2xl">
 
-        {/* RIGHT CARD */}
-        {myGround && !editMode && (
-          <div className="bg-white text-black p-6 rounded-2xl shadow-2xl">
-            <h3 className="text-xl font-bold mb-4">Your Ground</h3>
+  <h2 className="text-2xl font-bold mb-8">
+  {editMode ? "Edit Ground" : "Add New Ground"}
+  </h2>
 
-            {myGround.image && (
-              <img
-                src={myGround.image}
-                alt={myGround.name}
-                className="w-full h-56 object-cover rounded-lg mb-4"
-              />
-            )}
+  <form
+  onSubmit={editMode ? handleUpdate : handleSubmit}
+  className="space-y-5"
+  >
 
-            <div className="space-y-1">
-              <p><strong>Name:</strong> {myGround.name}</p>
-              <p><strong>Location:</strong> {myGround.location}</p>
-              <p><strong>Price:</strong> Rs {myGround.price_per_hour}</p>
-              <p><strong>Facilities:</strong> {myGround.facilities}</p>
-              <p>
-                <strong>Status:</strong>{" "}
-                {myGround.is_approved ? "Approved ✅" : "Pending ⏳"}
-              </p>
-            </div>
+  <input
+  type="text"
+  name="name"
+  value={formData.name}
+  onChange={handleChange}
+  placeholder="Ground Name"
+  className="w-full border p-4 rounded-xl"
+  required
+  />
 
-            <div className="flex gap-4 mt-6">
-              <button
-                onClick={enableEdit}
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-              >
-                Edit
-              </button>
+  <input
+  type="text"
+  name="location"
+  value={formData.location}
+  onChange={handleChange}
+  placeholder="Location"
+  className="w-full border p-4 rounded-xl"
+  required
+  />
 
-              <button
-                onClick={handleDelete}
-                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  <textarea
+  name="description"
+  value={formData.description}
+  onChange={handleChange}
+  placeholder="Description"
+  className="w-full border p-4 rounded-xl"
+  />
+
+  <input
+  type="number"
+  name="price_per_hour"
+  value={formData.price_per_hour}
+  onChange={handleChange}
+  placeholder="Price per Hour"
+  className="w-full border p-4 rounded-xl"
+  required
+  />
+
+  <div className="grid grid-cols-2 gap-5">
+
+  <input
+  type="time"
+  name="opening_time"
+  value={formData.opening_time}
+  onChange={handleChange}
+  className="border p-4 rounded-xl"
+  />
+
+  <input
+  type="time"
+  name="closing_time"
+  value={formData.closing_time}
+  onChange={handleChange}
+  className="border p-4 rounded-xl"
+  />
+
+  </div>
+
+  <input
+  type="text"
+  name="facilities"
+  value={formData.facilities}
+  onChange={handleChange}
+  placeholder="Facilities"
+  className="w-full border p-4 rounded-xl"
+  />
+
+  <input
+  type="file"
+  name="image"
+  onChange={handleChange}
+  />
+
+  {preview && (
+
+  <img
+  src={preview}
+  alt="preview"
+  className="w-full h-64 object-cover rounded-xl"
+  />
+
+  )}
+
+  <div className="flex gap-4">
+
+  <button
+  className="flex-1 bg-black text-white py-3 rounded-xl hover:bg-gray-800"
+  >
+  {editMode ? "Update Ground" : "Add Ground"}
+  </button>
+
+  {editMode && (
+
+  <button
+  type="button"
+  onClick={cancelEdit}
+  className="flex-1 bg-gray-300 py-3 rounded-xl"
+  >
+  Cancel
+  </button>
+
+  )}
+
+  </div>
+
+  </form>
+  </div>
+  )}
+
+
+
+  {/* ================= GROUND CARD ================= */}
+
+  {myGround && !editMode && (
+
+  <div className="bg-white rounded-3xl shadow-2xl overflow-hidden mt-10">
+
+  {preview && (
+
+  <img
+  src={preview}
+  alt={myGround.name}
+  className="w-full h-[420px] object-cover"
+  />
+
+  )}
+
+  <div className="p-10">
+
+  <h2 className="text-3xl font-bold mb-4">
+  {myGround.name}
+  </h2>
+
+  <p className="mb-2">📍 {myGround.location}</p>
+
+  <p className="mb-2">💰 Rs {myGround.price_per_hour} / hour</p>
+
+  <p className="mb-2">🛠 {myGround.facilities}</p>
+
+  <p className="mb-6">
+
+  Status :
+
+  {myGround.is_approved ?
+
+  <span className="text-green-600 font-semibold ml-2">
+  Approved
+  </span>
+
+  :
+
+  <span className="text-yellow-600 font-semibold ml-2">
+  Pending
+  </span>
+
+  }
+
+  </p>
+
+  <div className="flex gap-5">
+
+  <button
+  onClick={enableEdit}
+  className="bg-blue-600 text-white px-6 py-2 rounded-xl"
+  >
+  Edit
+  </button>
+
+  <button
+  onClick={handleDelete}
+  className="bg-red-600 text-white px-6 py-2 rounded-xl"
+  >
+  Delete
+  </button>
+
+  </div>
+
+  </div>
+  </div>
+
+  )}
+
+  </div>
+  </div>
+
+  )
+
 }

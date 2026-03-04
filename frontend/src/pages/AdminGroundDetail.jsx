@@ -15,8 +15,9 @@ export default function AdminGroundDetail() {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
-      .then((data) => setGround(data));
-  }, [id]);
+      .then((data) => setGround(data))
+      .catch((err) => console.error(err));
+  }, [id, token]);
 
   const handleApproval = (status) => {
     fetch(`${BASE_URL}/api/grounds/${id}/approve/`, {
@@ -27,61 +28,74 @@ export default function AdminGroundDetail() {
       },
       body: JSON.stringify({ is_approved: status }),
     })
-      .then((res) => res.json())
-      .then(() => {
-        navigate("/admin-dashboard");
-      });
+      .then(() => navigate("/admin-dashboard"));
   };
 
-  if (!ground) return <div className="pt-24 text-center">Loading...</div>;
+  if (!ground) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading...
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-100 pt-24 px-20 pb-10">
-      <div className="bg-white shadow-lg rounded-xl overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-black pt-28 px-6 pb-12">
 
+      <div className="max-w-5xl mx-auto bg-white text-black rounded-3xl shadow-2xl overflow-hidden">
+
+        {/* IMAGE */}
         {ground.image && (
           <img
-            src={`${BASE_URL}${ground.image}`}
+            src={
+              ground.image.startsWith("http")
+                ? ground.image
+                : `${BASE_URL}${ground.image}`
+            }
             alt={ground.name}
-            className="w-full h-96 object-cover"
+            className="w-full h-[450px] object-cover"
           />
         )}
 
-        <div className="p-8">
-          <h1 className="text-3xl font-bold">{ground.name}</h1>
+        {/* CONTENT */}
+        <div className="p-10">
+          <h1 className="text-3xl font-bold mb-4">
+            {ground.name}
+          </h1>
 
-          <p className="text-gray-500 mt-2">
+          <p className="text-gray-600 mb-2">
             📍 {ground.location}
           </p>
 
-          <p className="mt-4 text-lg">
+          <p className="text-lg font-semibold mb-4">
             Rs {ground.price_per_hour} / hour
           </p>
 
-          <p className="mt-4 text-gray-600">
+          <p className="text-gray-700 mb-6">
             {ground.description}
           </p>
 
-          <p className="mt-4 text-sm text-gray-500">
+          <p className="text-sm text-gray-500 mb-8">
             Owner: {ground.owner}
           </p>
 
-          {/* APPROVE / REJECT PANEL */}
-          <div className="mt-8 flex gap-4">
+          {/* ACTION BUTTONS */}
+          <div className="flex gap-6">
             <button
               onClick={() => handleApproval(true)}
-              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg"
+              className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-xl transition"
             >
               Approve
             </button>
 
             <button
               onClick={() => handleApproval(false)}
-              className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg"
+              className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-xl transition"
             >
               Reject
             </button>
           </div>
+
         </div>
       </div>
     </div>
