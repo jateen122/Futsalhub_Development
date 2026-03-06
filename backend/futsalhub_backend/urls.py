@@ -28,6 +28,8 @@ urlpatterns = [
     # ==============================
     path("api/accounts/", include("accounts.urls")),
     path("api/grounds/",  include("grounds.urls")),
+    path("api/bookings/", include("bookings.urls")),
+    path("api/notifications/", include("notifications.urls")),
 ]
 
 # ==============================
