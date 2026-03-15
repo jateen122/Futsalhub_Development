@@ -11,12 +11,12 @@ import PlayerDashboard from "./pages/PlayerDashboard";
 import OwnerDashboard from "./pages/OwnerDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminGroundDetail from "./pages/AdminGroundDetail";
+
 import AddGround from "./pages/AddGround";
+import BookingPage from "./pages/BookingPage";
 
 /* =====================================================
    PROTECTED ROUTE COMPONENT
-   - Checks login
-   - Checks role
 ===================================================== */
 function ProtectedRoute({ children, allowedRole }) {
   const token = localStorage.getItem("access");
@@ -53,7 +53,9 @@ function App() {
         <Routes>
 
           {/* ================= PUBLIC ROUTES ================= */}
+
           <Route path="/" element={<Home />} />
+
           <Route
             path="/login"
             element={
@@ -70,14 +72,22 @@ function App() {
               )
             }
           />
+
           <Route
             path="/register"
             element={token ? <Navigate to="/" /> : <Register />}
           />
+
           <Route path="/about" element={<About />} />
+
           <Route path="/grounds" element={<Grounds />} />
 
-          {/* ================= PLAYER ROUTE ================= */}
+          {/* BOOKING PAGE */}
+          <Route path="/booking/:id" element={<BookingPage />} />
+
+
+          {/* ================= PLAYER ROUTES ================= */}
+
           <Route
             path="/player-dashboard"
             element={
@@ -87,7 +97,9 @@ function App() {
             }
           />
 
+
           {/* ================= OWNER ROUTES ================= */}
+
           <Route
             path="/owner-dashboard"
             element={
@@ -106,7 +118,9 @@ function App() {
             }
           />
 
+
           {/* ================= ADMIN ROUTES ================= */}
+
           <Route
             path="/admin-dashboard"
             element={
@@ -125,10 +139,13 @@ function App() {
             }
           />
 
+
           {/* ================= FALLBACK ================= */}
+
           <Route path="*" element={<Navigate to="/" />} />
 
         </Routes>
+
       </div>
     </BrowserRouter>
   );
