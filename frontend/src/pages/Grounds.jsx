@@ -22,7 +22,6 @@ export default function Grounds() {
 
   /* ───────────────── Fetch Grounds ───────────────── */
   useEffect(() => {
-
     fetch(`${BASE_URL}/api/grounds/`)
       .then((res) => res.json())
       .then((data) => {
@@ -34,7 +33,6 @@ export default function Grounds() {
         console.error("Error fetching grounds:", err);
         setLoading(false);
       });
-
   }, []);
 
   /* ───────────────── Filters ───────────────── */
@@ -43,9 +41,7 @@ export default function Grounds() {
     let results = [...grounds];
 
     if (search.trim()) {
-
       const q = search.toLowerCase();
-
       results = results.filter(
         (g) =>
           g.name?.toLowerCase().includes(q) ||
@@ -71,23 +67,19 @@ export default function Grounds() {
 
   /* ───────────────── Facility Filter ───────────────── */
   const handleFacilityChange = (e) => {
-
     setFacilities((prev) => ({
       ...prev,
       [e.target.name]: e.target.checked,
     }));
-
   };
 
   /* ───────────────── Loading Screen ───────────────── */
   if (loading) {
-
     return (
       <div className="pt-32 text-center text-3xl font-semibold text-gray-700">
         Loading futsal grounds...
       </div>
     );
-
   }
 
   /* ───────────────── UI ───────────────── */
@@ -96,7 +88,6 @@ export default function Grounds() {
 
       {/* SEARCH BAR */}
       <div className="flex justify-center mb-16">
-
         <div className="flex w-full max-w-5xl bg-white shadow-xl rounded-xl overflow-hidden">
 
           <input
@@ -112,26 +103,19 @@ export default function Grounds() {
           </button>
 
         </div>
-
       </div>
 
       <div className="grid grid-cols-12 gap-12">
 
         {/* FILTER SIDEBAR */}
         <div className="col-span-12 lg:col-span-3">
-
           <div className="bg-white p-8 rounded-2xl shadow-lg sticky top-28">
 
-            <h2 className="text-3xl font-bold mb-10">
-              Filters
-            </h2>
+            <h2 className="text-3xl font-bold mb-10">Filters</h2>
 
             {/* PRICE FILTER */}
             <div className="mb-12">
-
-              <h3 className="text-lg font-semibold mb-3">
-                Price Range
-              </h3>
+              <h3 className="text-lg font-semibold mb-3">Price Range</h3>
 
               <input
                 type="range"
@@ -144,78 +128,48 @@ export default function Grounds() {
               />
 
               <div className="flex justify-between mt-3 text-gray-600">
-
                 <span>Rs 500</span>
-
-                <span className="font-semibold">
-                  Rs {maxPrice}
-                </span>
-
+                <span className="font-semibold">Rs {maxPrice}</span>
               </div>
-
             </div>
 
             {/* AMENITIES */}
             <div>
-
-              <h3 className="text-lg font-semibold mb-4">
-                Amenities
-              </h3>
-
+              <h3 className="text-lg font-semibold mb-4">Amenities</h3>
               <div className="space-y-3 text-gray-700">
 
-                <label className="flex gap-2">
-                  <input
-                    type="checkbox"
-                    name="parking"
-                    onChange={handleFacilityChange}
-                  />
-                  Parking
-                </label>
-
-                <label className="flex gap-2">
-                  <input
-                    type="checkbox"
-                    name="shower"
-                    onChange={handleFacilityChange}
-                  />
-                  Shower
-                </label>
-
-                <label className="flex gap-2">
-                  <input
-                    type="checkbox"
-                    name="wifi"
-                    onChange={handleFacilityChange}
-                  />
-                  WiFi
-                </label>
-
-                <label className="flex gap-2">
-                  <input
-                    type="checkbox"
-                    name="restaurant"
-                    onChange={handleFacilityChange}
-                  />
-                  Restaurant
-                </label>
+                {["parking", "shower", "wifi", "restaurant"].map((item) => (
+                  <label key={item} className="flex gap-2 capitalize cursor-pointer">
+                    <input
+                      type="checkbox"
+                      name={item}
+                      onChange={handleFacilityChange}
+                    />
+                    {item}
+                  </label>
+                ))}
 
               </div>
-
             </div>
 
           </div>
-
         </div>
 
         {/* GROUNDS LIST */}
         <div className="col-span-12 lg:col-span-9">
 
           <h1 className="text-4xl font-bold mb-10 flex items-center gap-2">
-
             ⚽ {filteredGrounds.length} futsals found
-
           </h1>
+
+          {/* Empty state */}
+          {filteredGrounds.length === 0 && (
+            <div className="text-center py-20 text-gray-500">
+              <p className="text-5xl mb-4">🏟️</p>
+              <p className="text-xl font-semibold">No grounds match your filters</p>
+              <p className="text-sm mt-2">Try adjusting the price range or amenities</p>
+            </div>
+          )}
 
           <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-10">
 
@@ -228,9 +182,7 @@ export default function Grounds() {
 
                 {/* IMAGE */}
                 <div className="relative">
-
                   {ground.image ? (
-
                     <img
                       src={
                         ground.image.startsWith("http")
@@ -240,51 +192,41 @@ export default function Grounds() {
                       alt={ground.name}
                       className="w-full h-64 object-cover"
                     />
-
                   ) : (
-
-                    <div className="w-full h-64 bg-gray-300 flex items-center justify-center">
-                      No Image
+                    <div className="w-full h-64 bg-gray-200 flex items-center justify-center text-5xl">
+                      ⚽
                     </div>
-
                   )}
 
                   <span className="absolute top-4 right-4 bg-red-500 text-white px-4 py-1 rounded-full font-semibold">
-
                     Rs {ground.price_per_hour}/hr
-
                   </span>
-
                 </div>
 
                 {/* CARD BODY */}
                 <div className="p-6">
 
-                  <h3 className="text-xl font-bold mb-2">
-                    {ground.name}
-                  </h3>
+                  <h3 className="text-xl font-bold mb-2">{ground.name}</h3>
 
-                  <p className="text-gray-500 mb-2">
-                    📍 {ground.location}
-                  </p>
+                  <p className="text-gray-500 mb-2">📍 {ground.location}</p>
 
                   <p className="text-gray-600 mb-6 line-clamp-3">
                     {ground.description}
                   </p>
 
-                  <div className="flex justify-between">
+                  <div className="flex justify-between gap-3">
 
-                    {/* BOOK BUTTON */}
+                    {/* ✅ FIXED: /book/:id  (was /booking/:id) */}
                     <button
-                      onClick={() => navigate(`/booking/${ground.id}`)}
-                      className="bg-red-500 text-white px-5 py-2 rounded-lg hover:bg-red-600 transition"
+                      onClick={() => navigate(`/book/${ground.id}`)}
+                      className="bg-red-500 text-white px-5 py-2 rounded-lg hover:bg-red-600 transition font-semibold"
                     >
                       Book Now
                     </button>
 
-                    {/* DETAILS BUTTON */}
+                    {/* ✅ FIXED: /grounds/:id  (was /ground/:id) */}
                     <button
-                      onClick={() => navigate(`/ground/${ground.id}`)}
+                      onClick={() => navigate(`/grounds/${ground.id}`)}
                       className="border border-gray-400 px-5 py-2 rounded-lg hover:bg-gray-100 transition"
                     >
                       Details
