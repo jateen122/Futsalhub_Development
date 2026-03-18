@@ -20,7 +20,7 @@ export default function Grounds() {
     restaurant: false,
   });
 
-  /* ───────────────── Fetch Grounds ───────────────── */
+  /* Fetch */
   useEffect(() => {
     fetch(`${BASE_URL}/api/grounds/`)
       .then((res) => res.json())
@@ -29,15 +29,11 @@ export default function Grounds() {
         setGrounds(list);
         setLoading(false);
       })
-      .catch((err) => {
-        console.error("Error fetching grounds:", err);
-        setLoading(false);
-      });
+      .catch(() => setLoading(false));
   }, []);
 
-  /* ───────────────── Filters ───────────────── */
+  /* Filters */
   const filteredGrounds = useMemo(() => {
-
     let results = [...grounds];
 
     if (search.trim()) {
@@ -62,10 +58,8 @@ export default function Grounds() {
     });
 
     return results;
-
   }, [grounds, search, maxPrice, facilities]);
 
-  /* ───────────────── Facility Filter ───────────────── */
   const handleFacilityChange = (e) => {
     setFacilities((prev) => ({
       ...prev,
@@ -73,49 +67,48 @@ export default function Grounds() {
     }));
   };
 
-  /* ───────────────── Loading Screen ───────────────── */
+  /* Loading */
   if (loading) {
     return (
-      <div className="pt-32 text-center text-3xl font-semibold text-gray-700">
+      <div className="pt-32 text-center text-2xl font-semibold text-gray-500">
         Loading futsal grounds...
       </div>
     );
   }
 
-  /* ───────────────── UI ───────────────── */
   return (
-    <div className="pt-24 bg-gray-100 min-h-screen px-12 lg:px-20">
+    <div className="pt-24 bg-gradient-to-b from-gray-100 to-gray-200 min-h-screen px-6 lg:px-16">
 
-      {/* SEARCH BAR */}
-      <div className="flex justify-center mb-16">
-        <div className="flex w-full max-w-5xl bg-white shadow-xl rounded-xl overflow-hidden">
+      {/* 🔍 SEARCH */}
+      <div className="flex justify-center mb-12">
+        <div className="flex w-full max-w-4xl bg-white rounded-full shadow-lg overflow-hidden border border-gray-200">
 
           <input
             type="text"
             placeholder="Search futsal by name or location..."
-            className="flex-1 p-5 text-lg outline-none"
+            className="flex-1 px-6 py-4 text-lg outline-none"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
 
-          <button className="bg-green-600 text-white px-10 text-lg font-semibold hover:bg-green-700 transition">
+          <button className="bg-green-600 text-white px-8 font-semibold hover:bg-green-700 transition">
             Search
           </button>
 
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-12">
+      <div className="grid grid-cols-12 gap-10">
 
-        {/* FILTER SIDEBAR */}
+        {/* 🧾 FILTER */}
         <div className="col-span-12 lg:col-span-3">
-          <div className="bg-white p-8 rounded-2xl shadow-lg sticky top-28">
+          <div className="bg-white p-6 rounded-2xl shadow-md sticky top-28 border">
 
-            <h2 className="text-3xl font-bold mb-10">Filters</h2>
+            <h2 className="text-2xl font-bold mb-6">Filters</h2>
 
-            {/* PRICE FILTER */}
-            <div className="mb-12">
-              <h3 className="text-lg font-semibold mb-3">Price Range</h3>
+            {/* Price */}
+            <div className="mb-8">
+              <h3 className="font-semibold mb-2">Price Range</h3>
 
               <input
                 type="range"
@@ -124,63 +117,59 @@ export default function Grounds() {
                 step="100"
                 value={maxPrice}
                 onChange={(e) => setMaxPrice(e.target.value)}
-                className="w-full"
+                className="w-full accent-blue-600"
               />
 
-              <div className="flex justify-between mt-3 text-gray-600">
+              <div className="flex justify-between text-sm mt-2 text-gray-500">
                 <span>Rs 500</span>
-                <span className="font-semibold">Rs {maxPrice}</span>
+                <span className="font-semibold text-black">Rs {maxPrice}</span>
               </div>
             </div>
 
-            {/* AMENITIES */}
+            {/* Amenities */}
             <div>
-              <h3 className="text-lg font-semibold mb-4">Amenities</h3>
-              <div className="space-y-3 text-gray-700">
+              <h3 className="font-semibold mb-3">Amenities</h3>
 
+              <div className="space-y-2">
                 {["parking", "shower", "wifi", "restaurant"].map((item) => (
-                  <label key={item} className="flex gap-2 capitalize cursor-pointer">
+                  <label key={item} className="flex items-center gap-2 text-gray-600 cursor-pointer">
                     <input
                       type="checkbox"
                       name={item}
                       onChange={handleFacilityChange}
+                      className="accent-blue-600"
                     />
                     {item}
                   </label>
                 ))}
-
               </div>
             </div>
 
           </div>
         </div>
 
-        {/* GROUNDS LIST */}
+        {/* 🏟️ GROUNDS */}
         <div className="col-span-12 lg:col-span-9">
 
-          <h1 className="text-4xl font-bold mb-10 flex items-center gap-2">
-            ⚽ {filteredGrounds.length} futsals found
+          <h1 className="text-3xl font-bold mb-8">
+            {filteredGrounds.length} futsals found
           </h1>
 
-          {/* Empty state */}
           {filteredGrounds.length === 0 && (
             <div className="text-center py-20 text-gray-500">
-              <p className="text-5xl mb-4">🏟️</p>
-              <p className="text-xl font-semibold">No grounds match your filters</p>
-              <p className="text-sm mt-2">Try adjusting the price range or amenities</p>
+              <p className="text-xl font-semibold">No results found</p>
             </div>
           )}
 
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-10">
+          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
 
             {filteredGrounds.map((ground) => (
-
               <div
                 key={ground.id}
-                className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition duration-300 hover:-translate-y-1"
+                className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition duration-300"
               >
 
-                {/* IMAGE */}
+                {/* Image */}
                 <div className="relative">
                   {ground.image ? (
                     <img
@@ -190,44 +179,44 @@ export default function Grounds() {
                           : `${BASE_URL}${ground.image}`
                       }
                       alt={ground.name}
-                      className="w-full h-64 object-cover"
+                      className="w-full h-56 object-cover"
                     />
                   ) : (
-                    <div className="w-full h-64 bg-gray-200 flex items-center justify-center text-5xl">
-                      ⚽
+                    <div className="w-full h-56 bg-gray-200 flex items-center justify-center">
+                      No Image
                     </div>
                   )}
 
-                  <span className="absolute top-4 right-4 bg-red-500 text-white px-4 py-1 rounded-full font-semibold">
+                  <span className="absolute top-3 right-3 bg-red-500 text-white px-3 py-1 text-sm rounded-full font-semibold">
                     Rs {ground.price_per_hour}/hr
                   </span>
                 </div>
 
-                {/* CARD BODY */}
-                <div className="p-6">
+                {/* Body */}
+                <div className="p-5">
 
-                  <h3 className="text-xl font-bold mb-2">{ground.name}</h3>
+                  <h3 className="text-lg font-bold mb-1">{ground.name}</h3>
 
-                  <p className="text-gray-500 mb-2">📍 {ground.location}</p>
+                  <p className="text-sm text-gray-500 mb-2">
+                    {ground.location}
+                  </p>
 
-                  <p className="text-gray-600 mb-6 line-clamp-3">
+                  <p className="text-gray-600 text-sm mb-4 line-clamp-2">
                     {ground.description}
                   </p>
 
-                  <div className="flex justify-between gap-3">
+                  <div className="flex justify-between gap-2">
 
-                    {/* ✅ FIXED: /book/:id  (was /booking/:id) */}
                     <button
                       onClick={() => navigate(`/book/${ground.id}`)}
-                      className="bg-red-500 text-white px-5 py-2 rounded-lg hover:bg-red-600 transition font-semibold"
+                      className="flex-1 bg-red-500 text-white py-2 rounded-lg hover:bg-red-600 transition text-sm font-semibold"
                     >
                       Book Now
                     </button>
 
-                    {/* ✅ FIXED: /grounds/:id  (was /ground/:id) */}
                     <button
                       onClick={() => navigate(`/grounds/${ground.id}`)}
-                      className="border border-gray-400 px-5 py-2 rounded-lg hover:bg-gray-100 transition"
+                      className="flex-1 border border-gray-300 py-2 rounded-lg hover:bg-gray-100 transition text-sm"
                     >
                       Details
                     </button>
@@ -237,7 +226,6 @@ export default function Grounds() {
                 </div>
 
               </div>
-
             ))}
 
           </div>
