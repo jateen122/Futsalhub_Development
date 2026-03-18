@@ -1,5 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+
+import login1 from "../assets/login1.jpg";
+import login2 from "../assets/login2.jpg";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -11,6 +14,16 @@ export default function Login() {
 
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const images = [login1, login2];
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrent((prev) => (prev + 1) % images.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleChange = (e) => {
     setFormData({
@@ -25,58 +38,41 @@ export default function Login() {
     setLoading(true);
 
     try {
-      /* ---------------- STEP 1: Get JWT Token ---------------- */
       const tokenResponse = await fetch(
         "http://127.0.0.1:8000/api/token/",
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(formData),
         }
       );
 
-      if (!tokenResponse.ok) {
-        throw new Error("Invalid credentials");
-      }
+      if (!tokenResponse.ok) throw new Error();
 
       const tokenData = await tokenResponse.json();
 
-      const access = tokenData.access;
-      const refresh = tokenData.refresh;
+      localStorage.setItem("access", tokenData.access);
+      localStorage.setItem("refresh", tokenData.refresh);
 
-      localStorage.setItem("access", access);
-      localStorage.setItem("refresh", refresh);
-
-      /* ---------------- STEP 2: Get User Profile ---------------- */
       const profileResponse = await fetch(
         "http://127.0.0.1:8000/api/accounts/profile/",
         {
-          headers: {
-            Authorization: `Bearer ${access}`,
-          },
+          headers: { Authorization: `Bearer ${tokenData.access}` },
         }
       );
 
       const profileData = await profileResponse.json();
-
       const role = profileData.role;
 
       localStorage.setItem("role", role);
 
-      /* ---------------- STEP 3: Redirect Based On Role ---------------- */
-      if (role === "owner") {
-        navigate("/owner-dashboard");
-      } else if (role === "player") {
-        navigate("/player-dashboard");
-      } else if (role === "admin") {
-        navigate("/admin-dashboard");
-      }
+      if (role === "owner") navigate("/owner-dashboard");
+      else if (role === "player") navigate("/player-dashboard");
+      else if (role === "admin") navigate("/admin-dashboard");
 
-      window.location.reload(); // refresh navbar
+      window.location.reload();
 
-    } catch (error) {
+    } catch {
       setMessage("Invalid email or password ❌");
     }
 
@@ -84,64 +80,90 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-gray-900 to-black pt-20">
-      <div className="bg-white shadow-2xl rounded-2xl p-10 w-96">
+    <div className="min-h-screen flex bg-black text-white pt-16">
 
-        <h2 className="text-3xl font-bold text-center mb-6">
-          Welcome Back 👋
-        </h2>
+      {/* LEFT IMAGE */}
+      <div className="hidden lg:flex w-1/2 h-[calc(100vh-64px)] relative overflow-hidden">
+        {images.map((img, index) => (
+          <img
+            key={index}
+            src={img}
+            alt="login"
+            className={`absolute w-full h-full object-cover transition-opacity duration-1000 ${
+              index === current ? "opacity-100" : "opacity-0"
+            }`}
+          />
+        ))}
+        <div className="absolute inset-0 bg-black/40" />
+      </div>
 
-        {message && (
-          <p className="text-center text-red-500 mb-4">
-            {message}
-          </p>
-        )}
+      {/* RIGHT SIDE (FULL SPACE USED) */}
+      <div className="w-full lg:w-1/2 h-[calc(100vh-64px)] flex items-center justify-center px-10 lg:px-20">
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        {/* FORM (WIDER + CLEAN) */}
+        <div className="w-full max-w-lg">
 
-          <div>
-            <label className="block mb-1 text-gray-700">Email</label>
-            <input
-              type="email"
-              name="email"
-              placeholder="Enter your email"
-              className="w-full border border-gray-300 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-              onChange={handleChange}
-              required
-            />
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-12 shadow-2xl">
+
+            <h2 className="text-4xl font-bold text-center mb-8">
+              Welcome Back
+            </h2>
+
+            {message && (
+              <p className="text-center text-red-400 mb-4">
+                {message}
+              </p>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+
+              <div>
+                <label className="block mb-2 text-gray-300">Email</label>
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="Enter your email"
+                  className="w-full bg-black/40 border border-white/10 p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block mb-2 text-gray-300">Password</label>
+                <input
+                  type="password"
+                  name="password"
+                  placeholder="Enter your password"
+                  className="w-full bg-black/40 border border-white/10 p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-amber-400 text-black font-semibold py-4 rounded-lg hover:bg-amber-300 transition text-lg"
+              >
+                {loading ? "Logging in..." : "Login"}
+              </button>
+
+            </form>
+
+            <p className="text-center mt-6 text-gray-400">
+              Don’t have an account?{" "}
+              <span
+                onClick={() => navigate("/register")}
+                className="text-amber-400 cursor-pointer hover:underline"
+              >
+                Register
+              </span>
+            </p>
+
           </div>
 
-          <div>
-            <label className="block mb-1 text-gray-700">Password</label>
-            <input
-              type="password"
-              name="password"
-              placeholder="Enter your password"
-              className="w-full border border-gray-300 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-black hover:bg-gray-800 text-white py-2 rounded-lg transition duration-300"
-          >
-            {loading ? "Logging in..." : "Login"}
-          </button>
-
-        </form>
-
-        <p className="text-center mt-6 text-sm">
-          Don’t have an account?{" "}
-          <span
-            onClick={() => navigate("/register")}
-            className="text-red-500 cursor-pointer"
-          >
-            Register
-          </span>
-        </p>
+        </div>
 
       </div>
     </div>
