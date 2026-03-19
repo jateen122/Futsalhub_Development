@@ -19,7 +19,8 @@ import PlayerNotifications  from "./pages/PlayerNotifications";
 
 // ── Owner pages ───────────────────────────────────────────────────────────────
 import OwnerDashboard       from "./pages/OwnerDashboard";
-import AddGround            from "./pages/AddGround";
+import AddGround            from "./pages/OwnerAddGround";
+import OwnerManageGround from "./pages/OwnerManageGround"
 import OwnerBookings        from "./pages/OwnerBookings";
 import OwnerNotifications   from "./pages/OwnerNotifications";
 
@@ -211,6 +212,14 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+  path="/manage-grounds"
+  element={
+    <ProtectedRoute allowedRole="owner">
+      <OwnerManageGround />
+    </ProtectedRoute>
+  }
+/>
 
 
           {/* ══════════════════ FALLBACK ══════════════════ */}
