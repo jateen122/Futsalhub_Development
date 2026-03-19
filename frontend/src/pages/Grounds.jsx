@@ -40,18 +40,18 @@ export default function Grounds() {
       results = results.filter(
         (g) =>
           g.name?.toLowerCase().includes(q) ||
-          g.location?.toLowerCase().includes(q)
+          g.location?.toLowerCase().includes(q),
       );
     }
 
     results = results.filter(
-      (g) => Number(g.price_per_hour) <= Number(maxPrice)
+      (g) => Number(g.price_per_hour) <= Number(maxPrice),
     );
 
     Object.keys(facilities).forEach((key) => {
       if (facilities[key]) {
         results = results.filter((g) =>
-          (g.facilities || "").toLowerCase().includes(key)
+          (g.facilities || "").toLowerCase().includes(key),
         );
       }
     });
@@ -76,11 +76,9 @@ export default function Grounds() {
 
   return (
     <div className="pt-24 bg-black text-white min-h-screen px-6 lg:px-16">
-
-      {/* 🔍 SEARCH */}
+      {/* SEARCH */}
       <div className="flex justify-center mb-12">
         <div className="flex w-full max-w-4xl bg-white/5 border border-white/10 rounded-full overflow-hidden backdrop-blur-lg">
-
           <input
             type="text"
             placeholder="Search futsal by name or location..."
@@ -92,16 +90,13 @@ export default function Grounds() {
           <button className="bg-amber-400 text-black px-8 font-semibold hover:bg-amber-300 transition">
             Search
           </button>
-
         </div>
       </div>
 
       <div className="grid grid-cols-12 gap-10">
-
-        {/* 🧾 FILTER */}
+        {/* FILTER */}
         <div className="col-span-12 lg:col-span-3">
           <div className="bg-white/5 border border-white/10 p-6 rounded-2xl backdrop-blur-xl sticky top-28">
-
             <h2 className="text-2xl font-semibold mb-8">Filters</h2>
 
             {/* Price */}
@@ -120,9 +115,7 @@ export default function Grounds() {
 
               <div className="flex justify-between text-sm mt-2 text-gray-400">
                 <span>Rs 500</span>
-                <span className="text-white font-semibold">
-                  Rs {maxPrice}
-                </span>
+                <span className="text-white font-semibold">Rs {maxPrice}</span>
               </div>
             </div>
 
@@ -132,7 +125,10 @@ export default function Grounds() {
 
               <div className="space-y-3">
                 {["parking", "shower", "wifi", "restaurant"].map((item) => (
-                  <label key={item} className="flex items-center gap-3 cursor-pointer text-gray-300 capitalize">
+                  <label
+                    key={item}
+                    className="flex items-center gap-3 cursor-pointer text-gray-300 capitalize"
+                  >
                     <input
                       type="checkbox"
                       name={item}
@@ -144,13 +140,11 @@ export default function Grounds() {
                 ))}
               </div>
             </div>
-
           </div>
         </div>
 
-        {/* 🏟️ GROUNDS */}
+        {/* GROUNDS */}
         <div className="col-span-12 lg:col-span-9">
-
           {/* Title */}
           <h1 className="text-3xl font-bold mb-8">
             {filteredGrounds.length} Grounds Found
@@ -165,13 +159,11 @@ export default function Grounds() {
 
           {/* Cards */}
           <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-8">
-
             {filteredGrounds.map((ground) => (
               <div
                 key={ground.id}
                 className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden backdrop-blur-xl hover:scale-105 hover:shadow-2xl transition duration-300"
               >
-
                 {/* Image */}
                 <div className="relative group">
                   {ground.image ? (
@@ -198,10 +190,7 @@ export default function Grounds() {
 
                 {/* Content */}
                 <div className="p-5">
-
-                  <h3 className="text-lg font-semibold mb-1">
-                    {ground.name}
-                  </h3>
+                  <h3 className="text-lg font-semibold mb-1">{ground.name}</h3>
 
                   <p className="text-sm text-gray-400 mb-2">
                     {ground.location}
@@ -212,7 +201,6 @@ export default function Grounds() {
                   </p>
 
                   <div className="flex gap-2">
-
                     <button
                       onClick={() => navigate(`/book/${ground.id}`)}
                       className="flex-1 bg-amber-400 text-black py-2 rounded-lg text-sm font-semibold hover:bg-amber-300"
@@ -226,18 +214,12 @@ export default function Grounds() {
                     >
                       Details
                     </button>
-
                   </div>
-
                 </div>
-
               </div>
             ))}
-
           </div>
-
         </div>
-
       </div>
     </div>
   );

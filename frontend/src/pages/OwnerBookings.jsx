@@ -4,10 +4,26 @@ import { useNavigate } from "react-router-dom";
 const BASE_URL = "http://127.0.0.1:8000";
 
 const STATUS_CONFIG = {
-  pending:   { color: "text-amber-400",  bg: "bg-amber-400/10",  border: "border-amber-400/30"  },
-  confirmed: { color: "text-emerald-400",bg: "bg-emerald-400/10",border: "border-emerald-400/30" },
-  cancelled: { color: "text-red-400",    bg: "bg-red-400/10",    border: "border-red-400/30"    },
-  refunded:  { color: "text-blue-400",   bg: "bg-blue-400/10",   border: "border-blue-400/30"   },
+  pending: {
+    color: "text-amber-400",
+    bg: "bg-amber-400/10",
+    border: "border-amber-400/30",
+  },
+  confirmed: {
+    color: "text-emerald-400",
+    bg: "bg-emerald-400/10",
+    border: "border-emerald-400/30",
+  },
+  cancelled: {
+    color: "text-red-400",
+    bg: "bg-red-400/10",
+    border: "border-red-400/30",
+  },
+  refunded: {
+    color: "text-blue-400",
+    bg: "bg-blue-400/10",
+    border: "border-blue-400/30",
+  },
 };
 
 const fmt12 = (t) => {
@@ -22,12 +38,20 @@ export default function OwnerBookings() {
   const token = localStorage.getItem("access");
 
   const [bookings, setBookings] = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [filter, setFilter]     = useState("all");
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("");
+  const [updating, setUpdating] = useState(null);
 
   useEffect(() => {
-    if (!token) { navigate("/login"); return; }
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+    fetchBookings();
+  }, [filter, dateFilter]);
+
+  const fetchBookings = () => {
     let url = `${BASE_URL}/api/bookings/owner/`;
     const params = new URLSearchParams();
     if (filter !== "all") params.set("status", filter);
@@ -36,15 +60,52 @@ export default function OwnerBookings() {
 
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
-      .then((d) => { setBookings(d.results || d || []); setLoading(false); })
+      .then((d) => {
+        setBookings(d.results || d || []);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
-  }, [filter, dateFilter]);
+  };
+
+  const updateBookingStatus = async (bookingId, newStatus) => {
+    setUpdating(bookingId);
+    try {
+      const response = await fetch(
+        `${BASE_URL}/api/bookings/${bookingId}/update/`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ status: newStatus }),
+        },
+      );
+
+      if (response.ok) {
+        setBookings((prev) =>
+          prev.map((b) =>
+            b.id === bookingId ? { ...b, status: newStatus } : b,
+          ),
+        );
+      } else {
+        const errorData = await response.json();
+        console.error("Update error:", errorData);
+        alert(errorData?.detail || "Failed to update booking");
+      }
+    } catch (error) {
+      console.error("Error updating booking:", error);
+      alert("Error updating booking: " + error.message);
+    } finally {
+      setUpdating(null);
+    }
+  };
 
   const stats = {
-    total:     bookings.length,
-    pending:   bookings.filter((b) => b.status === "pending").length,
+    total: bookings.length,
+    pending: bookings.filter((b) => b.status === "pending").length,
     confirmed: bookings.filter((b) => b.status === "confirmed").length,
-    revenue:   bookings
+    revenue: bookings
       .filter((b) => b.status === "confirmed")
       .reduce((s, b) => s + parseFloat(b.total_price), 0),
   };
@@ -52,27 +113,44 @@ export default function OwnerBookings() {
   return (
     <div className="min-h-screen bg-[#070b14] pt-24 px-4 pb-16">
       <div className="max-w-5xl mx-auto">
-
         {/* Header */}
         <div className="mb-10">
-          <button onClick={() => navigate("/owner-dashboard")} className="text-white/40 hover:text-white text-sm mb-4 flex items-center gap-1 transition">
+          <button
+            onClick={() => navigate("/owner-dashboard")}
+            className="text-white/40 hover:text-white text-sm mb-4 flex items-center gap-1 transition"
+          >
             ← Dashboard
           </button>
           <h1 className="text-4xl font-black text-white">Ground Bookings</h1>
-          <p className="text-white/40 mt-1">All bookings received for your grounds</p>
+          <p className="text-white/40 mt-1">
+            All bookings received for your grounds
+          </p>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-4 gap-3 mb-8">
           {[
-            { label: "Total",     value: stats.total,                    color: "text-white"        },
-            { label: "Pending",   value: stats.pending,                  color: "text-amber-400"    },
-            { label: "Confirmed", value: stats.confirmed,                color: "text-emerald-400"  },
-            { label: "Revenue",   value: `Rs ${stats.revenue.toFixed(0)}`, color: "text-amber-400"  },
+            { label: "Total", value: stats.total, color: "text-white" },
+            { label: "Pending", value: stats.pending, color: "text-amber-400" },
+            {
+              label: "Confirmed",
+              value: stats.confirmed,
+              color: "text-emerald-400",
+            },
+            {
+              label: "Revenue",
+              value: `Rs ${stats.revenue.toFixed(0)}`,
+              color: "text-amber-400",
+            },
           ].map((s) => (
-            <div key={s.label} className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
+            <div
+              key={s.label}
+              className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center"
+            >
               <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
-              <p className="text-white/40 text-xs mt-1 uppercase tracking-widest">{s.label}</p>
+              <p className="text-white/40 text-xs mt-1 uppercase tracking-widest">
+                {s.label}
+              </p>
             </div>
           ))}
         </div>
@@ -123,8 +201,12 @@ export default function OwnerBookings() {
           <div className="space-y-3">
             {bookings.map((b) => {
               const cfg = STATUS_CONFIG[b.status] || STATUS_CONFIG.pending;
+              const isPending = b.status === "pending";
               return (
-                <div key={b.id} className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:border-white/20 transition">
+                <div
+                  key={b.id}
+                  className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:border-white/20 transition"
+                >
                   <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center text-xl font-black text-amber-400">
@@ -132,7 +214,9 @@ export default function OwnerBookings() {
                       </div>
                       <div>
                         <p className="text-white font-bold">{b.ground_name}</p>
-                        <p className="text-white/50 text-sm">👤 {b.user_email}</p>
+                        <p className="text-white/50 text-sm">
+                          👤 {b.user_email}
+                        </p>
                       </div>
                     </div>
 
@@ -143,15 +227,45 @@ export default function OwnerBookings() {
                       </div>
                       <div>
                         <p className="text-white/40 text-xs">Time</p>
-                        <p className="text-white font-medium">{fmt12(b.start_time)} – {fmt12(b.end_time)}</p>
+                        <p className="text-white font-medium">
+                          {fmt12(b.start_time)} – {fmt12(b.end_time)}
+                        </p>
                       </div>
                       <div>
                         <p className="text-white/40 text-xs">Amount</p>
-                        <p className="text-amber-400 font-bold">Rs {b.total_price}</p>
+                        <p className="text-amber-400 font-bold">
+                          Rs {b.total_price}
+                        </p>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold border ${cfg.color} ${cfg.bg} ${cfg.border} capitalize`}>
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-bold border ${cfg.color} ${cfg.bg} ${cfg.border} capitalize`}
+                      >
                         {b.status}
                       </span>
+
+                      {/* Action Buttons */}
+                      {isPending && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() =>
+                              updateBookingStatus(b.id, "confirmed")
+                            }
+                            disabled={updating === b.id}
+                            className="px-4 py-2 bg-emerald-400/20 border border-emerald-400/50 text-emerald-400 rounded-lg text-xs font-semibold hover:bg-emerald-400/30 transition disabled:opacity-50"
+                          >
+                            {updating === b.id ? "..." : "✓ Accept"}
+                          </button>
+                          <button
+                            onClick={() =>
+                              updateBookingStatus(b.id, "cancelled")
+                            }
+                            disabled={updating === b.id}
+                            className="px-4 py-2 bg-red-400/20 border border-red-400/50 text-red-400 rounded-lg text-xs font-semibold hover:bg-red-400/30 transition disabled:opacity-50"
+                          >
+                            {updating === b.id ? "..." : "✕ Decline"}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -122,7 +122,7 @@ export default function AdminBookings() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-20">
-            <p className="text-5xl mb-4">📋</p>
+            <p className="text-5xl mb-4"></p>
             <p className="text-white/40 text-lg">No bookings found</p>
           </div>
         ) : (
