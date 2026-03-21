@@ -3,10 +3,15 @@ from django.conf import settings
 
 
 class Ground(models.Model):
-    """
-    Represents a futsal ground listed by an owner.
-    Grounds must be approved by an admin before appearing publicly.
-    """
+
+    class SurfaceSize(models.TextChoices):
+        SIZE_5 = "5", "5-a-side"
+        SIZE_6 = "6", "6-a-side"
+        SIZE_7 = "7", "7-a-side"
+
+    class GroundType(models.TextChoices):
+        INDOOR  = "indoor",  "Indoor"
+        OUTDOOR = "outdoor", "Outdoor"
 
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -23,19 +28,53 @@ class Ground(models.Model):
     facilities      = models.TextField(blank=True)
     image           = models.ImageField(upload_to="grounds/", blank=True, null=True)
     is_approved     = models.BooleanField(default=False)
+    ground_size     = models.CharField(
+        max_length=2,
+        choices=SurfaceSize.choices,
+        default=SurfaceSize.SIZE_5,
+    )
+    ground_type     = models.CharField(
+        max_length=10,
+        choices=GroundType.choices,
+        default=GroundType.OUTDOOR,
+    )
     created_at      = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering        = ["-created_at"]
-        verbose_name    = "Ground"
+        ordering            = ["-created_at"]
+        verbose_name        = "Ground"
         verbose_name_plural = "Grounds"
 
     def __str__(self):
-        return f"{self.name} — {self.location} (owner: {self.owner.email})"
+        return f"{self.name} — {self.location}"
 
-    @property
-    def is_open_now(self):
-        """Convenience helper — checks if the ground is open at this moment."""
-        from django.utils import timezone
-        now = timezone.localtime().time()
-        return self.opening_time <= now <= self.closing_time
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FAVORITE — lives inside grounds app, no separate app needed
+# ─────────────────────────────────────────────────────────────────────────────
+
+class Favorite(models.Model):
+    """
+    Stores a user's saved/favorite grounds.
+    unique_together ensures one record per user-ground pair.
+    """
+    user       = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="favorites",
+    )
+    ground     = models.ForeignKey(
+        Ground,
+        on_delete=models.CASCADE,
+        related_name="favorited_by",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together     = ("user", "ground")
+        ordering            = ["-created_at"]
+        verbose_name        = "Favorite"
+        verbose_name_plural = "Favorites"
+
+    def __str__(self):
+        return f"{self.user.email} ♥ {self.ground.name}"

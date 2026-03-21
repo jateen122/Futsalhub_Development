@@ -28,12 +28,28 @@ class User(AbstractBaseUser, PermissionsMixin):
         verbose_name="Full name",
     )
 
-
     phone = models.CharField(
         max_length=20,
         blank=True,
         default="0000000000",
         verbose_name="Phone number",
+    )
+
+    # ── Extended profile fields ───────────────────────────────────────────────
+    profile_image = models.ImageField(
+        upload_to="profiles/",
+        blank=True,
+        null=True,
+        verbose_name="Profile image",
+        help_text="User's profile/avatar image.",
+    )
+
+    city = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        verbose_name="City",
+        help_text="City where the user is based.",
     )
 
     # ── Role & verification ───────────────────────────────────────────────────

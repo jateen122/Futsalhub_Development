@@ -1,30 +1,38 @@
 from django.urls import path
 from .views import (
+    PublicGroundListView,
+    AdminGroundListView,
+    AdminGroundDetailView,
     CreateGroundView,
     UpdateGroundView,
     DeleteGroundView,
     ApproveGroundView,
-    PublicGroundListView,
     OwnerGroundListView,
-    AdminGroundListView,
-    AdminGroundDetailView,
+    ToggleFavoriteView,    # ← favorites (no separate app)
+    FavoriteListView,      # ← favorites (no separate app)
 )
 
 app_name = "grounds"
 
 urlpatterns = [
 
-    # PUBLIC
-    path("", PublicGroundListView.as_view(), name="ground-list"),
+    # ── Public ───────────────────────────────────────────────────
+    path("",                       PublicGroundListView.as_view(),  name="ground-list"),
 
-    # OWNER
-    path("create/", CreateGroundView.as_view(), name="ground-create"),
-    path("my/", OwnerGroundListView.as_view(), name="ground-my-list"),
-    path("<int:pk>/update/", UpdateGroundView.as_view(), name="ground-update"),
-    path("<int:pk>/delete/", DeleteGroundView.as_view(), name="ground-delete"),
+    # ── Admin ────────────────────────────────────────────────────
+    path("admin/all/",             AdminGroundListView.as_view(),   name="admin-ground-list"),
+    path("admin/<int:pk>/",        AdminGroundDetailView.as_view(), name="admin-ground-detail"),
 
-    # ADMIN
-    path("admin/all/", AdminGroundListView.as_view(), name="admin-ground-list"),
-    path("admin/<int:pk>/", AdminGroundDetailView.as_view(), name="admin-ground-detail"),
-    path("<int:pk>/approve/", ApproveGroundView.as_view(), name="ground-approve"),
+    # ── Owner ────────────────────────────────────────────────────
+    path("create/",                CreateGroundView.as_view(),      name="ground-create"),
+    path("my/",                    OwnerGroundListView.as_view(),   name="ground-my-list"),
+    path("<int:pk>/update/",       UpdateGroundView.as_view(),      name="ground-update"),
+    path("<int:pk>/delete/",       DeleteGroundView.as_view(),      name="ground-delete"),
+
+    # ── Admin approval ───────────────────────────────────────────
+    path("<int:pk>/approve/",      ApproveGroundView.as_view(),     name="ground-approve"),
+
+    # ── Favorites (inside grounds app, no separate app needed) ───
+    path("favorites/",             FavoriteListView.as_view(),      name="favorite-list"),
+    path("favorites/toggle/",      ToggleFavoriteView.as_view(),    name="favorite-toggle"),
 ]

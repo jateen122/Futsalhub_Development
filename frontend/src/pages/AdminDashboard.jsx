@@ -92,9 +92,9 @@ export default function AdminDashboard() {
       }).then(r => r.json()),
     ])
       .then(([g, u, b]) => {
-        setGrounds(g.results  || g || []);
-        setUsers(u.results    || u || []);
-        setBookings(b.results || b || []);
+        setGrounds(Array.isArray(g)  ? g  : (g.results  || []));
+        setUsers(  Array.isArray(u)  ? u  : (u.results  || []));
+        setBookings(Array.isArray(b) ? b  : (b.results  || []));
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -130,17 +130,21 @@ export default function AdminDashboard() {
     }
   };
 
-  /* ── stats ─── */
+  /* ── safe arrays (always arrays even if API returns unexpected shape) ── */
+  const safeGrounds  = Array.isArray(grounds)  ? grounds  : [];
+  const safeUsers    = Array.isArray(users)    ? users    : [];
+  const safeBookings = Array.isArray(bookings) ? bookings : [];
+
   const s = {
-    users:     users.length,
-    players:   users.filter(u => u.role === "player").length,
-    owners:    users.filter(u => u.role === "owner").length,
-    grounds:   grounds.length,
-    approved:  grounds.filter(g => g.is_approved).length,
-    pending:   grounds.filter(g => !g.is_approved).length,
-    bookings:  bookings.length,
-    confirmed: bookings.filter(b => b.status === "confirmed").length,
-    revenue:   bookings
+    users:     safeUsers.length,
+    players:   safeUsers.filter(u => u.role === "player").length,
+    owners:    safeUsers.filter(u => u.role === "owner").length,
+    grounds:   safeGrounds.length,
+    approved:  safeGrounds.filter(g => g.is_approved).length,
+    pending:   safeGrounds.filter(g => !g.is_approved).length,
+    bookings:  safeBookings.length,
+    confirmed: safeBookings.filter(b => b.status === "confirmed").length,
+    revenue:   safeBookings
       .filter(b => b.status === "confirmed")
       .reduce((sum, b) => sum + parseFloat(b.total_price || 0), 0),
   };
@@ -181,7 +185,7 @@ export default function AdminDashboard() {
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
 
-        {/* ── HEADER ──────────────────────────────────────── */}
+        {/* ── HEADER ─────────────────────────────────────────── */}
         <div className="flex items-start justify-between mb-10">
           <div>
             <div className="flex items-center gap-2 mb-2">
@@ -205,21 +209,20 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* ── KPI CARDS ───────────────────────────────────── */}
+        {/* ── KPI CARDS ──────────────────────────────────────── */}
         <div className="grid grid-cols-3 md:grid-cols-9 gap-3 mb-8">
           {[
-            { label: "Users",     value: s.users,     icon: "U", color: "text-white",       border: "border-white/10"        },
-            { label: "Players",   value: s.players,   icon: "P", color: "text-sky-400",     border: "border-sky-500/15"      },
-            { label: "Owners",    value: s.owners,    icon: "O", color: "text-amber-400",   border: "border-amber-500/15"    },
-            { label: "Grounds",   value: s.grounds,   icon: "G", color: "text-white",       border: "border-white/10"        },
-            { label: "Approved",  value: s.approved,  icon: "A", color: "text-emerald-400", border: "border-emerald-500/15"  },
-            { label: "Pending",   value: s.pending,   icon: "N", color: "text-amber-400",   border: "border-amber-500/15"    },
-            { label: "Bookings",  value: s.bookings,  icon: "B", color: "text-white",       border: "border-white/10"        },
-            { label: "Confirmed", value: s.confirmed, icon: "C", color: "text-emerald-400", border: "border-emerald-500/15"  },
-            { label: "Revenue",   value: Math.floor(s.revenue), icon: "R", color: "text-amber-400", border: "border-amber-500/15", prefix: "Rs " },
+            { label: "Users",     value: s.users,                color: "text-white",       border: "border-white/10"       },
+            { label: "Players",   value: s.players,              color: "text-sky-400",     border: "border-sky-500/15"     },
+            { label: "Owners",    value: s.owners,               color: "text-amber-400",   border: "border-amber-500/15"   },
+            { label: "Grounds",   value: s.grounds,              color: "text-white",       border: "border-white/10"       },
+            { label: "Approved",  value: s.approved,             color: "text-emerald-400", border: "border-emerald-500/15" },
+            { label: "Pending",   value: s.pending,              color: "text-amber-400",   border: "border-amber-500/15"   },
+            { label: "Bookings",  value: s.bookings,             color: "text-white",       border: "border-white/10"       },
+            { label: "Confirmed", value: s.confirmed,            color: "text-emerald-400", border: "border-emerald-500/15" },
+            { label: "Revenue",   value: Math.floor(s.revenue),  color: "text-amber-400",   border: "border-amber-500/15", prefix: "Rs " },
           ].map((k) => (
             <div key={k.label} className={`col-span-1 bg-white/3 border ${k.border} rounded-2xl p-4 text-center`}>
-              <div className="text-xl mb-1.5 font-bold">{k.icon}</div>
               <p className={`text-2xl font-black ${k.color}`}>
                 <Counter value={k.value} prefix={k.prefix || ""} />
               </p>
@@ -228,42 +231,33 @@ export default function AdminDashboard() {
           ))}
         </div>
 
-        {/* ── QUICK NAV ───────────────────────────────────── */}
+        {/* ── QUICK NAV ──────────────────────────────────────── */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
           {[
-            {
-              label: "Ground Approvals", icon: "GA",
-              path:  "/admin/grounds",
-              desc:  `${s.pending} pending`,
-              color: "amber",
-              urgent: s.pending > 0,
-            },
-            { label: "All Users",     icon: "AU", path: "/admin/users",         desc: `${s.users} registered`, color: "sky"    },
-            { label: "All Bookings",  icon: "AB", path: "/admin/bookings",      desc: `${s.bookings} total`,   color: "blue"   },
-            { label: "Notifications", icon: "NT", path: "/admin/notifications", desc: "View alerts",            color: "violet" },
-            { label: "Sign Out",      icon: "SO", action: handleLogout,         desc: "End session",            color: "red"    },
+            { label: "Ground Approvals", path: "/admin/grounds",       desc: `${s.pending} pending`,   color: "amber", urgent: s.pending > 0 },
+            { label: "All Users",        path: "/admin/users",         desc: `${s.users} registered`,  color: "sky"   },
+            { label: "All Bookings",     path: "/admin/bookings",      desc: `${s.bookings} total`,    color: "blue"  },
+            { label: "Notifications",    path: "/admin/notifications", desc: "View alerts",             color: "violet"},
+            { label: "Sign Out",         action: handleLogout,         desc: "End session",             color: "red"   },
           ].map((a) => (
             <button key={a.label}
               onClick={() => a.path ? navigate(a.path) : a.action?.()}
-              className={`relative p-4 rounded-2xl border text-left transition-all duration-200
-                bg-white/3 border-white/8 hover:bg-white/6 hover:border-white/15`}>
+              className="relative p-4 rounded-2xl border text-left transition-all duration-200 bg-white/3 border-white/8 hover:bg-white/6 hover:border-white/15">
               {a.urgent && (
                 <span className="absolute top-2.5 right-2.5 flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping absolute" />
                   <span className="w-2 h-2 rounded-full bg-amber-400 relative" />
                 </span>
               )}
-              <div className="text-2xl mb-2 font-bold">{a.icon}</div>
               <p className="text-white font-bold text-sm">{a.label}</p>
               <p className="text-white/30 text-xs mt-0.5">{a.desc}</p>
             </button>
           ))}
         </div>
 
-        {/* ── PENDING ALERT ───────────────────────────────── */}
+        {/* ── PENDING ALERT ──────────────────────────────────── */}
         {s.pending > 0 && (
           <div className="bg-amber-400/8 border border-amber-400/20 rounded-2xl p-4 mb-6 flex items-center gap-4">
-            <span className="text-2xl flex-shrink-0 font-bold">--</span>
             <div className="flex-1">
               <p className="text-amber-300 font-bold">
                 {s.pending} ground{s.pending > 1 ? "s" : ""} awaiting your approval
@@ -277,22 +271,22 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* ── TAB PANEL ───────────────────────────────────── */}
+        {/* ── TAB PANEL ──────────────────────────────────────── */}
         <div className="bg-white/3 border border-white/8 rounded-3xl overflow-hidden mb-6">
 
           {/* tab bar */}
           <div className="flex border-b border-white/8">
             {[
-              { id: "grounds",  icon: "G", label: "Grounds",  count: s.grounds  },
-              { id: "bookings", icon: "B", label: "Bookings", count: s.bookings },
-              { id: "users",    icon: "U", label: "Users",    count: s.users    },
+              { id: "grounds",  label: "Grounds",  count: s.grounds  },
+              { id: "bookings", label: "Bookings", count: s.bookings },
+              { id: "users",    label: "Users",    count: s.users    },
             ].map((t) => (
               <button key={t.id} onClick={() => setTab(t.id)}
                 className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-semibold transition-all
                   ${tab === t.id
                     ? "text-white border-b-2 border-violet-400 bg-violet-400/5"
                     : "text-white/30 hover:text-white/60 border-b-2 border-transparent"}`}>
-                {t.icon} {t.label}
+                {t.label}
                 <span className={`px-2 py-0.5 rounded-full text-xs font-black
                   ${tab === t.id ? "bg-violet-400 text-black" : "bg-white/8 text-white/35"}`}>
                   {t.count}
@@ -301,14 +295,14 @@ export default function AdminDashboard() {
             ))}
           </div>
 
-          {/* ── GROUNDS TAB ── */}
+          {/* ── GROUNDS TAB ─────────────────────────────────── */}
           {tab === "grounds" && (
             <div>
-              {grounds.length === 0 ? (
-                <Empty icon="G" msg="No grounds found. Make sure owners have listed grounds." />
+              {safeGrounds.length === 0 ? (
+                <Empty icon="🏟️" msg="No grounds found." />
               ) : (
                 <div className="divide-y divide-white/5">
-                  {grounds.map((g) => {
+                  {safeGrounds.map((g) => {
                     const imgSrc = g.image
                       ? g.image.startsWith("http") ? g.image : `${BASE_URL}${g.image}`
                       : null;
@@ -318,11 +312,11 @@ export default function AdminDashboard() {
                         <div className="w-14 h-14 rounded-xl overflow-hidden bg-white/8 flex-shrink-0 border border-white/8">
                           {imgSrc
                             ? <img src={imgSrc} alt={g.name} className="w-full h-full object-cover" />
-                            : <div className="w-full h-full flex items-center justify-center text-2xl font-bold">G</div>}
+                            : <div className="w-full h-full flex items-center justify-center text-white/20 text-xl">🏟️</div>}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-white font-bold truncate">{g.name}</p>
-                          <p className="text-white/35 text-xs mt-0.5">Location: {g.location} · Rs {g.price_per_hour}/hr</p>
+                          <p className="text-white/35 text-xs mt-0.5">📍 {g.location} · Rs {g.price_per_hour}/hr</p>
                           <p className="text-white/20 text-xs font-mono mt-0.5">Owner: {g.owner}</p>
                         </div>
                         <span className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-bold border
@@ -362,7 +356,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* ── BOOKINGS TAB ── */}
+          {/* ── BOOKINGS TAB ────────────────────────────────── */}
           {tab === "bookings" && (
             <div>
               <div className="hidden md:grid grid-cols-12 px-6 py-3 border-b border-white/8 text-xs uppercase tracking-widest text-white/20">
@@ -373,16 +367,16 @@ export default function AdminDashboard() {
                 <div className="col-span-1">Rs</div>
                 <div className="col-span-1">Status</div>
               </div>
-              {bookings.length === 0
-                ? <Empty icon="B" msg="No bookings yet" />
+              {safeBookings.length === 0
+                ? <Empty icon="📋" msg="No bookings yet" />
                 : (
                   <div className="divide-y divide-white/5">
-                    {bookings.slice(0, 8).map((b) => {
-                      const s2 = STATUS_STYLE[b.status] || STATUS_STYLE.pending;
+                    {safeBookings.slice(0, 8).map((b) => {
+                      const st = STATUS_STYLE[b.status] || STATUS_STYLE.pending;
                       return (
                         <div key={b.id} className="grid md:grid-cols-12 grid-cols-1 gap-1 md:gap-0 px-6 py-4 hover:bg-white/3 transition items-center">
                           <div className="md:col-span-3 flex items-center gap-2">
-                            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s2.dot}`} />
+                            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${st.dot}`} />
                             <span className="text-white font-medium text-sm truncate">{b.ground_name}</span>
                           </div>
                           <div className="md:col-span-3 text-white/40 text-sm truncate">{b.user_email}</div>
@@ -390,7 +384,7 @@ export default function AdminDashboard() {
                           <div className="md:col-span-2 text-white/60 text-sm">{fmt12(b.start_time)} – {fmt12(b.end_time)}</div>
                           <div className="md:col-span-1 text-amber-400 font-bold text-sm">{b.total_price}</div>
                           <div className="md:col-span-1">
-                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${s2.badge} ${s2.text} capitalize`}>
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${st.badge} ${st.text} capitalize`}>
                               {b.status}
                             </span>
                           </div>
@@ -399,18 +393,18 @@ export default function AdminDashboard() {
                     })}
                   </div>
                 )}
-              {bookings.length > 8 && (
+              {safeBookings.length > 8 && (
                 <div className="px-6 py-4 border-t border-white/8">
                   <button onClick={() => navigate("/admin/bookings")}
                     className="text-violet-400 text-sm hover:text-violet-300 transition">
-                    View all {bookings.length} bookings →
+                    View all {safeBookings.length} bookings →
                   </button>
                 </div>
               )}
             </div>
           )}
 
-          {/* ── USERS TAB ── */}
+          {/* ── USERS TAB ───────────────────────────────────── */}
           {tab === "users" && (
             <div>
               <div className="hidden md:grid grid-cols-12 px-6 py-3 border-b border-white/8 text-xs uppercase tracking-widest text-white/20">
@@ -420,11 +414,11 @@ export default function AdminDashboard() {
                 <div className="col-span-2">Role</div>
                 <div className="col-span-1">Status</div>
               </div>
-              {users.length === 0
-                ? <Empty icon="U" msg="No users yet" />
+              {safeUsers.length === 0
+                ? <Empty icon="👥" msg="No users yet" />
                 : (
                   <div className="divide-y divide-white/5">
-                    {users.slice(0, 8).map((u, i) => (
+                    {safeUsers.slice(0, 8).map((u, i) => (
                       <div key={u.id} className="grid md:grid-cols-12 grid-cols-1 gap-1 md:gap-0 px-6 py-4 hover:bg-white/3 transition items-center">
                         <div className="md:col-span-1 text-white/20 text-sm font-mono">{i + 1}</div>
                         <div className="md:col-span-4">
@@ -434,23 +428,23 @@ export default function AdminDashboard() {
                         <div className="md:col-span-4 text-white/40 text-sm truncate">{u.email}</div>
                         <div className="md:col-span-2">
                           <span className={`text-xs font-bold px-2.5 py-1 rounded-full border capitalize ${ROLE_STYLE[u.role] || ROLE_STYLE.player}`}>
-                            {u.role === "player" ? "P" : u.role === "owner" ? "O" : "A"} {u.role}
+                            {u.role}
                           </span>
                         </div>
                         <div className="md:col-span-1">
                           {u.is_verified
-                            ? <span className="text-emerald-400 text-xs font-black">V</span>
-                            : <span className="text-amber-400/50 text-xs">--</span>}
+                            ? <span className="text-emerald-400 text-xs font-black">✓</span>
+                            : <span className="text-amber-400/50 text-xs">–</span>}
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
-              {users.length > 8 && (
+              {safeUsers.length > 8 && (
                 <div className="px-6 py-4 border-t border-white/8">
                   <button onClick={() => navigate("/admin/users")}
                     className="text-violet-400 text-sm hover:text-violet-300 transition">
-                    View all {users.length} users →
+                    View all {safeUsers.length} users →
                   </button>
                 </div>
               )}
@@ -458,16 +452,22 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        {/* ── BOTTOM ROW ──────────────────────────────────── */}
+        {/* ── BOTTOM ROW ─────────────────────────────────────── */}
         <div className="grid md:grid-cols-3 gap-4">
           <div className="md:col-span-2 bg-white/3 border border-white/8 rounded-2xl p-6">
             <p className="text-white/25 text-xs uppercase tracking-[0.2em] mb-5">Platform Health</p>
             <div className="space-y-5">
               {[
-                { label: "Ground Approval Rate",      value: s.grounds > 0  ? Math.round((s.approved / s.grounds) * 100) : 0,  color: "bg-emerald-400" },
-                { label: "Booking Confirmation Rate",  value: s.bookings > 0 ? Math.round((s.confirmed / s.bookings) * 100) : 0, color: "bg-violet-400"  },
-                { label: "Owner Verification Rate",    value: s.owners > 0
-                    ? Math.round((users.filter(u => u.role === "owner" && u.is_verified).length / s.owners) * 100) : 0,
+                { label: "Ground Approval Rate",
+                  value: s.grounds  > 0 ? Math.round((s.approved  / s.grounds)  * 100) : 0,
+                  color: "bg-emerald-400" },
+                { label: "Booking Confirmation Rate",
+                  value: s.bookings > 0 ? Math.round((s.confirmed / s.bookings) * 100) : 0,
+                  color: "bg-violet-400"  },
+                { label: "Owner Verification Rate",
+                  value: s.owners   > 0
+                    ? Math.round((safeUsers.filter(u => u.role === "owner" && u.is_verified).length / s.owners) * 100)
+                    : 0,
                   color: "bg-amber-400" },
               ].map((bar) => (
                 <div key={bar.label}>
@@ -487,7 +487,7 @@ export default function AdminDashboard() {
           <div className="bg-white/3 border border-white/8 rounded-2xl p-6 flex flex-col">
             <p className="text-white/25 text-xs uppercase tracking-[0.2em] mb-4">Admin Session</p>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-400 to-indigo-600 flex items-center justify-center text-xl text-white font-bold">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-400 to-indigo-600 flex items-center justify-center text-white font-black text-lg">
                 A
               </div>
               <div>
@@ -496,8 +496,8 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div className="space-y-2 flex-1">
-              <Row k="Role"    v="Admin"      vc="text-violet-400" />
-              <Row k="Access"  v="Full"       vc="text-emerald-400" />
+              <Row k="Role"    v="Admin"     vc="text-violet-400"  />
+              <Row k="Access"  v="Full"      vc="text-emerald-400" />
               <Row k="Grounds" v={s.grounds} />
               <Row k="Users"   v={s.users}   />
             </div>
