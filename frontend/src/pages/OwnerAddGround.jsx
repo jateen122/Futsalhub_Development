@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import LocationPicker from "../components/LocationPicker";
 
 const BASE_URL = "http://127.0.0.1:8000";
 
@@ -51,6 +52,8 @@ const INIT = {
   price_per_hour: "",
   ground_size: "",
   ground_type: "",
+  lat: null,
+  lng: null,
   newImages: [],
 };
 
@@ -140,7 +143,7 @@ export default function OwnerAddGround() {
   const [newPreviews,   setNewPreviews]   = useState([]);
   const [submitting,    setSubmitting]    = useState(false);
   const [success,       setSuccess]       = useState("");
-  const [apiError,      setApiError]      = useState(""); // ← dedicated API error state
+  const [apiError,      setApiError]      = useState("");
   const [myGround,      setMyGround]      = useState(null);
   const [editMode,      setEditMode]      = useState(false);
   const [loadingGround, setLoadingGround] = useState(true);
@@ -168,6 +171,8 @@ export default function OwnerAddGround() {
       price_per_hour: myGround.price_per_hour || "",
       ground_size:    myGround.ground_size    || "",
       ground_type:    myGround.ground_type    || "",
+      lat:            myGround.latitude  != null ? parseFloat(myGround.latitude)  : null,
+      lng:            myGround.longitude != null ? parseFloat(myGround.longitude) : null,
       newImages:      [],
     });
     setNewPreviews([]); setErrors({}); setSuccess(""); setApiError(""); setEditMode(true);
@@ -214,16 +219,11 @@ export default function OwnerAddGround() {
     fd.append("opening_time",   toBackendTime(form.opening_time));
     fd.append("closing_time",   toBackendTime(form.closing_time));
     fd.append("price_per_hour", String(form.price_per_hour));
-    fd.append("ground_size",    form.ground_size);   // "5" | "6" | "7"
-    fd.append("ground_type",    form.ground_type);   // "indoor" | "outdoor"
+    fd.append("ground_size",    form.ground_size);
+    fd.append("ground_type",    form.ground_type);
+    if (form.lat  != null) fd.append("latitude",  String(form.lat));
+    if (form.lng  != null) fd.append("longitude", String(form.lng));
     if (form.newImages[0]) fd.append("image", form.newImages[0]);
-
-    // Debug: log what is being sent
-    console.log("=== FormData being sent ===");
-    for (const [key, val] of fd.entries()) {
-      console.log(`  ${key}: ${val instanceof File ? val.name : val}`);
-    }
-
     return fd;
   };
 
@@ -231,83 +231,49 @@ export default function OwnerAddGround() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setApiError("");
-
-    // Run validation
     const errs = validate(form, false);
-    if (Object.keys(errs).length) {
-      setErrors(errs);
-      // Scroll to first error
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
-    }
-
+    if (Object.keys(errs).length) { setErrors(errs); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
     setSubmitting(true); setSuccess("");
-
     try {
       const res  = await fetch(`${BASE_URL}/api/grounds/create/`, {
-        method:  "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body:    buildFD(),
+        method: "POST", headers: { Authorization: `Bearer ${token}` }, body: buildFD(),
       });
-
       const data = await res.json();
-      console.log("API response status:", res.status);
-      console.log("API response data:", JSON.stringify(data, null, 2));
-
       if (res.ok) {
         setSuccess("Ground listed successfully! Awaiting admin approval.");
         setMyGround(data.ground || data);
-        setForm(INIT);
-        setNewPreviews([]);
-        setErrors({});
+        setForm(INIT); setNewPreviews([]); setErrors({});
       } else {
-        // Map backend field errors to form errors
         const mapped = {};
         let generalError = "";
-
         Object.entries(data).forEach(([k, v]) => {
           const msg = Array.isArray(v) ? v[0] : (typeof v === "string" ? v : JSON.stringify(v));
-          if (k === "non_field_errors" || k === "detail" || k === "message") {
-            generalError = msg;
-          } else {
-            mapped[k] = msg;
-          }
+          if (k === "non_field_errors" || k === "detail" || k === "message") generalError = msg;
+          else mapped[k] = msg;
         });
-
         setErrors(mapped);
-        setApiError(generalError || `Server error (${res.status}). Check console for details.`);
+        setApiError(generalError || `Server error (${res.status}).`);
       }
-    } catch (err) {
-      console.error("Network error:", err);
-      setApiError("Network error — make sure the Django server is running on port 8000.");
-    } finally {
-      setSubmitting(false);
-    }
+    } catch { setApiError("Network error — make sure the Django server is running on port 8000."); }
+    finally { setSubmitting(false); }
   };
 
   /* ── update ─────────────────────────────────────────────────── */
   const handleUpdate = async (e) => {
     e.preventDefault();
     setApiError("");
-
     const errs = validate(form, true);
     if (Object.keys(errs).length) { setErrors(errs); return; }
-
     setSubmitting(true);
     try {
       const res  = await fetch(`${BASE_URL}/api/grounds/${myGround.id}/update/`, {
-        method:  "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
-        body:    buildFD(),
+        method: "PATCH", headers: { Authorization: `Bearer ${token}` }, body: buildFD(),
       });
       const data = await res.json();
-      console.log("Update response:", res.status, data);
-
       if (res.ok) {
         setSuccess("Ground updated successfully!");
         setMyGround(data.ground || data);
-        setEditMode(false);
-        setNewPreviews([]);
+        setEditMode(false); setNewPreviews([]);
       } else {
         const mapped = {};
         let generalError = "";
@@ -319,12 +285,8 @@ export default function OwnerAddGround() {
         setErrors(mapped);
         setApiError(generalError || `Update failed (${res.status}).`);
       }
-    } catch (err) {
-      console.error("Network error:", err);
-      setApiError("Network error. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
+    } catch { setApiError("Network error. Please try again."); }
+    finally { setSubmitting(false); }
   };
 
   /* ── loading ─────────────────────────────────────────────────── */
@@ -341,6 +303,8 @@ export default function OwnerAddGround() {
     const imgSrc = myGround.image
       ? myGround.image.startsWith("http") ? myGround.image : `${BASE_URL}${myGround.image}`
       : null;
+    const hasLocation = myGround.latitude != null && myGround.longitude != null;
+
     return (
       <div className="min-h-screen bg-gray-50 pt-20">
         <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-3">
@@ -356,13 +320,28 @@ export default function OwnerAddGround() {
             </div>
           )}
           <div className="grid grid-cols-12 gap-6">
-            <div className="col-span-12 lg:col-span-5">
+            <div className="col-span-12 lg:col-span-5 space-y-4">
               <div className="rounded-xl overflow-hidden border border-gray-200 bg-white shadow-sm">
                 {imgSrc
                   ? <img src={imgSrc} alt={myGround.name} className="w-full h-72 object-cover" />
                   : <div className="w-full h-72 bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center text-7xl">⚽</div>}
               </div>
+
+              {/* Map in view mode */}
+              {hasLocation && (
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
+                    📌 Pinned Location
+                  </p>
+                  <GroundMapMini
+                    lat={myGround.latitude}
+                    lng={myGround.longitude}
+                    name={myGround.name}
+                  />
+                </div>
+              )}
             </div>
+
             <div className="col-span-12 lg:col-span-7">
               <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-7">
                 <div className="flex items-start justify-between gap-4 mb-5">
@@ -378,6 +357,11 @@ export default function OwnerAddGround() {
                       {myGround.ground_type && (
                         <span className="px-2.5 py-1 bg-purple-50 border border-purple-200 text-purple-700 text-xs font-bold rounded capitalize">
                           {myGround.ground_type === "indoor" ? "🏠" : "☀️"} {myGround.ground_type}
+                        </span>
+                      )}
+                      {hasLocation && (
+                        <span className="px-2.5 py-1 bg-green-50 border border-green-200 text-green-700 text-xs font-bold rounded">
+                          📌 Mapped
                         </span>
                       )}
                     </div>
@@ -435,9 +419,9 @@ export default function OwnerAddGround() {
   const done3 = !!form.price_per_hour;
   const done4 = !!(form.ground_size && form.ground_type);
   const done5 = newPreviews.length > 0 || (isEdit && !!existingImgSrc);
-  const progressPct = [done1, done2, done3, done4, done5].filter(Boolean).length * 20;
+  const done6 = form.lat != null && form.lng != null;
+  const progressPct = [done1, done2, done3, done4, done5, done6].filter(Boolean).length * Math.floor(100/6);
 
-  // Count validation errors for display
   const errorCount = Object.keys(errors).filter(k => errors[k]).length;
 
   return (
@@ -467,13 +451,14 @@ export default function OwnerAddGround() {
           <div className="col-span-12 lg:col-span-3">
             <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 sticky top-24">
               <h2 className="text-base font-black text-gray-900 mb-1">{isEdit ? "Edit Ground" : "List Your Ground"}</h2>
-              <p className="text-gray-400 text-xs mb-4">Complete all 5 sections</p>
+              <p className="text-gray-400 text-xs mb-4">Complete all sections</p>
               <div className="divide-y divide-gray-100">
                 <SidebarStep step="1" title="Basic Info"     subtitle="Name, location, facilities" done={done1} />
                 <SidebarStep step="2" title="Hours"          subtitle="Opening & closing time"     done={done2} />
                 <SidebarStep step="3" title="Price"          subtitle="Hourly rate"                done={done3} />
                 <SidebarStep step="4" title="Specifications" subtitle="Size & type"               done={done4} />
                 <SidebarStep step="5" title="Photos"         subtitle="Ground images"             done={done5} />
+                <SidebarStep step="6" title="Map Location"   subtitle="Pin on map (optional)"     done={done6} />
               </div>
               <div className="mt-4 pt-4 border-t border-gray-100">
                 <div className="flex justify-between text-xs font-semibold text-gray-500 mb-1.5">
@@ -484,7 +469,6 @@ export default function OwnerAddGround() {
                   <div className="bg-green-500 h-2 rounded-full transition-all duration-500" style={{ width: `${progressPct}%` }} />
                 </div>
               </div>
-              {/* validation errors summary */}
               {errorCount > 0 && (
                 <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3">
                   <p className="text-red-600 text-xs font-bold mb-1">⚠ {errorCount} field{errorCount > 1 ? "s" : ""} need attention:</p>
@@ -505,14 +489,12 @@ export default function OwnerAddGround() {
           {/* ── FORM ─────────────────────────────────────────── */}
           <div className="col-span-12 lg:col-span-9">
 
-            {/* API error banner */}
             {apiError && (
               <div className="bg-red-50 border border-red-300 text-red-700 rounded-lg p-4 mb-5 text-sm flex items-start gap-2">
                 <span className="text-lg flex-shrink-0">⚠</span>
                 <div>
                   <p className="font-bold">Submission Failed</p>
                   <p className="mt-0.5">{apiError}</p>
-                  <p className="text-red-500 text-xs mt-1">Check browser console (F12) for more details.</p>
                 </div>
                 <button onClick={() => setApiError("")} className="ml-auto text-red-400 hover:text-red-600 flex-shrink-0">✕</button>
               </div>
@@ -526,241 +508,196 @@ export default function OwnerAddGround() {
             <form onSubmit={isEdit ? handleUpdate : handleSubmit} noValidate className="space-y-5">
 
               {/* ── 1: Basic Info ──────────────────────────── */}
-              <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                  <div className={`w-7 h-7 rounded-full text-white text-xs font-black flex items-center justify-center ${done1 ? "bg-green-500" : "bg-gray-300"}`}>
-                    {done1 ? "✓" : "1"}
+              <Section num={1} title="Basic Information" subtitle="Name, location and description" done={done1}>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <FieldLabel label="Ground Name" required />
+                    <input name="name" value={form.name} onChange={handleChange}
+                      placeholder="e.g. Kathmandu Futsal Arena" className={iCls(errors.name)} />
+                    {errors.name && <Err>{errors.name}</Err>}
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-gray-800">Basic Information</h3>
-                    <p className="text-xs text-gray-400">Name, location and description</p>
+                    <FieldLabel label="Location" required />
+                    <input name="location" value={form.location} onChange={handleChange}
+                      placeholder="e.g. Thamel, Kathmandu" className={iCls(errors.location)} />
+                    {errors.location && <Err>{errors.location}</Err>}
                   </div>
                 </div>
-                <div className="p-6 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <FieldLabel label="Ground Name" required />
-                      <input name="name" value={form.name} onChange={handleChange}
-                        placeholder={isEdit ? myGround?.name : "e.g. Kathmandu Futsal Arena"}
-                        className={iCls(errors.name)} />
-                      {errors.name && <p className="text-red-500 text-xs mt-1">⚠ {errors.name}</p>}
-                    </div>
-                    <div>
-                      <FieldLabel label="Location" required />
-                      <input name="location" value={form.location} onChange={handleChange}
-                        placeholder={isEdit ? myGround?.location : "e.g. Thamel, Kathmandu"}
-                        className={iCls(errors.location)} />
-                      {errors.location && <p className="text-red-500 text-xs mt-1">⚠ {errors.location}</p>}
-                    </div>
-                  </div>
-                  <div>
-                    <FieldLabel label="Description" required />
-                    <textarea name="description" value={form.description} onChange={handleChange}
-                      rows={3}
-                      placeholder={isEdit ? myGround?.description : "Surface type, size, nearby landmarks..."}
-                      className={`${iCls(errors.description)} resize-none`} />
-                    {errors.description && <p className="text-red-500 text-xs mt-1">⚠ {errors.description}</p>}
-                  </div>
-                  <div>
-                    <FieldLabel label="Facilities" required hint="Separate with commas" />
-                    <input name="facilities" value={form.facilities} onChange={handleChange}
-                      placeholder={isEdit ? myGround?.facilities : "Parking, Shower, WiFi, Changing Room"}
-                      className={iCls(errors.facilities)} />
-                    {errors.facilities && <p className="text-red-500 text-xs mt-1">⚠ {errors.facilities}</p>}
-                  </div>
+                <div>
+                  <FieldLabel label="Description" required />
+                  <textarea name="description" value={form.description} onChange={handleChange}
+                    rows={3} placeholder="Surface type, size, nearby landmarks..."
+                    className={`${iCls(errors.description)} resize-none`} />
+                  {errors.description && <Err>{errors.description}</Err>}
                 </div>
-              </div>
+                <div>
+                  <FieldLabel label="Facilities" required hint="Separate with commas" />
+                  <input name="facilities" value={form.facilities} onChange={handleChange}
+                    placeholder="Parking, Shower, WiFi, Changing Room" className={iCls(errors.facilities)} />
+                  {errors.facilities && <Err>{errors.facilities}</Err>}
+                </div>
+              </Section>
 
               {/* ── 2: Hours ───────────────────────────────── */}
-              <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                  <div className={`w-7 h-7 rounded-full text-white text-xs font-black flex items-center justify-center ${done2 ? "bg-green-500" : "bg-gray-300"}`}>
-                    {done2 ? "✓" : "2"}
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-black text-gray-800">Operating Hours</h3>
-                    <p className="text-xs text-gray-400">Opening and closing times</p>
-                  </div>
+              <Section num={2} title="Operating Hours" subtitle="Opening and closing times" done={done2}>
+                <div className="grid grid-cols-2 gap-5">
+                  <TimePicker label="Opening Time" value={form.opening_time}
+                    onChange={v => setTime("opening_time", v)} error={errors.opening_time} />
+                  <TimePicker label="Closing Time" value={form.closing_time}
+                    onChange={v => setTime("closing_time", v)} error={errors.closing_time} />
                 </div>
-                <div className="p-6">
-                  <div className="grid grid-cols-2 gap-5">
-                    <TimePicker label="Opening Time" value={form.opening_time}
-                      onChange={v => setTime("opening_time", v)} error={errors.opening_time} />
-                    <TimePicker label="Closing Time" value={form.closing_time}
-                      onChange={v => setTime("closing_time", v)} error={errors.closing_time} />
+                {form.opening_time.hour && form.closing_time.hour && (
+                  <div className="mt-4 bg-green-50 border border-green-200 rounded-lg px-4 py-3 flex items-center gap-2 text-sm">
+                    <span>🕐</span>
+                    <p className="text-green-700 font-bold">{toLabel(form.opening_time)} — {toLabel(form.closing_time)}</p>
+                    <span className="ml-auto text-green-500 font-black">✓</span>
                   </div>
-                  {form.opening_time.hour && form.closing_time.hour && (
-                    <div className="mt-4 bg-green-50 border border-green-200 rounded-lg px-4 py-3 flex items-center gap-2 text-sm">
-                      <span>🕐</span>
-                      <p className="text-green-700 font-bold">{toLabel(form.opening_time)} — {toLabel(form.closing_time)}</p>
-                      <span className="ml-auto text-green-500 font-black">✓</span>
-                    </div>
-                  )}
-                </div>
-              </div>
+                )}
+              </Section>
 
               {/* ── 3: Price ───────────────────────────────── */}
-              <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                  <div className={`w-7 h-7 rounded-full text-white text-xs font-black flex items-center justify-center ${done3 ? "bg-green-500" : "bg-gray-300"}`}>
-                    {done3 ? "✓" : "3"}
+              <Section num={3} title="Pricing" subtitle="Hourly booking rate" done={done3}>
+                <div className="max-w-sm">
+                  <FieldLabel label="Price per Hour" required />
+                  <div className={`flex items-center border rounded-lg overflow-hidden transition-all
+                    ${errors.price_per_hour ? "border-red-400 ring-1 ring-red-200"
+                      : "border-gray-300 focus-within:border-green-500 focus-within:ring-1 focus-within:ring-green-200 hover:border-gray-400"}`}>
+                    <span className="px-4 py-3 text-gray-500 font-bold text-sm bg-gray-50 border-r border-gray-200 select-none">Rs</span>
+                    <input type="number" name="price_per_hour" value={form.price_per_hour}
+                      onChange={handleChange} min="1" placeholder="e.g. 1200"
+                      className="flex-1 bg-white py-3 px-4 text-gray-800 font-bold placeholder-gray-400 focus:outline-none text-base" />
+                    <span className="px-4 text-gray-400 text-sm bg-gray-50 border-l border-gray-200 py-3 select-none">/ hr</span>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-black text-gray-800">Pricing</h3>
-                    <p className="text-xs text-gray-400">Hourly booking rate</p>
-                  </div>
+                  {errors.price_per_hour && <Err>{errors.price_per_hour}</Err>}
                 </div>
-                <div className="p-6">
-                  <div className="max-w-sm">
-                    <FieldLabel label="Price per Hour" required />
-                    <div className={`flex items-center border rounded-lg overflow-hidden transition-all
-                      ${errors.price_per_hour ? "border-red-400 ring-1 ring-red-200"
-                        : "border-gray-300 focus-within:border-green-500 focus-within:ring-1 focus-within:ring-green-200 hover:border-gray-400"}`}>
-                      <span className="px-4 py-3 text-gray-500 font-bold text-sm bg-gray-50 border-r border-gray-200 select-none">Rs</span>
-                      <input type="number" name="price_per_hour" value={form.price_per_hour}
-                        onChange={handleChange} min="1"
-                        placeholder={isEdit ? String(myGround?.price_per_hour ?? "1200") : "e.g. 1200"}
-                        className="flex-1 bg-white py-3 px-4 text-gray-800 font-bold placeholder-gray-400 focus:outline-none text-base" />
-                      <span className="px-4 text-gray-400 text-sm bg-gray-50 border-l border-gray-200 py-3 select-none">/ hr</span>
-                    </div>
-                    {errors.price_per_hour && <p className="text-red-500 text-xs mt-1">⚠ {errors.price_per_hour}</p>}
-                  </div>
-                </div>
-              </div>
+              </Section>
 
               {/* ── 4: Specifications ──────────────────────── */}
-              <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                  <div className={`w-7 h-7 rounded-full text-white text-xs font-black flex items-center justify-center ${done4 ? "bg-green-500" : "bg-gray-300"}`}>
-                    {done4 ? "✓" : "4"}
+              <Section num={4} title="Specifications" subtitle="Ground size and type" done={done4}>
+                <div className="grid grid-cols-2 gap-8">
+                  <div>
+                    <FieldLabel label="Ground Size (players per side)" required />
+                    <div className="grid grid-cols-3 gap-3 mt-2">
+                      {[
+                        { val: "5", label: "5v5", desc: "5-a-side" },
+                        { val: "6", label: "6v6", desc: "6-a-side" },
+                        { val: "7", label: "7v7", desc: "7-a-side" },
+                      ].map(opt => (
+                        <button key={opt.val} type="button"
+                          onClick={() => setChoice("ground_size", opt.val)}
+                          className={`py-3 rounded-lg border-2 text-center transition-all cursor-pointer
+                            ${form.ground_size === opt.val
+                              ? "bg-green-500 border-green-500 text-white shadow-md"
+                              : "bg-white border-gray-200 text-gray-600 hover:border-green-400 hover:bg-green-50"}`}>
+                          <p className="font-black text-base">{opt.label}</p>
+                          <p className={`text-xs mt-0.5 ${form.ground_size === opt.val ? "text-green-100" : "text-gray-400"}`}>{opt.desc}</p>
+                        </button>
+                      ))}
+                    </div>
+                    {errors.ground_size && <Err>{errors.ground_size}</Err>}
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-gray-800">Specifications</h3>
-                    <p className="text-xs text-gray-400">Ground size and type</p>
+                    <FieldLabel label="Ground Type" required />
+                    <div className="grid grid-cols-2 gap-3 mt-2">
+                      {[
+                        { val: "indoor",  label: "Indoor",  icon: "🏠", desc: "Covered facility" },
+                        { val: "outdoor", label: "Outdoor", icon: "☀️", desc: "Open air ground"  },
+                      ].map(opt => (
+                        <button key={opt.val} type="button"
+                          onClick={() => setChoice("ground_type", opt.val)}
+                          className={`py-4 rounded-lg border-2 text-center transition-all cursor-pointer
+                            ${form.ground_type === opt.val
+                              ? "bg-green-500 border-green-500 text-white shadow-md"
+                              : "bg-white border-gray-200 text-gray-600 hover:border-green-400 hover:bg-green-50"}`}>
+                          <p className="text-2xl mb-1">{opt.icon}</p>
+                          <p className="font-black text-sm">{opt.label}</p>
+                          <p className={`text-xs mt-0.5 ${form.ground_type === opt.val ? "text-green-100" : "text-gray-400"}`}>{opt.desc}</p>
+                        </button>
+                      ))}
+                    </div>
+                    {errors.ground_type && <Err>{errors.ground_type}</Err>}
                   </div>
                 </div>
-                <div className="p-6">
-                  <div className="grid grid-cols-2 gap-8">
-
-                    {/* Ground Size */}
-                    <div>
-                      <FieldLabel label="Ground Size (players per side)" required />
-                      <div className="grid grid-cols-3 gap-3 mt-2">
-                        {[
-                          { val: "5", label: "5v5", desc: "5-a-side" },
-                          { val: "6", label: "6v6", desc: "6-a-side" },
-                          { val: "7", label: "7v7", desc: "7-a-side" },
-                        ].map(opt => (
-                          <button key={opt.val} type="button"
-                            onClick={() => setChoice("ground_size", opt.val)}
-                            className={`py-3 rounded-lg border-2 text-center transition-all cursor-pointer
-                              ${form.ground_size === opt.val
-                                ? "bg-green-500 border-green-500 text-white shadow-md"
-                                : "bg-white border-gray-200 text-gray-600 hover:border-green-400 hover:bg-green-50"}`}>
-                            <p className="font-black text-base">{opt.label}</p>
-                            <p className={`text-xs mt-0.5 ${form.ground_size === opt.val ? "text-green-100" : "text-gray-400"}`}>
-                              {opt.desc}
-                            </p>
-                          </button>
-                        ))}
-                      </div>
-                      {errors.ground_size && <p className="text-red-500 text-xs mt-2">⚠ {errors.ground_size}</p>}
-                    </div>
-
-                    {/* Ground Type */}
-                    <div>
-                      <FieldLabel label="Ground Type" required />
-                      <div className="grid grid-cols-2 gap-3 mt-2">
-                        {[
-                          { val: "indoor",  label: "Indoor",  icon: "🏠", desc: "Covered facility" },
-                          { val: "outdoor", label: "Outdoor", icon: "☀️", desc: "Open air ground"  },
-                        ].map(opt => (
-                          <button key={opt.val} type="button"
-                            onClick={() => setChoice("ground_type", opt.val)}
-                            className={`py-4 rounded-lg border-2 text-center transition-all cursor-pointer
-                              ${form.ground_type === opt.val
-                                ? "bg-green-500 border-green-500 text-white shadow-md"
-                                : "bg-white border-gray-200 text-gray-600 hover:border-green-400 hover:bg-green-50"}`}>
-                            <p className="text-2xl mb-1">{opt.icon}</p>
-                            <p className="font-black text-sm">{opt.label}</p>
-                            <p className={`text-xs mt-0.5 ${form.ground_type === opt.val ? "text-green-100" : "text-gray-400"}`}>
-                              {opt.desc}
-                            </p>
-                          </button>
-                        ))}
-                      </div>
-                      {errors.ground_type && <p className="text-red-500 text-xs mt-2">⚠ {errors.ground_type}</p>}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              </Section>
 
               {/* ── 5: Photos ──────────────────────────────── */}
-              <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-7 h-7 rounded-full text-white text-xs font-black flex items-center justify-center ${done5 ? "bg-green-500" : "bg-gray-300"}`}>
-                      {done5 ? "✓" : "5"}
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-black text-gray-800">Ground Photos</h3>
-                      <p className="text-xs text-gray-400">{isEdit ? "Upload new or keep current" : "Up to 3 photos"}</p>
+              <Section
+                num={5}
+                title="Ground Photos"
+                subtitle={isEdit ? "Upload new or keep current" : "Up to 3 photos"}
+                done={done5}
+                badge={`${newPreviews.length}/3`}
+              >
+                {isEdit && existingImgSrc && newPreviews.length === 0 && (
+                  <div className="mb-4">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Current Photo</p>
+                    <div className="relative rounded-lg overflow-hidden border border-gray-200 h-44">
+                      <img src={existingImgSrc} alt="current" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/20 flex items-end p-3">
+                        <span className="bg-white/90 text-gray-700 text-xs px-3 py-1.5 rounded font-semibold">
+                          📷 Kept unless you upload a new one
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <span className="text-xs text-gray-400">{newPreviews.length}/3</span>
-                </div>
-                <div className="p-6">
-                  {isEdit && existingImgSrc && newPreviews.length === 0 && (
-                    <div className="mb-4">
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Current Photo</p>
-                      <div className="relative rounded-lg overflow-hidden border border-gray-200 h-44">
-                        <img src={existingImgSrc} alt="current" className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/20 flex items-end p-3">
-                          <span className="bg-white/90 text-gray-700 text-xs px-3 py-1.5 rounded font-semibold">
-                            📷 Kept unless you upload a new one
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {newPreviews.length > 0 && (
-                    <div className="mb-4">
-                      <p className="text-xs font-bold text-green-600 uppercase tracking-wider mb-2">NEW PHOTOS ✓</p>
-                      <div className="grid grid-cols-3 gap-3">
-                        {newPreviews.map((src, idx) => (
-                          <div key={idx} className="relative group rounded-lg overflow-hidden border-2 border-green-400">
-                            <img src={src} alt="" className="w-full h-36 object-cover" />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                              <button type="button" onClick={() => removeNewImage(idx)}
-                                className="w-9 h-9 bg-red-500 text-white rounded-full text-sm font-black flex items-center justify-center">✕</button>
-                            </div>
-                            {idx === 0 && (
-                              <span className="absolute bottom-2 left-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded font-bold">Cover</span>
-                            )}
+                )}
+                {newPreviews.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-xs font-bold text-green-600 uppercase tracking-wider mb-2">NEW PHOTOS ✓</p>
+                    <div className="grid grid-cols-3 gap-3">
+                      {newPreviews.map((src, idx) => (
+                        <div key={idx} className="relative group rounded-lg overflow-hidden border-2 border-green-400">
+                          <img src={src} alt="" className="w-full h-36 object-cover" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                            <button type="button" onClick={() => removeNewImage(idx)}
+                              className="w-9 h-9 bg-red-500 text-white rounded-full text-sm font-black flex items-center justify-center">✕</button>
                           </div>
-                        ))}
-                      </div>
+                          {idx === 0 && <span className="absolute bottom-2 left-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded font-bold">Cover</span>}
+                        </div>
+                      ))}
                     </div>
-                  )}
-                  {newPreviews.length < 3 && (
-                    <button type="button" onClick={() => fileRef.current?.click()}
-                      className={`w-full rounded-lg border-2 border-dashed py-8 flex flex-col items-center gap-2 transition-all
-                        ${errors.images ? "border-red-400 bg-red-50" : "border-gray-300 bg-gray-50 hover:border-green-400 hover:bg-green-50"}`}>
-                      <div className="w-12 h-12 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-2xl shadow-sm">📷</div>
-                      <p className="text-gray-600 font-bold text-sm">
-                        {isEdit ? "Upload new photo (optional)" : "Click to upload photos"}
-                      </p>
-                      <p className="text-gray-400 text-xs">JPG, PNG — up to 3 photos</p>
-                    </button>
-                  )}
-                  <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImages} />
-                  {errors.images && <p className="text-red-500 text-xs mt-2">⚠ {errors.images}</p>}
+                  </div>
+                )}
+                {newPreviews.length < 3 && (
+                  <button type="button" onClick={() => fileRef.current?.click()}
+                    className={`w-full rounded-lg border-2 border-dashed py-8 flex flex-col items-center gap-2 transition-all
+                      ${errors.images ? "border-red-400 bg-red-50" : "border-gray-300 bg-gray-50 hover:border-green-400 hover:bg-green-50"}`}>
+                    <div className="w-12 h-12 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-2xl shadow-sm">📷</div>
+                    <p className="text-gray-600 font-bold text-sm">
+                      {isEdit ? "Upload new photo (optional)" : "Click to upload photos"}
+                    </p>
+                    <p className="text-gray-400 text-xs">JPG, PNG — up to 3 photos</p>
+                  </button>
+                )}
+                <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImages} />
+                {errors.images && <Err>{errors.images}</Err>}
+              </Section>
+
+              {/* ── 6: Map Location ────────────────────────── */}
+              <Section
+                num={6}
+                title="Map Location"
+                subtitle="Drop a pin so players can find you (optional)"
+                done={done6}
+              >
+                <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-4 flex items-start gap-2">
+                  <span className="text-blue-500 flex-shrink-0 mt-0.5">ℹ️</span>
+                  <p className="text-blue-700 text-xs leading-relaxed">
+                    Click on the map or search for a location to drop a pin. Players will be able to see
+                    your ground on a map and get directions. This step is <strong>optional</strong> but
+                    highly recommended.
+                  </p>
                 </div>
-              </div>
+                <LocationPicker
+                  lat={form.lat}
+                  lng={form.lng}
+                  onChange={({ lat, lng }) => setForm(f => ({ ...f, lat, lng }))}
+                  height="340px"
+                />
+              </Section>
 
               {/* ── Submit ─────────────────────────────────── */}
               <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
-                {/* show all errors before submit */}
                 {errorCount > 0 && (
                   <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
                     <p className="text-red-600 text-xs font-bold mb-1">Please fix these errors before submitting:</p>
@@ -771,7 +708,6 @@ export default function OwnerAddGround() {
                     </ul>
                   </div>
                 )}
-
                 <div className="flex gap-4">
                   {isEdit && (
                     <button type="button" onClick={() => setEditMode(false)}
@@ -779,9 +715,7 @@ export default function OwnerAddGround() {
                       Cancel
                     </button>
                   )}
-                  <button
-                    type="submit"
-                    disabled={submitting}
+                  <button type="submit" disabled={submitting}
                     className="flex-1 py-3.5 bg-green-500 text-white font-black rounded-lg hover:bg-green-600 active:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2 shadow-sm">
                     {submitting
                       ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />{isEdit ? "Saving..." : "Publishing..."}</>
@@ -797,6 +731,80 @@ export default function OwnerAddGround() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ── tiny helpers ─────────────────────────────────────────────── */
+function Err({ children }) {
+  return <p className="text-red-500 text-xs mt-1">⚠ {children}</p>;
+}
+
+function Section({ num, title, subtitle, done, badge, children }) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+      <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+        <div className={`w-7 h-7 rounded-full text-white text-xs font-black flex items-center justify-center ${done ? "bg-green-500" : "bg-gray-300"}`}>
+          {done ? "✓" : num}
+        </div>
+        <div className="flex-1">
+          <h3 className="text-sm font-black text-gray-800">{title}</h3>
+          <p className="text-xs text-gray-400">{subtitle}</p>
+        </div>
+        {badge && <span className="text-xs text-gray-400">{badge}</span>}
+      </div>
+      <div className="p-6 space-y-4">{children}</div>
+    </div>
+  );
+}
+
+/* ── mini map for view mode (no search bar, compact) ─────────── */
+function GroundMapMini({ lat, lng, name }) {
+  const containerRef = useRef(null);
+  const mapRef       = useRef(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    // Load Leaflet if needed
+    const load = (cb) => {
+      if (window.L) { cb(window.L); return; }
+      const link = document.createElement("link");
+      link.rel  = "stylesheet";
+      link.href = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css";
+      document.head.appendChild(link);
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";
+      script.onload = () => cb(window.L);
+      document.head.appendChild(script);
+    };
+
+    load((L) => {
+      if (!containerRef.current || mapRef.current) return;
+      const pos = [parseFloat(lat), parseFloat(lng)];
+      const map = L.map(containerRef.current, { zoomControl: false, scrollWheelZoom: false }).setView(pos, 15);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+      const icon = L.divIcon({
+        html: `<div style="width:24px;height:24px;background:#16a34a;border:2px solid white;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>`,
+        iconSize: [24, 24], iconAnchor: [12, 24], className: "",
+      });
+      L.marker(pos, { icon }).addTo(map).bindPopup(name).openPopup();
+      mapRef.current = map;
+      setLoaded(true);
+    });
+    return () => { if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; } };
+  }, [lat, lng]);
+
+  return (
+    <div className="space-y-2">
+      <div className="relative rounded-lg overflow-hidden border border-gray-200" style={{ height: "180px" }}>
+        <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
+        {!loaded && <div className="absolute inset-0 bg-gray-100 flex items-center justify-center"><div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin" /></div>}
+      </div>
+      <a href={`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`}
+        target="_blank" rel="noopener noreferrer"
+        className="flex items-center justify-center gap-2 py-2 bg-blue-50 border border-blue-200 text-blue-700 font-bold rounded-lg text-xs hover:bg-blue-100 transition">
+        🗺️ Get Directions
+      </a>
     </div>
   );
 }

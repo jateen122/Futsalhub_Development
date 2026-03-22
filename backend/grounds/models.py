@@ -38,6 +38,23 @@ class Ground(models.Model):
         choices=GroundType.choices,
         default=GroundType.OUTDOOR,
     )
+    # ── GPS coordinates (optional) ────────────────────────────────────────────
+    latitude = models.DecimalField(
+        max_digits=10,
+        decimal_places=7,
+        blank=True,
+        null=True,
+        verbose_name="Latitude",
+        help_text="GPS latitude of the ground location.",
+    )
+    longitude = models.DecimalField(
+        max_digits=10,
+        decimal_places=7,
+        blank=True,
+        null=True,
+        verbose_name="Longitude",
+        help_text="GPS longitude of the ground location.",
+    )
     created_at      = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import LocationPicker from "../components/LocationPicker";
 
 const BASE_URL = "http://127.0.0.1:8000";
 
@@ -125,6 +126,54 @@ function DeleteModal({ ground, onConfirm, onCancel, deleting }) {
   );
 }
 
+/* ── Inline mini map for the card view ───────────────────────── */
+function MiniMapView({ lat, lng, name }) {
+  const containerRef = useRef(null);
+  const mapRef       = useRef(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    const load = (cb) => {
+      if (window.L) { cb(window.L); return; }
+      const link = document.createElement("link");
+      link.rel  = "stylesheet";
+      link.href = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css";
+      document.head.appendChild(link);
+      const script = document.createElement("script");
+      script.src   = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";
+      script.onload = () => cb(window.L);
+      document.head.appendChild(script);
+    };
+
+    load((L) => {
+      if (!containerRef.current || mapRef.current) return;
+      const pos = [parseFloat(lat), parseFloat(lng)];
+      const map = L.map(containerRef.current, { zoomControl: false, scrollWheelZoom: false, dragging: false }).setView(pos, 15);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+      const icon = L.divIcon({
+        html: `<div style="width:20px;height:20px;background:#16a34a;border:2px solid white;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 2px 5px rgba(0,0,0,.3)"></div>`,
+        iconSize: [20, 20], iconAnchor: [10, 20], className: "",
+      });
+      L.marker(pos, { icon }).addTo(map);
+      mapRef.current = map;
+      setLoaded(true);
+    });
+    return () => { if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; } };
+  }, []);
+
+  return (
+    <div className="relative rounded-lg overflow-hidden border border-gray-200" style={{ height: "100px" }}>
+      <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
+      {!loaded && <div className="absolute inset-0 bg-gray-100 flex items-center justify-center"><div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" /></div>}
+      <a href={`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`}
+        target="_blank" rel="noopener noreferrer"
+        className="absolute bottom-2 right-2 z-[500] bg-white border border-gray-200 text-blue-600 text-xs font-bold px-2.5 py-1 rounded-lg shadow hover:bg-blue-50 transition">
+        Directions ↗
+      </a>
+    </div>
+  );
+}
+
 export default function OwnerManageGround() {
   const navigate = useNavigate();
   const token    = localStorage.getItem("access");
@@ -170,6 +219,8 @@ export default function OwnerManageGround() {
       price_per_hour: g.price_per_hour  || "",
       ground_size:    g.ground_size     || "",
       ground_type:    g.ground_type     || "",
+      lat:            g.latitude  != null ? parseFloat(g.latitude)  : null,
+      lng:            g.longitude != null ? parseFloat(g.longitude) : null,
     });
     setNewPreview(null); setNewImageFile(null); setErrors({});
   };
@@ -209,6 +260,9 @@ export default function OwnerManageGround() {
       .forEach(k => fd.append(k, form[k]));
     fd.append("opening_time", toBackendTime(form.opening_time));
     fd.append("closing_time", toBackendTime(form.closing_time));
+    // send coordinates (empty string clears them)
+    if (form.lat != null)  fd.append("latitude",  String(form.lat));
+    if (form.lng != null)  fd.append("longitude", String(form.lng));
     if (newImageFile) fd.append("image", newImageFile);
     try {
       const res  = await fetch(`${BASE_URL}/api/grounds/${editingId}/update/`, {
@@ -297,6 +351,7 @@ export default function OwnerManageGround() {
         {grounds.map((g) => {
           const imgSrc    = g.image ? (g.image.startsWith("http") ? g.image : `${BASE_URL}${g.image}`) : null;
           const isEditing = editingId === g.id;
+          const hasPin    = g.latitude != null && g.longitude != null;
 
           return (
             <div key={g.id}
@@ -305,11 +360,12 @@ export default function OwnerManageGround() {
 
               {/* ── SUMMARY ROW ─── */}
               {!isEditing && (
-                <div className="flex items-center gap-5 p-5">
+                <div className="flex items-start gap-5 p-5">
                   <div className="w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 bg-gray-100 border border-gray-200">
                     {imgSrc ? <img src={imgSrc} alt={g.name} className="w-full h-full object-cover" />
                             : <div className="w-full h-full flex items-center justify-center text-4xl">⚽</div>}
                   </div>
+
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                       <h3 className="text-gray-900 font-black text-xl truncate">{g.name}</h3>
@@ -327,6 +383,11 @@ export default function OwnerManageGround() {
                           {g.ground_type}
                         </span>
                       )}
+                      {hasPin && (
+                        <span className="px-2.5 py-1 bg-green-50 border border-green-200 text-green-700 text-xs font-bold rounded">
+                          📌 Mapped
+                        </span>
+                      )}
                     </div>
                     <p className="text-gray-500 text-sm mb-2">📍 {g.location}</p>
                     <div className="flex flex-wrap items-center gap-3 text-xs">
@@ -336,11 +397,16 @@ export default function OwnerManageGround() {
                       <span className="text-gray-500">
                         🕐 {toLabel(fromBackendTime(g.opening_time?.slice(0,5)))} – {toLabel(fromBackendTime(g.closing_time?.slice(0,5)))}
                       </span>
-                      {g.facilities && (
-                        <span className="text-gray-400 truncate max-w-xs">🛠 {g.facilities}</span>
-                      )}
                     </div>
+
+                    {/* Mini map in card */}
+                    {hasPin && (
+                      <div className="mt-3 max-w-xs">
+                        <MiniMapView lat={g.latitude} lng={g.longitude} name={g.name} />
+                      </div>
+                    )}
                   </div>
+
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <button onClick={() => openEdit(g)}
                       className="flex items-center gap-1.5 px-4 py-2.5 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm font-bold hover:bg-green-100 transition">
@@ -482,39 +548,57 @@ export default function OwnerManageGround() {
                         </div>
                       </div>
 
-                      {/* RIGHT — image */}
-                      <div className="col-span-12 lg:col-span-5">
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Ground Image</p>
-                        <div className="mb-3">
-                          <p className="text-xs text-gray-400 mb-1.5 font-medium">Current</p>
-                          <div className="rounded-lg overflow-hidden border border-gray-200 h-36 bg-gray-100">
-                            {imgSrc ? <img src={imgSrc} alt="" className="w-full h-full object-cover" />
-                                    : <div className="w-full h-full flex items-center justify-center text-4xl">⚽</div>}
+                      {/* RIGHT — image + map */}
+                      <div className="col-span-12 lg:col-span-5 space-y-5">
+
+                        {/* Image */}
+                        <div>
+                          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Ground Image</p>
+                          <div className="mb-3">
+                            <p className="text-xs text-gray-400 mb-1.5 font-medium">Current</p>
+                            <div className="rounded-lg overflow-hidden border border-gray-200 h-36 bg-gray-100">
+                              {imgSrc ? <img src={imgSrc} alt="" className="w-full h-full object-cover" />
+                                      : <div className="w-full h-full flex items-center justify-center text-4xl">⚽</div>}
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-400 mb-1.5 font-medium">
+                              {newPreview ? "New Image ✓" : "Upload New (optional)"}
+                            </p>
+                            {newPreview ? (
+                              <div className="relative group rounded-lg overflow-hidden border-2 border-green-400 h-36">
+                                <img src={newPreview} alt="" className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                                  <button type="button"
+                                    onClick={() => { setNewPreview(null); setNewImageFile(null); }}
+                                    className="px-3 py-1.5 bg-white text-gray-700 text-xs rounded font-semibold shadow">Remove</button>
+                                </div>
+                                <span className="absolute bottom-2 right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded font-bold">New ✓</span>
+                              </div>
+                            ) : (
+                              <button type="button" onClick={() => fileRef.current?.click()}
+                                className="w-full h-36 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:border-green-400 hover:bg-green-50 flex flex-col items-center justify-center gap-1.5 transition-all">
+                                <span className="text-2xl text-gray-300">📷</span>
+                                <span className="text-gray-500 text-xs font-semibold">Click to upload</span>
+                                <span className="text-gray-400 text-xs">Kept if empty</span>
+                              </button>
+                            )}
+                            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImage} />
                           </div>
                         </div>
+
+                        {/* Map location picker */}
                         <div>
-                          <p className="text-xs text-gray-400 mb-1.5 font-medium">
-                            {newPreview ? "New Image ✓" : "Upload New (optional)"}
+                          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Map Location</p>
+                          <p className="text-xs text-gray-500 mb-3">
+                            Click the map or search to update the pin. Leave unchanged to keep the current pin.
                           </p>
-                          {newPreview ? (
-                            <div className="relative group rounded-lg overflow-hidden border-2 border-green-400 h-36">
-                              <img src={newPreview} alt="" className="w-full h-full object-cover" />
-                              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                                <button type="button"
-                                  onClick={() => { setNewPreview(null); setNewImageFile(null); }}
-                                  className="px-3 py-1.5 bg-white text-gray-700 text-xs rounded font-semibold shadow">Remove</button>
-                              </div>
-                              <span className="absolute bottom-2 right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded font-bold">New ✓</span>
-                            </div>
-                          ) : (
-                            <button type="button" onClick={() => fileRef.current?.click()}
-                              className="w-full h-36 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:border-green-400 hover:bg-green-50 flex flex-col items-center justify-center gap-1.5 transition-all">
-                              <span className="text-2xl text-gray-300">📷</span>
-                              <span className="text-gray-500 text-xs font-semibold">Click to upload</span>
-                              <span className="text-gray-400 text-xs">Kept if empty</span>
-                            </button>
-                          )}
-                          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImage} />
+                          <LocationPicker
+                            lat={form.lat}
+                            lng={form.lng}
+                            onChange={({ lat, lng }) => setForm(f => ({ ...f, lat, lng }))}
+                            height="220px"
+                          />
                         </div>
                       </div>
                     </div>

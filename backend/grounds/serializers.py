@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import Ground, Favorite
 
 
-# ─── Ground serializers (unchanged) ──────────────────────────────────────────
+# ─── Ground serializers ───────────────────────────────────────────────────────
 
 class GroundSerializer(serializers.ModelSerializer):
     owner               = serializers.EmailField(source="owner.email", read_only=True)
@@ -17,6 +17,7 @@ class GroundSerializer(serializers.ModelSerializer):
             "facilities", "image",
             "ground_size", "ground_size_display",
             "ground_type", "ground_type_display",
+            "latitude", "longitude",
             "is_approved", "created_at",
         ]
         read_only_fields = ["id", "owner", "is_approved", "created_at",
@@ -55,6 +56,7 @@ class PublicGroundSerializer(serializers.ModelSerializer):
             "facilities", "image",
             "ground_size", "ground_size_display",
             "ground_type", "ground_type_display",
+            "latitude", "longitude",
         ]
 
 
@@ -78,6 +80,12 @@ class FavoriteSerializer(serializers.ModelSerializer):
     owner_email    = serializers.EmailField(source="ground.owner.email",     read_only=True)
     ground_size    = serializers.CharField(source="ground.ground_size",      read_only=True)
     ground_type    = serializers.CharField(source="ground.ground_type",      read_only=True)
+    latitude       = serializers.DecimalField(source="ground.latitude",
+                                              max_digits=10, decimal_places=7,
+                                              read_only=True, allow_null=True)
+    longitude      = serializers.DecimalField(source="ground.longitude",
+                                              max_digits=10, decimal_places=7,
+                                              read_only=True, allow_null=True)
 
     image = serializers.SerializerMethodField()
 
@@ -87,7 +95,9 @@ class FavoriteSerializer(serializers.ModelSerializer):
             "id", "ground_id", "name", "location", "description",
             "price_per_hour", "opening_time", "closing_time",
             "facilities", "image", "is_approved", "owner_email",
-            "ground_size", "ground_type", "created_at",
+            "ground_size", "ground_type",
+            "latitude", "longitude",
+            "created_at",
         ]
         read_only_fields = fields
 

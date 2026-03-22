@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import FavoriteButton from "../components/FavoriteButton";
+import GroundMap from "../components/GroundMap";
 
 const BASE_URL = "http://127.0.0.1:8000";
 
@@ -60,6 +61,8 @@ export default function GroundDetail() {
     ? ground.facilities.split(",").map(f => f.trim()).filter(Boolean)
     : [];
 
+  const hasLocation = ground.latitude != null && ground.longitude != null;
+
   return (
     <div className="min-h-screen bg-gray-50 pt-20">
 
@@ -74,16 +77,60 @@ export default function GroundDetail() {
       <div className="max-w-5xl mx-auto px-6 py-8">
         <div className="grid grid-cols-12 gap-7">
 
-          {/* Image */}
-          <div className="col-span-12 lg:col-span-5">
+          {/* ── LEFT column: image + map ── */}
+          <div className="col-span-12 lg:col-span-5 space-y-5">
+
+            {/* Image */}
             <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-sm bg-white">
               {imgSrc
                 ? <img src={imgSrc} alt={ground.name} className="w-full h-72 object-cover" />
                 : <div className="w-full h-72 bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center text-8xl">⚽</div>}
             </div>
+
+            {/* Map section */}
+            {hasLocation && (
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Location on Map</p>
+                    <p className="text-gray-600 text-sm mt-0.5">📍 {ground.location}</p>
+                  </div>
+                  <span className="text-xs bg-green-50 border border-green-200 text-green-700 px-2.5 py-1 rounded font-bold">
+                    📌 Pinned
+                  </span>
+                </div>
+                <GroundMap
+                  lat={ground.latitude}
+                  lng={ground.longitude}
+                  name={ground.name}
+                  location={ground.location}
+                  height="240px"
+                />
+              </div>
+            )}
+
+            {/* No location fallback */}
+            {!hasLocation && (
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Location</p>
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 text-center">
+                  <p className="text-3xl mb-2">📍</p>
+                  <p className="text-gray-600 font-semibold text-sm">{ground.location}</p>
+                  <p className="text-gray-400 text-xs mt-1">Exact map location not available</p>
+                  <a
+                    href={`https://www.google.com/maps/search/${encodeURIComponent(ground.location + " Nepal")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 mt-3 px-4 py-2 bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold rounded-lg hover:bg-blue-100 transition"
+                  >
+                    🗺️ Search on Google Maps
+                  </a>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Details */}
+          {/* ── RIGHT column: details ── */}
           <div className="col-span-12 lg:col-span-7">
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-7">
 
@@ -102,6 +149,11 @@ export default function GroundDetail() {
                     {ground.ground_type && (
                       <span className="px-2.5 py-1 bg-purple-50 border border-purple-200 text-purple-700 text-xs font-bold rounded capitalize">
                         {ground.ground_type === "indoor" ? "🏠" : "☀️"} {ground.ground_type}
+                      </span>
+                    )}
+                    {hasLocation && (
+                      <span className="px-2.5 py-1 bg-green-50 border border-green-200 text-green-700 text-xs font-bold rounded">
+                        📌 Mapped
                       </span>
                     )}
                   </div>
@@ -150,6 +202,28 @@ export default function GroundDetail() {
                       </span>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Quick directions row (if location available) */}
+              {hasLocation && (
+                <div className="flex gap-2 mb-4">
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${ground.latitude},${ground.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-50 border border-blue-200 text-blue-700 font-bold rounded-xl text-xs hover:bg-blue-100 transition"
+                  >
+                    🗺️ Get Directions
+                  </a>
+                  <a
+                    href={`https://www.google.com/maps?q=${ground.latitude},${ground.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gray-50 border border-gray-200 text-gray-600 font-bold rounded-xl text-xs hover:bg-gray-100 transition"
+                  >
+                    📌 View on Map
+                  </a>
                 </div>
               )}
 
