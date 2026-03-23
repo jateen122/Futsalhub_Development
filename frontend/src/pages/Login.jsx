@@ -106,7 +106,7 @@ export default function Login() {
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-12 shadow-2xl">
 
             <h2 className="text-4xl font-bold text-center mb-8">
-              Welcome Back
+              Login
             </h2>
 
             {message && (

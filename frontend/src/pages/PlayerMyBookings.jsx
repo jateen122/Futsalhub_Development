@@ -20,7 +20,6 @@ const fmt12t = (t) => {
 
 const today = () => new Date().toISOString().split("T")[0];
 
-/* Generate 1-hour slots from opening to closing */
 const buildSlots = (opening, closing) => {
   if (!opening || !closing) return [];
   const start = parseInt(opening.split(":")[0], 10);
@@ -32,7 +31,6 @@ const buildSlots = (opening, closing) => {
   return slots;
 };
 
-/* Check if a slot overlaps any existing booking on the given date */
 const isSlotBooked = (slot, bookings, date) =>
   bookings.some((b) => {
     if (b.date !== date) return false;
@@ -42,22 +40,21 @@ const isSlotBooked = (slot, bookings, date) =>
     return slot.startH < bEnd && slot.endH > bStart;
   });
 
-/* ─── status config ──────────────────────────────────────────── */
 const STATUS = {
-  pending:   { dot: "bg-amber-400",   text: "text-amber-700",   bg: "bg-amber-50",   border: "border-amber-200",  label: "Pending"   },
-  confirmed: { dot: "bg-green-500",   text: "text-green-700",   bg: "bg-green-50",   border: "border-green-200",  label: "Confirmed" },
-  cancelled: { dot: "bg-red-400",     text: "text-red-700",     bg: "bg-red-50",     border: "border-red-200",    label: "Cancelled" },
-  refunded:  { dot: "bg-blue-400",    text: "text-blue-700",    bg: "bg-blue-50",    border: "border-blue-200",   label: "Refunded"  },
+  pending:   { dot: "bg-amber-400",  text: "text-amber-700",  bg: "bg-amber-50",  border: "border-amber-200",  label: "Pending"   },
+  confirmed: { dot: "bg-green-500",  text: "text-green-700",  bg: "bg-green-50",  border: "border-green-200",  label: "Confirmed" },
+  cancelled: { dot: "bg-red-400",    text: "text-red-700",    bg: "bg-red-50",    border: "border-red-200",    label: "Cancelled" },
+  refunded:  { dot: "bg-blue-400",   text: "text-blue-700",   bg: "bg-blue-50",   border: "border-blue-200",   label: "Refunded"  },
 };
 
-/* ─── Step indicator ─────────────────────────────────────────── */
+/* ─── Step dot ───────────────────────────────────────────────── */
 function StepDot({ n, label, active, done }) {
   return (
     <div className="flex items-center gap-2">
       <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black border-2 transition-all
-        ${done  ? "bg-green-500 border-green-500 text-white"
+        ${done ? "bg-green-500 border-green-500 text-white"
         : active ? "bg-white border-green-500 text-green-600"
-        :          "bg-gray-100 border-gray-300 text-gray-400"}`}>
+        : "bg-gray-100 border-gray-300 text-gray-400"}`}>
         {done ? "✓" : n}
       </div>
       <span className={`text-xs font-bold hidden sm:block
@@ -69,7 +66,7 @@ function StepDot({ n, label, active, done }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   BOOKING MODAL
+   BOOKING MODAL — with Khalti payment
 ═══════════════════════════════════════════════════════════════ */
 function BookingModal({ ground, myBookings, onClose, onBooked }) {
   const token = localStorage.getItem("access");
@@ -79,10 +76,9 @@ function BookingModal({ ground, myBookings, onClose, onBooked }) {
   const [selectedSlots, setSelectedSlots] = useState([]);
   const [groundBooks,   setGroundBooks]   = useState([]);
   const [loadingSlots,  setLoadingSlots]  = useState(false);
-  const [method,        setMethod]        = useState("esewa");
+  const [method,        setMethod]        = useState("khalti");
   const [submitting,    setSubmitting]    = useState(false);
   const [apiError,      setApiError]      = useState("");
-  const [success,       setSuccess]       = useState(null);
 
   const slots      = buildSlots(ground.opening_time, ground.closing_time);
   const pricePerHr = parseFloat(ground.price_per_hour);
@@ -90,26 +86,26 @@ function BookingModal({ ground, myBookings, onClose, onBooked }) {
   const sorted     = [...selectedSlots].sort((a, b) => a.startH - b.startH);
   const totalHours = selectedSlots.length;
   const totalPrice = (totalHours * pricePerHr).toFixed(2);
-  const startTime  = sorted[0]  ? `${String(sorted[0].startH).padStart(2,"0")}:00` : "";
-  const endTime    = sorted.at(-1) ? `${String(sorted.at(-1).endH).padStart(2,"0")}:00` : "";
+  const startTime  = sorted[0]    ? `${String(sorted[0].startH).padStart(2,"0")}:00`      : "";
+  const endTime    = sorted.at(-1) ? `${String(sorted.at(-1).endH).padStart(2,"0")}:00`   : "";
 
-  /* Fetch all bookings for this ground to show booked slots */
+  // Fetch ground bookings to show booked slots
   useEffect(() => {
     if (!date) return;
     setLoadingSlots(true);
     setSelectedSlots([]);
-    // fetch owner bookings of this ground + own bookings
-    Promise.all([
-      fetch(`${BASE_URL}/api/bookings/my/`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
-    ]).then(([mine]) => {
-      const all = mine.results || mine || [];
-      // Only filter by ground
-      const forGround = all.filter(b => String(b.ground) === String(ground.id) || b.ground_name === ground.name);
-      setGroundBooks(forGround);
-    }).catch(() => {}).finally(() => setLoadingSlots(false));
+    fetch(`${BASE_URL}/api/bookings/my/`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(data => {
+        const all = data.results || data || [];
+        setGroundBooks(all.filter(b =>
+          String(b.ground) === String(ground.id) || b.ground_name === ground.name
+        ));
+      })
+      .catch(() => {})
+      .finally(() => setLoadingSlots(false));
   }, [date]);
 
-  /* Toggle slot — must be contiguous */
   const toggleSlot = (slot) => {
     if (isSlotBooked(slot, [...myBookings, ...groundBooks], date)) return;
     const already = selectedSlots.find(s => s.startH === slot.startH);
@@ -118,38 +114,70 @@ function BookingModal({ ground, myBookings, onClose, onBooked }) {
     const minH = Math.min(...selectedSlots.map(s => s.startH));
     const maxH = Math.max(...selectedSlots.map(s => s.endH));
     if (slot.endH === minH || slot.startH === maxH) setSelectedSlots(prev => [...prev, slot]);
-    else setSelectedSlots([slot]); // non-adjacent → restart
+    else setSelectedSlots([slot]);
   };
 
-  /* Submit */
+  /* ── Pay handler ─────────────────────────────────────────── */
   const handlePay = async () => {
-    setSubmitting(true); setApiError("");
+    setSubmitting(true);
+    setApiError("");
+
     try {
+      // 1. Create the booking
       const bookRes  = await fetch(`${BASE_URL}/api/bookings/create/`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ ground: ground.id, date, start_time: startTime, end_time: endTime }),
       });
       const bookData = await bookRes.json();
+
       if (!bookRes.ok) {
-        setApiError(bookData?.non_field_errors?.[0] || bookData?.detail || bookData?.message || "Booking failed.");
-        setSubmitting(false); return;
+        setApiError(bookData?.non_field_errors?.[0] || bookData?.detail || "Booking failed.");
+        setSubmitting(false);
+        return;
       }
+
       const bookingId = bookData?.booking?.id || bookData?.id;
 
-      const payRes  = await fetch(`${BASE_URL}/api/payments/simulate/`, {
+      // 2. Cash payment — simulate
+      if (method === "cash") {
+        const payRes  = await fetch(`${BASE_URL}/api/payments/simulate/`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ booking_id: bookingId, payment_method: "cash" }),
+        });
+        const payData = await payRes.json();
+        if (!payRes.ok) { setApiError(payData?.detail || "Cash payment failed."); setSubmitting(false); return; }
+        onBooked();
+        onClose();
+        return;
+      }
+
+      // 3. Khalti payment — initiate
+      const payRes  = await fetch(`${BASE_URL}/api/payments/initiate/`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ booking_id: bookingId, payment_method: method }),
+        body: JSON.stringify({
+          booking_id:  bookingId,
+          return_url:  `${window.location.origin}/payment/verify`,
+          website_url: window.location.origin,
+        }),
       });
       const payData = await payRes.json();
-      if (!payRes.ok) { setApiError(payData?.detail || "Payment failed."); setSubmitting(false); return; }
 
-      setSuccess(payData);
-      setStep(4);
-      onBooked();
-    } catch { setApiError("Network error. Try again."); }
-    finally  { setSubmitting(false); }
+      if (!payRes.ok) {
+        setApiError(payData?.detail || "Khalti initiation failed.");
+        setSubmitting(false);
+        return;
+      }
+
+      // 4. Redirect to Khalti payment page
+      window.location.href = payData.payment_url;
+
+    } catch {
+      setApiError("Network error. Please try again.");
+      setSubmitting(false);
+    }
   };
 
   const imgSrc = ground.image
@@ -162,19 +190,17 @@ function BookingModal({ ground, myBookings, onClose, onBooked }) {
 
       <div className="relative bg-white w-full sm:max-w-2xl sm:rounded-2xl rounded-t-3xl shadow-2xl max-h-[92vh] flex flex-col overflow-hidden">
 
-        {/* modal header */}
+        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-3">
-            {step > 1 && step < 4 && (
+            {step > 1 && (
               <button onClick={() => setStep(s => s - 1)}
                 className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition text-sm">
                 ←
               </button>
             )}
             <div>
-              <h2 className="text-base font-black text-gray-900">
-                {step === 4 ? "Booking Confirmed!" : "Book Your Slot"}
-              </h2>
+              <h2 className="text-base font-black text-gray-900">Book Your Slot</h2>
               <p className="text-xs text-gray-400">{ground.name}</p>
             </div>
           </div>
@@ -184,32 +210,27 @@ function BookingModal({ ground, myBookings, onClose, onBooked }) {
           </button>
         </div>
 
-        {/* step bar */}
-        {step < 4 && (
-          <div className="flex items-center px-6 py-3 bg-gray-50 border-b border-gray-100 gap-1 flex-shrink-0">
-            <StepDot n={1} label="Date & Slot" active={step === 1} done={step > 1} />
-            <div className={`flex-1 h-0.5 mx-2 ${step > 1 ? "bg-green-400" : "bg-gray-200"}`} />
-            <StepDot n={2} label="Review"      active={step === 2} done={step > 2} />
-            <div className={`flex-1 h-0.5 mx-2 ${step > 2 ? "bg-green-400" : "bg-gray-200"}`} />
-            <StepDot n={3} label="Payment"     active={step === 3} done={step > 3} />
-          </div>
-        )}
+        {/* Step bar */}
+        <div className="flex items-center px-6 py-3 bg-gray-50 border-b border-gray-100 gap-1 flex-shrink-0">
+          <StepDot n={1} label="Date & Slot" active={step === 1} done={step > 1} />
+          <div className={`flex-1 h-0.5 mx-2 ${step > 1 ? "bg-green-400" : "bg-gray-200"}`} />
+          <StepDot n={2} label="Review"      active={step === 2} done={step > 2} />
+          <div className={`flex-1 h-0.5 mx-2 ${step > 2 ? "bg-green-400" : "bg-gray-200"}`} />
+          <StepDot n={3} label="Payment"     active={step === 3} done={false} />
+        </div>
 
-        {/* scrollable body */}
+        {/* Body */}
         <div className="overflow-y-auto flex-1 px-6 py-5">
 
-          {/* error */}
           {apiError && (
             <div className="bg-red-50 border border-red-300 text-red-700 rounded-xl p-3 mb-4 text-sm flex items-center gap-2">
               ⚠ {apiError}
             </div>
           )}
 
-          {/* ── STEP 1: Date + Slots ────────────────────────── */}
+          {/* ── STEP 1 ── */}
           {step === 1 && (
             <div className="space-y-5">
-
-              {/* ground quick info */}
               <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl p-3">
                 {imgSrc
                   ? <img src={imgSrc} alt="" className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
@@ -224,15 +245,13 @@ function BookingModal({ ground, myBookings, onClose, onBooked }) {
                 </div>
               </div>
 
-              {/* date */}
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">📅 Select Date</label>
                 <input type="date" min={today()} value={date}
                   onChange={e => { setDate(e.target.value); setSelectedSlots([]); }}
-                  className="w-full border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-800 font-semibold focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-200 hover:border-gray-400 transition-all" />
+                  className="w-full border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-800 font-semibold focus:outline-none focus:border-green-500 transition-all" />
               </div>
 
-              {/* slots */}
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <label className="text-sm font-bold text-gray-700">🕐 Select Time Slot</label>
@@ -265,20 +284,15 @@ function BookingModal({ ground, myBookings, onClose, onBooked }) {
                           <button key={slot.label} type="button"
                             onClick={() => toggleSlot(slot)}
                             disabled={booked}
-                            title={booked ? "Already booked" : "Click to select"}
                             className={`relative py-3.5 rounded-xl text-sm font-black border-2 transition-all duration-150
                               ${booked
                                 ? "bg-red-50 border-red-200 text-red-400 cursor-not-allowed"
                                 : selected
-                                ? "bg-blue-500 border-blue-500 text-white shadow-md shadow-blue-200 scale-105"
+                                ? "bg-blue-500 border-blue-500 text-white shadow-md scale-105"
                                 : "bg-green-50 border-green-300 text-green-700 hover:bg-green-500 hover:text-white hover:border-green-500 hover:scale-105 cursor-pointer"}`}>
                             {slot.label}
-                            {booked && (
-                              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[8px] font-black shadow">✕</span>
-                            )}
-                            {selected && (
-                              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center text-white text-[8px] font-black shadow">✓</span>
-                            )}
+                            {booked   && <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[8px] font-black shadow">✕</span>}
+                            {selected && <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center text-white text-[8px] font-black shadow">✓</span>}
                           </button>
                         );
                       })}
@@ -300,17 +314,13 @@ function BookingModal({ ground, myBookings, onClose, onBooked }) {
                         </button>
                       </div>
                     )}
-
-                    <p className="text-gray-400 text-xs mt-3">
-                      💡 Select consecutive slots for longer sessions.
-                    </p>
                   </>
                 )}
               </div>
             </div>
           )}
 
-          {/* ── STEP 2: Review ──────────────────────────────── */}
+          {/* ── STEP 2: Review ── */}
           {step === 2 && (
             <div className="space-y-4">
               <h3 className="text-base font-black text-gray-800">Review Booking</h3>
@@ -339,25 +349,57 @@ function BookingModal({ ground, myBookings, onClose, onBooked }) {
             </div>
           )}
 
-          {/* ── STEP 3: Payment ─────────────────────────────── */}
+          {/* ── STEP 3: Payment ── */}
           {step === 3 && (
             <div className="space-y-4">
               <h3 className="text-base font-black text-gray-800">Payment Method</h3>
+
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { id: "esewa", icon: "💚", label: "eSewa",  desc: "Digital wallet" },
-                  { id: "cash",  icon: "💵", label: "Cash",   desc: "At the venue"  },
+                  {
+                    id:    "khalti",
+                    icon:  "🟣",
+                    label: "Khalti",
+                    desc:  "Pay with Khalti wallet",
+                    badge: "Recommended",
+                  },
+                  {
+                    id:    "cash",
+                    icon:  "💵",
+                    label: "Cash",
+                    desc:  "Pay at the venue",
+                  },
                 ].map(m => (
                   <button key={m.id} onClick={() => setMethod(m.id)}
-                    className={`p-4 rounded-xl border-2 text-left transition-all
+                    className={`p-4 rounded-xl border-2 text-left transition-all relative
                       ${method === m.id ? "border-green-500 bg-green-50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
+                    {m.badge && (
+                      <span className="absolute top-2 right-2 bg-green-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded">
+                        {m.badge}
+                      </span>
+                    )}
                     <div className="text-2xl mb-1.5">{m.icon}</div>
                     <p className={`font-black text-sm ${method === m.id ? "text-green-700" : "text-gray-700"}`}>{m.label}</p>
                     <p className="text-gray-400 text-xs">{m.desc}</p>
-                    {method === m.id && <div className="mt-1.5 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-white text-[9px] font-black">✓</div>}
+                    {method === m.id && (
+                      <div className="mt-1.5 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-white text-[9px] font-black">✓</div>
+                    )}
                   </button>
                 ))}
               </div>
+
+              {/* Khalti info box */}
+              {method === "khalti" && (
+                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 text-sm space-y-1">
+                  <p className="font-bold text-purple-800">🟣 How Khalti works:</p>
+                  <p className="text-purple-700 text-xs leading-relaxed">
+                    You'll be redirected to Khalti's secure payment page. After payment, you'll return here with confirmation.
+                  </p>
+                  <p className="text-purple-600 text-xs font-semibold mt-2">
+                    Sandbox test ID: <span className="font-mono">9800000001</span> &nbsp;·&nbsp; MPIN: <span className="font-mono">1111</span> &nbsp;·&nbsp; OTP: <span className="font-mono">987654</span>
+                  </p>
+                </div>
+              )}
 
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2.5 text-sm">
                 <p className="font-bold text-gray-700 text-xs uppercase tracking-wider">Summary</p>
@@ -370,80 +412,51 @@ function BookingModal({ ground, myBookings, onClose, onBooked }) {
               </div>
             </div>
           )}
+        </div>
 
-          {/* ── STEP 4: Success ─────────────────────────────── */}
-          {step === 4 && success && (
-            <div className="text-center py-4">
-              <div className="w-20 h-20 bg-green-100 border-2 border-green-200 rounded-full flex items-center justify-center text-4xl mx-auto mb-4">✅</div>
-              <h3 className="text-xl font-black text-gray-900 mb-1">Booking Confirmed!</h3>
-              <p className="text-gray-500 text-sm mb-5">Payment successful</p>
-
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-left space-y-2.5 text-sm mb-5">
-                {[
-                  ["Ground",    ground.name],
-                  ["Date",      date],
-                  ["Time",      `${fmt12(sorted[0].startH)} – ${fmt12(sorted.at(-1).endH)}`],
-                  ["Paid",      `Rs ${success.amount}`],
-                  ["Txn ID",    success.transaction_id],
-                ].map(([k, v]) => (
-                  <div key={k} className="flex justify-between border-b border-gray-100 pb-2 last:border-0 last:pb-0">
-                    <span className="text-gray-500">{k}</span>
-                    <span className={`font-semibold ${k === "Paid" ? "text-green-600" : "text-gray-800"} ${k === "Txn ID" ? "font-mono text-xs" : ""}`}>{v}</span>
-                  </div>
-                ))}
-              </div>
-
-              <button onClick={onClose}
-                className="w-full py-3 bg-green-500 text-white font-black rounded-xl hover:bg-green-600 transition">
-                Done
+        {/* Footer CTA */}
+        <div className="px-6 py-4 border-t border-gray-100 bg-white flex-shrink-0">
+          {step === 1 && (
+            <button
+              onClick={() => {
+                if (!date) { setApiError("Please select a date."); return; }
+                if (selectedSlots.length === 0) { setApiError("Please select at least one time slot."); return; }
+                setApiError(""); setStep(2);
+              }}
+              className="w-full py-3.5 bg-green-500 text-white font-black rounded-xl hover:bg-green-600 transition disabled:opacity-40">
+              Continue →
+            </button>
+          )}
+          {step === 2 && (
+            <div className="flex gap-3">
+              <button onClick={() => setStep(1)}
+                className="flex-1 py-3.5 bg-gray-100 border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
+                ← Edit
+              </button>
+              <button onClick={() => setStep(3)}
+                className="flex-1 py-3.5 bg-green-500 text-white font-black rounded-xl hover:bg-green-600 transition">
+                Choose Payment →
+              </button>
+            </div>
+          )}
+          {step === 3 && (
+            <div className="flex gap-3">
+              <button onClick={() => setStep(2)}
+                className="flex-1 py-3.5 bg-gray-100 border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
+                ← Back
+              </button>
+              <button onClick={handlePay} disabled={submitting}
+                className={`flex-1 py-3.5 font-black rounded-xl transition disabled:opacity-50 flex items-center justify-center gap-2
+                  ${method === "khalti" ? "bg-purple-600 hover:bg-purple-700 text-white" : "bg-green-500 hover:bg-green-600 text-white"}`}>
+                {submitting
+                  ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Processing…</>
+                  : method === "khalti"
+                  ? `🟣 Pay Rs ${totalPrice} via Khalti`
+                  : `💵 Pay Rs ${totalPrice} (Cash)`}
               </button>
             </div>
           )}
         </div>
-
-        {/* modal footer CTA */}
-        {step < 4 && (
-          <div className="px-6 py-4 border-t border-gray-100 bg-white flex-shrink-0">
-            {step === 1 && (
-              <button
-                onClick={() => {
-                  if (!date)                  { setApiError("Please select a date."); return; }
-                  if (selectedSlots.length === 0) { setApiError("Please select at least one time slot."); return; }
-                  setApiError(""); setStep(2);
-                }}
-                disabled={!date || selectedSlots.length === 0}
-                className="w-full py-3.5 bg-green-500 text-white font-black rounded-xl hover:bg-green-600 transition disabled:opacity-40 disabled:cursor-not-allowed">
-                Continue →
-              </button>
-            )}
-            {step === 2 && (
-              <div className="flex gap-3">
-                <button onClick={() => setStep(1)}
-                  className="flex-1 py-3.5 bg-gray-100 border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
-                  ← Edit
-                </button>
-                <button onClick={() => setStep(3)}
-                  className="flex-1 py-3.5 bg-green-500 text-white font-black rounded-xl hover:bg-green-600 transition">
-                  Pay →
-                </button>
-              </div>
-            )}
-            {step === 3 && (
-              <div className="flex gap-3">
-                <button onClick={() => setStep(2)}
-                  className="flex-1 py-3.5 bg-gray-100 border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
-                  ← Back
-                </button>
-                <button onClick={handlePay} disabled={submitting}
-                  className="flex-1 py-3.5 bg-green-500 text-white font-black rounded-xl hover:bg-green-600 transition disabled:opacity-50 flex items-center justify-center gap-2">
-                  {submitting
-                    ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Processing…</>
-                    : `Pay Rs ${totalPrice}`}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -456,16 +469,13 @@ export default function PlayerMyBookings() {
   const navigate = useNavigate();
   const token    = localStorage.getItem("access");
 
-  /* ── bookings state ──────────────────────────────────────── */
-  const [bookings,   setBookings]   = useState([]);
-  const [loading,    setLoading]    = useState(true);
-  const [filter,     setFilter]     = useState("all");
-  const [cancelling, setCancelling] = useState(null);
-
-  /* ── grounds for booking ─────────────────────────────────── */
+  const [bookings,       setBookings]       = useState([]);
+  const [loading,        setLoading]        = useState(true);
+  const [filter,         setFilter]         = useState("all");
+  const [cancelling,     setCancelling]     = useState(null);
   const [grounds,        setGrounds]        = useState([]);
   const [loadingGrounds, setLoadingGrounds] = useState(true);
-  const [selectedGround, setSelectedGround] = useState(null); // opens modal
+  const [selectedGround, setSelectedGround] = useState(null);
   const [groundFilter,   setGroundFilter]   = useState("");
 
   const fetchBookings = async () => {
@@ -498,7 +508,12 @@ export default function PlayerMyBookings() {
     } finally { setCancelling(null); }
   };
 
-  const filtered = filter === "all" ? bookings : bookings.filter(b => b.status === filter);
+  const filtered       = filter === "all" ? bookings : bookings.filter(b => b.status === filter);
+  const filteredGrounds = grounds.filter(g =>
+    !groundFilter.trim() ||
+    g.name?.toLowerCase().includes(groundFilter.toLowerCase()) ||
+    g.location?.toLowerCase().includes(groundFilter.toLowerCase())
+  );
 
   const stats = {
     total:     bookings.length,
@@ -507,29 +522,18 @@ export default function PlayerMyBookings() {
     cancelled: bookings.filter(b => b.status === "cancelled").length,
   };
 
-  const filteredGrounds = grounds.filter(g =>
-    !groundFilter.trim() ||
-    g.name?.toLowerCase().includes(groundFilter.toLowerCase()) ||
-    g.location?.toLowerCase().includes(groundFilter.toLowerCase())
-  );
-
-  /* ══════════════════════════════════════════════════════════
-     RENDER
-  ══════════════════════════════════════════════════════════ */
   return (
     <div className="min-h-screen bg-gray-50 pt-20">
 
-      {/* booking modal */}
       {selectedGround && (
         <BookingModal
           ground={selectedGround}
           myBookings={bookings}
           onClose={() => setSelectedGround(null)}
-          onBooked={() => { fetchBookings(); }}
+          onBooked={() => { fetchBookings(); setSelectedGround(null); }}
         />
       )}
 
-      {/* top bar */}
       <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-3">
         <button onClick={() => navigate("/player-dashboard")}
           className="text-gray-500 hover:text-gray-800 text-sm font-medium flex items-center gap-1.5 transition">
@@ -542,26 +546,18 @@ export default function PlayerMyBookings() {
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="grid grid-cols-12 gap-8">
 
-          {/* ── LEFT: BOOK A GROUND ──────────────────────────── */}
+          {/* ── LEFT: Book a Ground ── */}
           <div className="col-span-12 lg:col-span-5">
             <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden sticky top-24">
-
               <div className="px-5 py-4 border-b border-gray-100">
                 <h2 className="text-base font-black text-gray-900">⚽ Book a Ground</h2>
-                <p className="text-gray-400 text-xs mt-0.5">Select a ground to book your slot</p>
+                <p className="text-gray-400 text-xs mt-0.5">Pay instantly with 🟣 Khalti or 💵 Cash</p>
               </div>
-
-              {/* search */}
               <div className="px-5 py-3 border-b border-gray-100">
-                <input
-                  type="text"
-                  placeholder="Search grounds..."
-                  value={groundFilter}
-                  onChange={e => setGroundFilter(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-200 hover:border-gray-300 transition" />
+                <input type="text" placeholder="Search grounds..."
+                  value={groundFilter} onChange={e => setGroundFilter(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-green-500 transition" />
               </div>
-
-              {/* ground list */}
               <div className="overflow-y-auto max-h-[calc(100vh-260px)]">
                 {loadingGrounds ? (
                   <div className="flex items-center justify-center py-12">
@@ -582,13 +578,11 @@ export default function PlayerMyBookings() {
                         <div key={g.id}
                           className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition cursor-pointer group"
                           onClick={() => setSelectedGround(g)}>
-
                           <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-gray-100 border border-gray-200">
                             {imgSrc
                               ? <img src={imgSrc} alt={g.name} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
                               : <div className="w-full h-full flex items-center justify-center text-2xl">⚽</div>}
                           </div>
-
                           <div className="flex-1 min-w-0">
                             <p className="text-gray-900 font-bold text-sm truncate">{g.name}</p>
                             <p className="text-gray-500 text-xs mt-0.5">📍 {g.location}</p>
@@ -600,7 +594,6 @@ export default function PlayerMyBookings() {
                               </span>
                             </div>
                           </div>
-
                           <div className="flex-shrink-0">
                             <span className="px-3 py-1.5 bg-green-500 text-white text-xs font-black rounded-lg group-hover:bg-green-600 transition shadow-sm">
                               Book
@@ -612,20 +605,17 @@ export default function PlayerMyBookings() {
                   </div>
                 )}
               </div>
-
             </div>
           </div>
 
-          {/* ── RIGHT: MY BOOKINGS ───────────────────────────── */}
+          {/* ── RIGHT: My Bookings ── */}
           <div className="col-span-12 lg:col-span-7">
-
-            {/* stats */}
             <div className="grid grid-cols-4 gap-3 mb-5">
               {[
-                { label: "Total",     value: stats.total,     color: "text-gray-800",  bg: "bg-white"         },
-                { label: "Confirmed", value: stats.confirmed, color: "text-green-600", bg: "bg-green-50"      },
-                { label: "Pending",   value: stats.pending,   color: "text-amber-600", bg: "bg-amber-50"      },
-                { label: "Cancelled", value: stats.cancelled, color: "text-red-500",   bg: "bg-red-50"        },
+                { label: "Total",     value: stats.total,     color: "text-gray-800",  bg: "bg-white"    },
+                { label: "Confirmed", value: stats.confirmed, color: "text-green-600", bg: "bg-green-50" },
+                { label: "Pending",   value: stats.pending,   color: "text-amber-600", bg: "bg-amber-50" },
+                { label: "Cancelled", value: stats.cancelled, color: "text-red-500",   bg: "bg-red-50"   },
               ].map(s => (
                 <div key={s.label} className={`${s.bg} border border-gray-200 rounded-xl p-4 text-center shadow-sm`}>
                   <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
@@ -634,20 +624,16 @@ export default function PlayerMyBookings() {
               ))}
             </div>
 
-            {/* filter tabs */}
             <div className="flex gap-2 mb-5 bg-white border border-gray-200 rounded-xl p-1.5 shadow-sm w-fit">
               {["all", "pending", "confirmed", "cancelled"].map(f => (
                 <button key={f} onClick={() => setFilter(f)}
                   className={`px-4 py-2 rounded-lg text-sm font-bold capitalize transition-all
-                    ${filter === f
-                      ? "bg-green-500 text-white shadow-sm"
-                      : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>
+                    ${filter === f ? "bg-green-500 text-white shadow-sm" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>
                   {f}
                 </button>
               ))}
             </div>
 
-            {/* bookings */}
             {loading ? (
               <div className="flex items-center justify-center py-20">
                 <div className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin" />
@@ -667,8 +653,6 @@ export default function PlayerMyBookings() {
                       className="bg-white border border-gray-200 rounded-xl shadow-sm px-5 py-4 hover:border-gray-300 hover:shadow-md transition-all">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
-
-                          {/* ground name + status */}
                           <div className="flex items-center gap-3 mb-3">
                             <h3 className="text-gray-900 font-black text-base truncate">{b.ground_name}</h3>
                             <span className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${cfg.text} ${cfg.bg} ${cfg.border}`}>
@@ -676,8 +660,6 @@ export default function PlayerMyBookings() {
                               {cfg.label}
                             </span>
                           </div>
-
-                          {/* details grid */}
                           <div className="grid grid-cols-2 gap-x-8 gap-y-1.5">
                             <div className="flex items-center gap-2 text-sm">
                               <span className="text-gray-400">📅</span>
@@ -696,9 +678,7 @@ export default function PlayerMyBookings() {
                               <span className="text-gray-500">#{b.id}</span>
                             </div>
                           </div>
-
                         </div>
-
                         {b.status === "pending" && (
                           <button onClick={() => handleCancel(b.id)} disabled={cancelling === b.id}
                             className="flex-shrink-0 px-4 py-2 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm font-bold hover:bg-red-100 transition disabled:opacity-50">
@@ -711,7 +691,6 @@ export default function PlayerMyBookings() {
                 })}
               </div>
             )}
-
           </div>
         </div>
       </div>

@@ -2,18 +2,19 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 
 // ── Public ─────────────────────────────────────────────────────
-import Home              from "./pages/Home";
-import Register          from "./pages/Register";
-import Login             from "./pages/Login";
-import About             from "./pages/About";
-import Grounds           from "./pages/Grounds";
-import GroundDetail      from "./pages/GroundDetail";
-import NotFound          from "./pages/NotFound";
-import VerifyEmail       from "./pages/VerifyEmail";
+import Home               from "./pages/Home";
+import Register           from "./pages/Register";
+import Login              from "./pages/Login";
+import About              from "./pages/About";
+import Grounds            from "./pages/Grounds";
+import GroundDetail       from "./pages/GroundDetail";
+import NotFound           from "./pages/NotFound";
+import VerifyEmail        from "./pages/VerifyEmail";
 import ResendVerification from "./pages/ResendVerification";
 
 // ── Shared ─────────────────────────────────────────────────────
-import Profile from "./pages/Profile";
+import Profile       from "./pages/Profile";
+import KhaltiVerify  from "./pages/KhaltiVerify";   // ← Khalti return_url page
 
 // ── Player ─────────────────────────────────────────────────────
 import PlayerDashboard      from "./pages/PlayerDashboard";
@@ -75,17 +76,21 @@ export default function App() {
           <Route path="/grounds"     element={<Grounds />} />
           <Route path="/grounds/:id" element={<GroundDetail />} />
 
-          {/* Email verification — public, no auth */}
           <Route path="/verify-email/:token"  element={<VerifyEmail />} />
           <Route path="/resend-verification"  element={<ResendVerification />} />
 
-          {/* Redirect logged-in users away from login/register */}
           <Route path="/login"    element={token ? <Navigate to={dashboardRedirect} replace /> : <Login />} />
           <Route path="/register" element={token ? <Navigate to={dashboardRedirect} replace /> : <Register />} />
 
-          {/* ════ SHARED — any logged-in user ════ */}
-          <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
-          <Route path="/book/:id" element={<RequireAuth><BookingPage /></RequireAuth>} />
+          {/* ════ SHARED ════ */}
+          <Route path="/profile"        element={<RequireAuth><Profile /></RequireAuth>} />
+          <Route path="/book/:id"       element={<RequireAuth><BookingPage /></RequireAuth>} />
+
+          {/* ════ KHALTI CALLBACK ════
+              Khalti redirects here after payment.
+              Must match the return_url sent during /api/payments/initiate/
+          ════ */}
+          <Route path="/payment/verify" element={<RequireAuth><KhaltiVerify /></RequireAuth>} />
 
           {/* ════ PLAYER ════ */}
           <Route path="/player-dashboard"
