@@ -143,18 +143,6 @@ def initiate_payment(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def verify_payment(request):
-    """
-    Verifies a Khalti payment using the Lookup API.
-
-    Body:
-        pidx  -- The Khalti payment identifier returned from initiate
-
-    On success:
-        - Payment record updated to "success"
-        - Booking status updated to "confirmed"
-
-    Returns payment details + booking info.
-    """
     pidx = request.data.get("pidx")
 
     if not pidx:
@@ -187,8 +175,18 @@ def verify_payment(request):
 
         # Confirm the booking
         booking = payment.booking
-        booking.status = Booking.Status.CONFIRMED
-        booking.save(update_fields=["status"])
+
+        # ✅ Prevent duplicate confirmation
+        if booking.status != Booking.Status.CONFIRMED:
+            booking.status = Booking.Status.CONFIRMED
+            booking.save(update_fields=["status"])
+
+            # ✅ ADD THIS (LOYALTY FIX)
+            from bookings.models import LoyaltyRecord
+
+            if not booking.is_free_booking:
+                record = LoyaltyRecord.get_or_create_for(booking.user, booking.ground)
+                record.record_confirmed_booking()
 
         return Response({
             "status":         "success",
@@ -213,7 +211,7 @@ def verify_payment(request):
         }, status=200)
 
     else:
-        # Canceled, Expired, Failed
+        # Failed / Cancelled
         payment.status        = "failed"
         payment.khalti_status = khalti_status
         payment.save(update_fields=["status", "khalti_status"])

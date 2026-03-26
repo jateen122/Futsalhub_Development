@@ -1,9 +1,12 @@
+# backend/bookings/views.py  — REPLACE ENTIRE FILE
+
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from .models import Booking
-from .serializers import BookingSerializer, BookingStatusSerializer
+from .models import Booking, LoyaltyRecord, LOYALTY_THRESHOLD
+from .serializers import BookingSerializer, BookingStatusSerializer, LoyaltySerializer
 from .permissions import IsPlayer, IsBookingOwner, IsOwnerOfGround
 
 
@@ -14,13 +17,7 @@ from .permissions import IsPlayer, IsBookingOwner, IsOwnerOfGround
 class CreateBookingView(generics.CreateAPIView):
     """
     Create a new booking.
-
-    Access   : Authenticated users with role='player' only.
-    Behavior :
-      • request.user is automatically set as the booking user.
-      • total_price is calculated automatically (price_per_hour × duration).
-      • Overlap validation runs inside Booking.clean() on save.
-      • Ground must be approved before it can be booked.
+    Auto confirms booking and updates loyalty.
     """
 
     serializer_class   = BookingSerializer
@@ -29,13 +26,82 @@ class CreateBookingView(generics.CreateAPIView):
     def perform_create(self, serializer):
         ground = serializer.validated_data.get("ground")
 
-        # Guard: ground must be approved by admin
         if not ground.is_approved:
             raise ValidationError(
                 "This ground is not yet approved and cannot be booked."
             )
 
-        serializer.save(user=self.request.user)
+        use_free = self.request.data.get("use_free_booking", False)
+        is_free  = False
+
+        if use_free:
+            record = LoyaltyRecord.get_or_create_for(self.request.user, ground)
+            if record.free_bookings_available <= 0:
+                raise ValidationError(
+                    "You have no free bookings available at this ground."
+                )
+            record.redeem_free_booking()
+            is_free = True
+
+        # ✅ CREATE BOOKING (AUTO CONFIRM)
+        booking = serializer.save(
+            user=self.request.user,
+            is_free_booking=is_free,
+            status="confirmed",
+            **({"total_price": "0.00"} if is_free else {}),
+        )
+
+        # ✅ LOYALTY UPDATE (FIXED POSITION)
+        if not booking.is_free_booking:
+            record = LoyaltyRecord.get_or_create_for(self.request.user, booking.ground)
+            record.record_confirmed_booking()
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(
+            {
+                "message": "Booking created successfully.",
+                "booking": serializer.data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+    """
+    Create a new booking.
+    If use_free_booking=true is passed and the user has a free booking
+    available at this ground, price is set to 0 and is_free_booking=True.
+    """
+
+    serializer_class   = BookingSerializer
+    permission_classes = [permissions.IsAuthenticated, IsPlayer]
+
+    def perform_create(self, serializer):
+        ground = serializer.validated_data.get("ground")
+
+        if not ground.is_approved:
+            raise ValidationError(
+                "This ground is not yet approved and cannot be booked."
+            )
+
+        use_free = self.request.data.get("use_free_booking", False)
+        is_free  = False
+
+        if use_free:
+            record = LoyaltyRecord.get_or_create_for(self.request.user, ground)
+            if record.free_bookings_available <= 0:
+                raise ValidationError(
+                    "You have no free bookings available at this ground."
+                )
+            record.redeem_free_booking()
+            is_free = True
+
+        serializer.save(
+            user=self.request.user,
+            is_free_booking=is_free,
+            # override price to 0 for free bookings
+            **({"total_price": "0.00"} if is_free else {}),
+        )
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -55,23 +121,13 @@ class CreateBookingView(generics.CreateAPIView):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class CancelBookingView(generics.UpdateAPIView):
-    """
-    Cancel an existing booking.
-
-    Access   : Only the player who made the booking.
-    Behavior :
-      • Sets status to CANCELLED.
-      • Cannot cancel an already cancelled or refunded booking.
-      • Only PATCH is allowed (not PUT).
-    """
-
     queryset           = Booking.objects.all()
     serializer_class   = BookingStatusSerializer
     permission_classes = [permissions.IsAuthenticated, IsBookingOwner]
     http_method_names  = ["patch"]
 
     def patch(self, request, *args, **kwargs):
-        booking = self.get_object()   # triggers has_object_permission
+        booking = self.get_object()
 
         if booking.status in [Booking.Status.CANCELLED, Booking.Status.REFUNDED]:
             return Response(
@@ -80,7 +136,6 @@ class CancelBookingView(generics.UpdateAPIView):
             )
 
         if booking.status == Booking.Status.CONFIRMED:
-            # Allow cancel but flag it for potential refund processing
             booking.status = Booking.Status.CANCELLED
             booking.save(update_fields=["status"])
             return Response(
@@ -101,17 +156,76 @@ class CancelBookingView(generics.UpdateAPIView):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# PATCH /api/bookings/<id>/update/   (Owner: confirm / cancel)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class UpdateBookingStatusView(generics.UpdateAPIView):
+    """
+    Owner endpoint to confirm or cancel a booking.
+    When a booking is CONFIRMED, the loyalty counter is incremented.
+    """
+    queryset           = Booking.objects.all()
+    serializer_class   = BookingStatusSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOfGround]
+    http_method_names  = ["patch"]
+
+    def get_object(self):
+        booking = super().get_object()
+        # Ensure this booking belongs to a ground owned by request.user
+        if booking.ground.owner != self.request.user:
+            raise PermissionDenied("You do not own this ground.")
+        return booking
+
+    def patch(self, request, *args, **kwargs):
+        booking    = self.get_object()
+        new_status = request.data.get("status")
+
+        if new_status not in ["confirmed", "cancelled"]:
+            return Response(
+                {"detail": "status must be 'confirmed' or 'cancelled'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        old_status = booking.status
+
+        booking.status = new_status
+        booking.save(update_fields=["status"])
+
+        # ── Loyalty: increment when a non-free booking is confirmed ──────────
+        if new_status == "confirmed" and old_status != "confirmed":
+            if not booking.is_free_booking:
+                record = LoyaltyRecord.get_or_create_for(booking.user, booking.ground)
+                record.record_confirmed_booking()
+
+                # Send loyalty notification if a free booking was just earned
+                if record.free_bookings_available > 0 and record.confirmed_count % LOYALTY_THRESHOLD == 0:
+                    try:
+                        from notifications.models import Notification
+                        Notification.send(
+                            user=booking.user,
+                            message=(
+                                f"🎉 You've earned a FREE booking at '{booking.ground.name}'! "
+                                f"You've confirmed {record.confirmed_count} bookings there. "
+                                f"Use your free booking on your next visit!"
+                            ),
+                            notification_type=Notification.Type.GENERAL,
+                        )
+                    except Exception:
+                        pass
+
+        return Response(
+            {
+                "message": f"Booking {new_status}.",
+                "booking": BookingStatusSerializer(booking).data,
+            }
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # GET /api/bookings/my/
 # ─────────────────────────────────────────────────────────────────────────────
 
 class UserBookingsView(generics.ListAPIView):
-    """
-    List all bookings made by the currently authenticated player.
-
-    Access   : Any authenticated user.
-    Filtering: Optional ?status=pending|confirmed|cancelled|refunded
-    """
-
     serializer_class   = BookingSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -132,18 +246,10 @@ class UserBookingsView(generics.ListAPIView):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class OwnerBookingsView(generics.ListAPIView):
-    """
-    List all bookings for grounds owned by the authenticated owner.
-
-    Access   : Authenticated users with role='owner'.
-    Filtering: Optional ?ground_id=<id>  ?status=<status>  ?date=YYYY-MM-DD
-    """
-
     serializer_class   = BookingSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOfGround]
 
     def get_queryset(self):
-        # Only return bookings for grounds this owner owns
         qs = Booking.objects.filter(
             ground__owner=self.request.user
         ).select_related("user", "ground")
@@ -160,3 +266,64 @@ class OwnerBookingsView(generics.ListAPIView):
             qs = qs.filter(date=date_filter)
 
         return qs
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /api/bookings/loyalty/              — all loyalty records for the user
+# GET /api/bookings/loyalty/<ground_id>/  — specific ground loyalty status
+# ─────────────────────────────────────────────────────────────────────────────
+
+class UserLoyaltyView(generics.ListAPIView):
+    """
+    Returns all loyalty records for the authenticated user,
+    one per ground they have bookings at.
+    """
+    serializer_class   = LoyaltySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            LoyaltyRecord.objects
+            .filter(user=self.request.user)
+            .select_related("ground", "ground__owner")
+            .order_by("-updated_at")
+        )
+
+    def list(self, request, *args, **kwargs):
+        qs         = self.get_queryset()
+        serializer = self.get_serializer(qs, many=True)
+        total_free = sum(r.free_bookings_available for r in qs)
+        return Response({
+            "total_free_available": total_free,
+            "loyalty_records":      serializer.data,
+        })
+
+
+class GroundLoyaltyView(APIView):
+    """
+    GET /api/bookings/loyalty/<ground_id>/
+    Returns the loyalty status for a specific ground for the logged-in user.
+    Used in the booking modal to show progress and free-booking option.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, ground_id):
+        try:
+            from grounds.models import Ground
+            ground = Ground.objects.get(pk=ground_id)
+        except Exception:
+            return Response({"detail": "Ground not found."}, status=404)
+
+        record = LoyaltyRecord.get_or_create_for(request.user, ground)
+
+        return Response({
+            "ground_id":               ground.id,
+            "ground_name":             ground.name,
+            "confirmed_count":         record.confirmed_count,
+            "free_bookings_earned":    record.free_bookings_earned,
+            "free_bookings_used":      record.free_bookings_used,
+            "free_bookings_available": record.free_bookings_available,
+            "bookings_until_next_free": record.bookings_until_next_free,
+            "progress_to_next_free":   record.progress_to_next_free,
+            "loyalty_threshold":       LOYALTY_THRESHOLD,
+        })

@@ -1,3 +1,4 @@
+// frontend/src/App.jsx
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 
@@ -14,7 +15,7 @@ import ResendVerification from "./pages/ResendVerification";
 
 // ── Shared ─────────────────────────────────────────────────────
 import Profile       from "./pages/Profile";
-import KhaltiVerify  from "./pages/KhaltiVerify";   // ← Khalti return_url page
+import KhaltiVerify  from "./pages/KhaltiVerify";
 
 // ── Player ─────────────────────────────────────────────────────
 import PlayerDashboard      from "./pages/PlayerDashboard";
@@ -23,6 +24,7 @@ import PlayerMyBookings     from "./pages/PlayerMyBookings";
 import PlayerPaymentHistory from "./pages/PlayerPaymentHistory";
 import PlayerNotifications  from "./pages/PlayerNotifications";
 import PlayerFavorites      from "./pages/PlayerFavorites";
+import PlayerLoyalty        from "./pages/PlayerLoyalty";       // ← NEW
 
 // ── Owner ──────────────────────────────────────────────────────
 import OwnerDashboard     from "./pages/OwnerDashboard";
@@ -86,47 +88,60 @@ export default function App() {
           <Route path="/profile"        element={<RequireAuth><Profile /></RequireAuth>} />
           <Route path="/book/:id"       element={<RequireAuth><BookingPage /></RequireAuth>} />
 
-          {/* ════ KHALTI CALLBACK ════
-              Khalti redirects here after payment.
-              Must match the return_url sent during /api/payments/initiate/
-          ════ */}
+          {/* Khalti callback */}
           <Route path="/payment/verify" element={<RequireAuth><KhaltiVerify /></RequireAuth>} />
 
           {/* ════ PLAYER ════ */}
           <Route path="/player-dashboard"
             element={<ProtectedRoute allowedRole="player"><PlayerDashboard /></ProtectedRoute>} />
+
           <Route path="/my-bookings"
             element={<ProtectedRoute allowedRole="player"><PlayerMyBookings /></ProtectedRoute>} />
+
           <Route path="/my-payments"
             element={<ProtectedRoute allowedRole="player"><PlayerPaymentHistory /></ProtectedRoute>} />
+
           <Route path="/notifications"
             element={<ProtectedRoute allowedRole="player"><PlayerNotifications /></ProtectedRoute>} />
+
           <Route path="/my-favorites"
             element={<ProtectedRoute allowedRole="player"><PlayerFavorites /></ProtectedRoute>} />
 
+          {/* ─── LOYALTY / REWARDS ─── */}
+          <Route path="/player-loyalty"
+          element={<ProtectedRoute allowedRole="player"><PlayerLoyalty /></ProtectedRoute>} />
           {/* ════ OWNER ════ */}
           <Route path="/owner-dashboard"
             element={<ProtectedRoute allowedRole="owner"><OwnerDashboard /></ProtectedRoute>} />
+
           <Route path="/add-ground"
             element={<ProtectedRoute allowedRole="owner"><OwnerAddGround /></ProtectedRoute>} />
+
           <Route path="/manage-grounds"
             element={<ProtectedRoute allowedRole="owner"><OwnerManageGround /></ProtectedRoute>} />
+
           <Route path="/owner-bookings"
             element={<ProtectedRoute allowedRole="owner"><OwnerBookings /></ProtectedRoute>} />
+
           <Route path="/owner-notifications"
             element={<ProtectedRoute allowedRole="owner"><OwnerNotifications /></ProtectedRoute>} />
 
           {/* ════ ADMIN ════ */}
           <Route path="/admin-dashboard"
             element={<ProtectedRoute allowedRole="admin"><AdminDashboard /></ProtectedRoute>} />
+
           <Route path="/admin/grounds"
             element={<ProtectedRoute allowedRole="admin"><AdminGroundApproval /></ProtectedRoute>} />
+
           <Route path="/admin/ground/:id"
             element={<ProtectedRoute allowedRole="admin"><AdminGroundDetail /></ProtectedRoute>} />
+
           <Route path="/admin/users"
             element={<ProtectedRoute allowedRole="admin"><AdminUsers /></ProtectedRoute>} />
+
           <Route path="/admin/bookings"
             element={<ProtectedRoute allowedRole="admin"><AdminBookings /></ProtectedRoute>} />
+
           <Route path="/admin/notifications"
             element={<ProtectedRoute allowedRole="admin"><AdminNotifications /></ProtectedRoute>} />
 
