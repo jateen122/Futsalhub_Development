@@ -7,14 +7,13 @@ const BASE_URL = "http://127.0.0.1:8000";
 
 export default function LoyaltyBadge({ groundId, onFreeToggle, useFree }) {
   const token = localStorage.getItem("access");
-  const role  = localStorage.getItem("role");
+  const role = localStorage.getItem("role");
 
   const [loyalty, setLoyalty] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!token || role !== "player" || !groundId) {
-      console.log("Missing:", { token, role, groundId });
       setLoading(false);
       return;
     }
@@ -23,7 +22,7 @@ export default function LoyaltyBadge({ groundId, onFreeToggle, useFree }) {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`, // ✅ REQUIRED
+        Authorization: `Bearer ${token}`,
       },
     })
       .then((res) => {
@@ -31,107 +30,119 @@ export default function LoyaltyBadge({ groundId, onFreeToggle, useFree }) {
         return res.json();
       })
       .then((data) => {
-        console.log("Loyalty Data:", data);
         setLoyalty(data);
       })
       .catch((err) => {
-        console.error("Error:", err);
+        console.error("Loyalty fetch error:", err);
       })
       .finally(() => setLoading(false));
-
-  }, [groundId, token, role]); // ✅ FIXED DEPENDENCY
+  }, [groundId, token, role]);
 
   if (loading || !loyalty || role !== "player") return null;
 
-  const hasFree   = loyalty.free_bookings_available > 0;
+  const hasFree = loyalty.free_bookings_available > 0;
   const threshold = loyalty.loyalty_threshold || 5;
-  const current   = loyalty.confirmed_count % threshold;
+  const current = loyalty.confirmed_count % threshold || 0;
+  const progress = loyalty.progress_to_next_free || 0;
 
   return (
-    <div
-      className={`rounded-xl border p-4 transition-all
-        ${hasFree
-          ? "bg-amber-400/10 border-amber-400/40"
-          : "bg-white/5 border-white/10"}`}
-    >
+    <div className="bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-500 rounded-3xl p-8 shadow-2xl text-white relative overflow-hidden">
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Trophy size={18} className="text-amber-400" />
-          <span className="text-white/70 text-xs font-bold uppercase tracking-widest">
-            Loyalty Rewards
-          </span>
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:24px_24px]" />
+
+      <div className="relative">
+
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center">
+            <Trophy size={28} />
+          </div>
+          <div>
+            <p className="uppercase tracking-[3px] text-xs font-semibold opacity-90">Loyalty Rewards</p>
+            <p className="text-2xl font-bold tracking-tight">Free Booking Progress</p>
+          </div>
         </div>
 
+        {/* Stamp / Progress Circles */}
+        <div className="flex items-center justify-between mb-8">
+          {Array.from({ length: threshold }, (_, i) => {
+            const isFilled = i < current;
+            return (
+              <div
+                key={i}
+                className={`w-11 h-11 rounded-2xl flex items-center justify-center border-2 transition-all duration-300
+                  ${isFilled 
+                    ? "bg-white border-white text-orange-500" 
+                    : "bg-white/10 border-white/30"}`}
+              >
+                {isFilled ? (
+                  <div className="w-4 h-4 bg-orange-500 rounded-full" />
+                ) : (
+                  <span className="text-white/40 font-semibold text-lg">{i + 1}</span>
+                )}
+              </div>
+            );
+          })}
+
+          <div className="text-4xl opacity-40">=</div>
+
+          <div className="w-11 h-11 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center">
+            <Gift size={26} />
+          </div>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="mb-3">
+          <div className="h-2.5 bg-white/20 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-white rounded-full transition-all duration-700 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Status Text */}
+        <div className="flex justify-between items-end">
+          <div>
+            <p className="text-sm font-medium opacity-90">
+              {hasFree 
+                ? "🎉 Free booking available!" 
+                : `${loyalty.bookings_until_next_free || (threshold - current)} more bookings to unlock next free`}
+            </p>
+          </div>
+
+          {hasFree && (
+            <div className="text-right">
+              <span className="text-xs opacity-75">Available</span>
+              <p className="text-3xl font-bold leading-none">{loyalty.free_bookings_available}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Redeem Toggle */}
         {hasFree && (
-          <span className="flex items-center gap-1 bg-amber-400 text-black text-xs font-bold px-2.5 py-1 rounded-full">
-            <Gift size={12} />
-            {loyalty.free_bookings_available}
-          </span>
+          <div className="mt-8 pt-6 border-t border-white/20">
+            <button
+              type="button"
+              onClick={() => onFreeToggle?.(!useFree)}
+              className={`w-full py-4 rounded-2xl font-semibold text-lg transition-all flex items-center justify-center gap-3
+                ${useFree 
+                  ? "bg-white text-orange-600 shadow-lg" 
+                  : "bg-white/10 hover:bg-white/20 border border-white/30"}`}
+            >
+              <Gift size={22} />
+              {useFree ? "Free Booking Applied ✓" : "Use Free Booking"}
+            </button>
+
+            {useFree && (
+              <p className="text-center text-white/70 text-sm mt-3">
+                Your booking will be completely free
+              </p>
+            )}
+          </div>
         )}
       </div>
-
-      {/* Stamp row */}
-      <div className="flex items-center gap-1.5 mb-3">
-        {Array.from({ length: threshold }, (_, i) => {
-          const filled = i < current;
-          return (
-            <div
-              key={i}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm border transition
-                ${filled
-                  ? "bg-amber-400 border-amber-400"
-                  : "bg-white/5 border-white/20"}`}
-            >
-              {filled ? (
-                <div className="w-2.5 h-2.5 bg-black rounded-full"></div>
-              ) : (
-                <span className="text-white/20 text-[10px]">{i + 1}</span>
-              )}
-            </div>
-          );
-        })}
-        <span className="text-white/30 text-xs ml-1">=</span>
-        <Gift size={16} className="text-amber-400" />
-      </div>
-
-      {/* Progress bar */}
-      <div className="mb-3">
-        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-amber-400 transition-all duration-500"
-            style={{ width: `${loyalty.progress_to_next_free}%` }}
-          />
-        </div>
-
-        <p className="text-white/40 text-xs mt-1">
-          {hasFree
-            ? "Free booking available"
-            : `${loyalty.bookings_until_next_free} more to next free booking`}
-        </p>
-      </div>
-
-      {/* Redeem button */}
-      {hasFree && (
-        <button
-          type="button"
-          onClick={() => onFreeToggle?.(!useFree)}
-          className={`w-full py-2.5 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2
-            ${useFree
-              ? "bg-amber-400 text-black"
-              : "bg-amber-400/15 border border-amber-400/40 text-amber-300 hover:bg-amber-400/25"}`}
-        >
-          <Gift size={14} />
-          {useFree ? "Free Booking Applied" : "Use Free Booking"}
-        </button>
-      )}
-
-      {useFree && (
-        <p className="text-amber-400/70 text-xs text-center mt-2">
-          Total will be Rs 0
-        </p>
-      )}
     </div>
   );
 }

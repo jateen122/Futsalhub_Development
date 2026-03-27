@@ -19,24 +19,12 @@ KHALTI_SECRET_KEY   = getattr(settings, "KHALTI_SECRET_KEY", "05bf95cc57244045b8
 
 # ─────────────────────────────────────────────────────────────────────────────
 # POST /api/payments/initiate/
-# Initiates a Khalti payment for a given booking
 # ─────────────────────────────────────────────────────────────────────────────
-
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def initiate_payment(request):
     """
-    Initiates a Khalti ePay checkout session.
-
-    Body:
-        booking_id  -- ID of the booking to pay for
-        return_url  -- Frontend URL Khalti will redirect to after payment
-        website_url -- Your website URL (required by Khalti)
-
-    Returns:
-        pidx        -- Khalti payment identifier (save this!)
-        payment_url -- Redirect user here to complete payment
-        expires_at  -- When the payment link expires
+    Initiates a Khalti ePay checkout session for a PENDING booking only.
     """
     booking_id  = request.data.get("booking_id")
     return_url  = request.data.get("return_url", "http://localhost:5173/payment/verify")
@@ -47,18 +35,18 @@ def initiate_payment(request):
 
     booking = get_object_or_404(Booking, pk=booking_id, user=request.user)
 
-    if booking.status not in [Booking.Status.PENDING]:
+    # 🔥 FIXED: Only allow payment on PENDING bookings
+    if booking.status != Booking.Status.PENDING:
         return Response(
             {"detail": f"Cannot pay for a booking with status '{booking.status}'."},
             status=400,
         )
 
-    # Check if payment already exists and succeeded
-    existing = Payment.objects.filter(booking=booking, status="success").first()
-    if existing:
+    # Check if already successfully paid
+    if Payment.objects.filter(booking=booking, status=Payment.Status.SUCCESS).exists():
         return Response({"detail": "This booking is already paid."}, status=400)
 
-    # Amount in paisa (1 Rs = 100 paisa)
+    # Amount in paisa (Khalti requires paisa)
     amount_paisa = int(float(booking.total_price) * 100)
 
     if amount_paisa < 1000:
@@ -76,9 +64,9 @@ def initiate_payment(request):
         "purchase_order_id": purchase_order_id,
         "purchase_order_name": f"Booking for {booking.ground.name}",
         "customer_info": {
-            "name":  request.user.full_name,
+            "name":  getattr(request.user, 'full_name', request.user.email),
             "email": request.user.email,
-            "phone": request.user.phone or "9800000000",
+            "phone": getattr(request.user, 'phone', "9800000000"),
         },
         "amount_breakdown": [
             {"label": "Ground Booking", "amount": amount_paisa},
@@ -113,16 +101,18 @@ def initiate_payment(request):
             status=resp.status_code,
         )
 
-    # Save pending payment record
-    Payment.objects.filter(booking=booking, status="pending").delete()  # remove old pending
+    # Remove any old pending payments for this booking
+    Payment.objects.filter(booking=booking, status=Payment.Status.PENDING).delete()
+
+    # Create new pending payment record
     payment = Payment.objects.create(
         booking=booking,
         user=request.user,
         pidx=data["pidx"],
         purchase_order_id=purchase_order_id,
         amount=booking.total_price,
-        status="pending",
-        payment_method="khalti",
+        status=Payment.Status.PENDING,
+        payment_method=Payment.Method.KHALTI,
     )
 
     return Response({
@@ -137,12 +127,11 @@ def initiate_payment(request):
 
 # ─────────────────────────────────────────────────────────────────────────────
 # POST /api/payments/verify/
-# Called after Khalti redirects back — verifies via Lookup API
 # ─────────────────────────────────────────────────────────────────────────────
-
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def verify_payment(request):
+    """Verify payment using Khalti Lookup API and confirm booking + loyalty"""
     pidx = request.data.get("pidx")
 
     if not pidx:
@@ -163,28 +152,26 @@ def verify_payment(request):
     except requests.RequestException as e:
         return Response({"detail": f"Khalti lookup error: {str(e)}"}, status=502)
 
-    khalti_status  = data.get("status", "")
+    khalti_status = data.get("status", "")
     transaction_id = data.get("transaction_id")
 
     if khalti_status == "Completed":
-        # Mark payment as success
-        payment.status         = "success"
+        # Mark payment successful
+        payment.status = Payment.Status.SUCCESS
         payment.transaction_id = transaction_id
-        payment.khalti_status  = khalti_status
+        payment.khalti_status = khalti_status
         payment.save()
 
         # Confirm the booking
         booking = payment.booking
 
-        # ✅ Prevent duplicate confirmation
         if booking.status != Booking.Status.CONFIRMED:
             booking.status = Booking.Status.CONFIRMED
             booking.save(update_fields=["status"])
 
-            # ✅ ADD THIS (LOYALTY FIX)
-            from bookings.models import LoyaltyRecord
-
+            # Award loyalty points for paid bookings
             if not booking.is_free_booking:
+                from bookings.models import LoyaltyRecord
                 record = LoyaltyRecord.get_or_create_for(booking.user, booking.ground)
                 record.record_confirmed_booking()
 
@@ -211,10 +198,11 @@ def verify_payment(request):
         }, status=200)
 
     else:
-        # Failed / Cancelled
-        payment.status        = "failed"
+        # Failed or cancelled
+        payment.status = Payment.Status.FAILED
         payment.khalti_status = khalti_status
         payment.save(update_fields=["status", "khalti_status"])
+
         return Response({
             "status":        "failed",
             "message":       f"Payment {khalti_status}. Booking not confirmed.",
@@ -224,15 +212,10 @@ def verify_payment(request):
 
 # ─────────────────────────────────────────────────────────────────────────────
 # GET /api/payments/
-# List payments for the logged-in user
 # ─────────────────────────────────────────────────────────────────────────────
-
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def payment_list(request):
-    """
-    Returns all payments for the authenticated user.
-    """
     payments = (
         Payment.objects
         .filter(user=request.user)
@@ -244,30 +227,16 @@ def payment_list(request):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# POST /api/payments/simulate/   (kept for Cash payment fallback)
+# POST /api/payments/simulate/   (Cash Payment)
 # ─────────────────────────────────────────────────────────────────────────────
-
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def simulate_payment(request):
-    """
-    Simulates a cash payment (non-Khalti path).
-    Used when payment_method == 'cash'.
-    Creates a payment record and optionally confirms the booking.
-    """
-    booking_id     = request.data.get("booking_id")
-    payment_method = request.data.get("payment_method", "cash")
-
+    booking_id = request.data.get("booking_id")
     if not booking_id:
         return Response({"detail": "booking_id is required."}, status=400)
 
     booking = get_object_or_404(Booking, pk=booking_id, user=request.user)
-
-    if payment_method != "cash":
-        return Response(
-            {"detail": "Use /api/payments/initiate/ for Khalti payments."},
-            status=400,
-        )
 
     txn_id = f"CASH-{uuid.uuid4().hex[:10].upper()}"
 
@@ -278,17 +247,20 @@ def simulate_payment(request):
         purchase_order_id=f"FH-CASH-{booking.id}",
         transaction_id=txn_id,
         amount=booking.total_price,
-        status="success",
-        payment_method="cash",
-        khalti_status="",
+        status=Payment.Status.SUCCESS,
+        payment_method=Payment.Method.CASH,
     )
 
-    # For cash, keep booking as pending (owner will confirm on-site)
+    # For cash payments, we keep booking as PENDING (owner confirms on-site)
+    # Or you can auto-confirm if you prefer:
+    # booking.status = Booking.Status.CONFIRMED
+    # booking.save(update_fields=["status"])
+
     return Response({
         "status":         "success",
-        "message":        "Cash payment recorded. Pay at the venue.",
+        "message":        "Cash payment recorded. Please pay at the venue.",
         "transaction_id": txn_id,
-        "amount":         str(booking.total_price),
+        "amount":         str(payment.amount),
         "payment_method": "Cash",
         "booking_id":     booking.id,
     })

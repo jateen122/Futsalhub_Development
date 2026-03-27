@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Ticket, Calendar, Clock, Heart, Bell } from "lucide-react";
 
 const BASE_URL = "http://127.0.0.1:8000";
 
@@ -11,10 +12,10 @@ const fmt12 = (t) => {
 };
 
 const STATUS_COLOR = {
-  pending:   "bg-amber-50 border-amber-200 text-amber-700",
-  confirmed: "bg-green-50 border-green-200 text-green-700",
-  cancelled: "bg-red-50 border-red-200 text-red-600",
-  refunded:  "bg-gray-100 border-gray-200 text-gray-500",
+  pending:   "bg-amber-100 text-amber-700",
+  confirmed: "bg-emerald-100 text-emerald-700",
+  cancelled: "bg-red-100 text-red-700",
+  refunded:  "bg-gray-100 text-gray-500",
 };
 
 export default function PlayerDashboard() {
@@ -23,22 +24,37 @@ export default function PlayerDashboard() {
   const email      = localStorage.getItem("email") || "Player";
   const firstName  = email.split("@")[0];
 
-  const [bookings,       setBookings]       = useState([]);
+  const [allBookings,    setAllBookings]    = useState([]);
+  const [recentBookings, setRecentBookings] = useState([]);
   const [notifications,  setNotifications]  = useState([]);
   const [favCount,       setFavCount]       = useState(0);
   const [loading,        setLoading]        = useState(true);
 
   useEffect(() => {
-    if (!token) { navigate("/login"); return; }
+    if (!token) { 
+      navigate("/login"); 
+      return; 
+    }
+
     Promise.all([
-      fetch(`${BASE_URL}/api/bookings/my/`,      { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
-      fetch(`${BASE_URL}/api/notifications/`,    { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
-      fetch(`${BASE_URL}/api/grounds/favorites/`,        { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+      fetch(`${BASE_URL}/api/bookings/my/`, { 
+        headers: { Authorization: `Bearer ${token}` } 
+      }).then(r => r.json()),
+      fetch(`${BASE_URL}/api/notifications/`, { 
+        headers: { Authorization: `Bearer ${token}` } 
+      }).then(r => r.json()),
+      fetch(`${BASE_URL}/api/grounds/favorites/`, { 
+        headers: { Authorization: `Bearer ${token}` } 
+      }).then(r => r.json()),
     ])
       .then(([b, n, f]) => {
-        setBookings((b.results || b || []).slice(0, 5));
+        const all = b.results || b || [];
+        setAllBookings(all);
+        setRecentBookings(all.slice(0, 5));
+
         const notifList = n.notifications || n.results || n || [];
         setNotifications(notifList.filter(x => !x.is_read).slice(0, 4));
+        
         setFavCount((f.favorites || f.results || f || []).length);
       })
       .catch(console.error)
@@ -46,101 +62,126 @@ export default function PlayerDashboard() {
   }, []);
 
   const stats = {
-    total:     bookings.length,
-    confirmed: bookings.filter(b => b.status === "confirmed").length,
-    pending:   bookings.filter(b => b.status === "pending").length,
-    cancelled: bookings.filter(b => b.status === "cancelled").length,
+    total:     allBookings.length,
+    confirmed: allBookings.filter(b => b.status === "confirmed").length,
+    pending:   allBookings.filter(b => b.status === "pending").length,
+    cancelled: allBookings.filter(b => b.status === "cancelled").length,
   };
 
   const quickActions = [
-    { label: "Browse Grounds",  icon: "⚽", path: "/grounds",          color: "bg-green-50 border-green-200 text-green-700"  },
-    { label: "My Bookings",     icon: "📋", path: "/my-bookings",      color: "bg-blue-50 border-blue-200 text-blue-700"    },
-    { label: "My Favorites",    icon: "♥",  path: "/my-favorites",     color: "bg-red-50 border-red-200 text-red-600"       },
-    { label: "Payment History", icon: "💳", path: "/my-payments",      color: "bg-amber-50 border-amber-200 text-amber-700" },
-    { label: "Notifications",   icon: "🔔", path: "/notifications",    color: "bg-purple-50 border-purple-200 text-purple-700" },
+    { label: "Browse Grounds",  path: "/grounds",          color: "from-emerald-500 to-teal-600" },
+    { label: "My Bookings",     path: "/my-bookings",      color: "from-blue-500 to-indigo-600" },
+    { label: "My Favorites",    path: "/my-favorites",     color: "from-rose-500 to-pink-600" },
+    { label: "Payment History", path: "/my-payments",      color: "from-amber-500 to-orange-500" },
+    { label: "Notifications",   path: "/notifications",    color: "from-purple-500 to-violet-600" },
   ];
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-amber-50 flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20 pb-12">
-      <div className="max-w-6xl mx-auto px-6 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-amber-50 pt-20 pb-12">
 
-        {/* header */}
-        <div className="mb-8">
-          <p className="text-gray-400 text-sm font-medium mb-1">Welcome back 👋</p>
-          <h1 className="text-3xl font-black text-gray-900 capitalize">{firstName}</h1>
-          <p className="text-gray-500 text-sm mt-1">Here's your booking overview</p>
+      <div className="max-w-7xl mx-auto px-6 py-10">   {/* Wider container for full space */}
+
+        {/* Header */}
+        <div className="mb-12">
+          <h1 className="text-4xl font-semibold text-gray-900 tracking-tight capitalize">
+            {firstName}
+          </h1>
         </div>
 
-        {/* stat cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        {/* Stats Cards - Full Width */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
           {[
-            { label: "Total Bookings", value: stats.total,     color: "text-gray-900",   bg: "bg-white"  },
-            { label: "Confirmed",      value: stats.confirmed, color: "text-green-600",  bg: "bg-white"  },
-            { label: "Pending",        value: stats.pending,   color: "text-amber-600",  bg: "bg-white"  },
-            { label: "Favorites",      value: favCount,        color: "text-red-500",    bg: "bg-white"  },
-          ].map(s => (
-            <div key={s.label} className={`${s.bg} rounded-2xl border border-gray-200 shadow-sm p-5 text-center`}>
-              <p className={`text-3xl font-black ${s.color}`}>{s.value}</p>
-              <p className="text-gray-400 text-xs mt-1 font-medium">{s.label}</p>
+            { label: "Total Bookings", value: stats.total,     icon: <Ticket size={28} />, color: "from-gray-700 to-gray-900" },
+            { label: "Confirmed",      value: stats.confirmed, icon: <Calendar size={28} />, color: "from-emerald-500 to-teal-600" },
+            { label: "Pending",        value: stats.pending,   icon: <Clock size={28} />, color: "from-amber-500 to-orange-500" },
+            { label: "Favorites",      value: favCount,        icon: <Heart size={28} />, color: "from-rose-500 to-pink-600" },
+          ].map((s) => (
+            <div
+              key={s.label}
+              className="bg-white rounded-3xl p-8 shadow-xl border border-gray-100 hover:-translate-y-1 transition-all duration-300 group"
+            >
+              <div className={`inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br ${s.color} mb-6 text-white shadow-md`}>
+                {s.icon}
+              </div>
+              <p className="text-5xl font-bold text-gray-900 tracking-tighter">{s.value}</p>
+              <p className="text-gray-500 font-medium mt-1">{s.label}</p>
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-12 gap-6">
+        <div className="grid grid-cols-12 gap-8">
 
-          {/* LEFT */}
-          <div className="col-span-12 lg:col-span-8 space-y-5">
+          {/* LEFT - Takes more space */}
+          <div className="col-span-12 lg:col-span-8 space-y-8">
 
-            {/* quick actions */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-              <h2 className="font-black text-gray-800 mb-4">Quick Actions</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {quickActions.map(a => (
-                  <button key={a.path} onClick={() => navigate(a.path)}
-                    className={`${a.color} border rounded-xl p-4 text-left hover:scale-[1.02] transition-all font-semibold text-sm flex items-center gap-2.5`}>
-                    <span className="text-xl">{a.icon}</span> {a.label}
+            {/* Quick Actions */}
+            <div className="bg-white rounded-3xl p-8 shadow-xl border border-gray-100">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Quick Actions</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {quickActions.map((a, index) => (
+                  <button
+                    key={index}
+                    onClick={() => navigate(a.path)}
+                    className={`bg-gradient-to-br ${a.color} text-white rounded-2xl p-6 text-left hover:scale-[1.03] active:scale-95 transition-all duration-200 shadow-md flex items-center gap-4 group`}
+                  >
+                    <span className="text-3xl opacity-90 group-hover:scale-110 transition">•</span>
+                    <span className="font-semibold text-lg tracking-tight">{a.label}</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* recent bookings */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                <h2 className="font-black text-gray-800">Recent Bookings</h2>
-                <button onClick={() => navigate("/my-bookings")}
-                  className="text-green-600 text-sm font-semibold hover:text-green-700 transition">
+            {/* Recent Bookings - Wider */}
+            <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+              <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100">
+                <h2 className="text-2xl font-semibold text-gray-900">Recent Bookings</h2>
+                <button 
+                  onClick={() => navigate("/my-bookings")}
+                  className="text-yellow-600 font-semibold hover:text-yellow-700 transition flex items-center gap-1"
+                >
                   View all →
                 </button>
               </div>
-              {bookings.length === 0 ? (
-                <div className="py-12 text-center">
-                  <p className="text-4xl mb-3">📋</p>
-                  <p className="text-gray-400 text-sm">No bookings yet</p>
-                  <button onClick={() => navigate("/grounds")}
-                    className="mt-4 px-5 py-2 bg-green-500 text-white rounded-lg text-sm font-bold hover:bg-green-600 transition">
-                    Book a Ground
+
+              {recentBookings.length === 0 ? (
+                <div className="py-20 text-center">
+                  <div className="mx-auto w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mb-6">
+                    <Ticket size={42} className="text-gray-400" />
+                  </div>
+                  <p className="text-gray-500 text-lg">No bookings yet</p>
+                  <button 
+                    onClick={() => navigate("/grounds")}
+                    className="mt-6 px-8 py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-2xl font-semibold transition"
+                  >
+                    Book a Ground Now
                   </button>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-50">
-                  {bookings.map(b => (
-                    <div key={b.id} className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-gray-900 font-bold text-sm truncate">{b.ground_name}</p>
-                        <p className="text-gray-400 text-xs mt-0.5">{b.date} · {fmt12(b.start_time)} – {fmt12(b.end_time)}</p>
+                <div className="divide-y divide-gray-100">
+                  {recentBookings.map((b) => (
+                    <div key={b.id} className="px-8 py-6 hover:bg-gray-50 transition flex items-center gap-6">
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-900 text-lg">{b.ground_name}</p>
+                        <p className="text-gray-500 text-sm mt-1">
+                          {b.date} • {fmt12(b.start_time)} – {fmt12(b.end_time)}
+                        </p>
                       </div>
-                      <div className="flex items-center gap-3 flex-shrink-0">
-                        <span className="text-green-600 font-black text-sm">Rs {b.total_price}</span>
-                        <span className={`px-2.5 py-1 rounded text-xs font-bold border capitalize ${STATUS_COLOR[b.status] || STATUS_COLOR.pending}`}>
+
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="font-bold text-emerald-600">₹{b.total_price}</p>
+                        </div>
+                        <span 
+                          className={`px-5 py-1.5 rounded-2xl text-xs font-bold capitalize border ${STATUS_COLOR[b.status] || STATUS_COLOR.pending}`}
+                        >
                           {b.status}
                         </span>
                       </div>
@@ -151,54 +192,72 @@ export default function PlayerDashboard() {
             </div>
           </div>
 
-          {/* RIGHT */}
-          <div className="col-span-12 lg:col-span-4 space-y-5">
+          {/* RIGHT COLUMN - Alerts + Account */}
+          <div className="col-span-12 lg:col-span-4 space-y-8">
 
-            {/* notifications */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-                <h2 className="font-black text-gray-800 text-sm">Unread Alerts</h2>
-                <button onClick={() => navigate("/notifications")}
-                  className="text-green-600 text-xs font-semibold hover:text-green-700 transition">
+            {/* Unread Alerts */}
+            <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+              <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  <Bell size={22} className="text-yellow-600" />
+                  <h2 className="text-2xl font-semibold text-gray-900">Unread Alerts</h2>
+                </div>
+                <button 
+                  onClick={() => navigate("/notifications")}
+                  className="text-yellow-600 text-sm font-semibold hover:text-yellow-700 transition"
+                >
                   View all →
                 </button>
               </div>
+
               {notifications.length === 0 ? (
-                <div className="py-10 text-center">
-                  <p className="text-3xl mb-2">🔔</p>
-                  <p className="text-gray-400 text-xs">All caught up!</p>
+                <div className="py-16 text-center">
+                  <p className="text-gray-500">All caught up!</p>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-50">
-                  {notifications.map(n => (
-                    <div key={n.id} className="px-5 py-3 hover:bg-gray-50 transition">
-                      <p className="text-gray-700 text-xs leading-relaxed">{n.message}</p>
-                      <p className="text-gray-300 text-xs mt-1">{new Date(n.created_at).toLocaleDateString()}</p>
+                <div className="divide-y divide-gray-100">
+                  {notifications.map((n) => (
+                    <div key={n.id} className="px-8 py-5 hover:bg-gray-50 transition">
+                      <p className="text-sm text-gray-700 leading-relaxed">{n.message}</p>
+                      <p className="text-xs text-gray-400 mt-2">
+                        {new Date(n.created_at).toLocaleDateString()}
+                      </p>
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* account card */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Account</p>
-              <div className="w-12 h-12 rounded-2xl bg-green-100 border border-green-200 flex items-center justify-center text-2xl mb-3">🎮</div>
-              <p className="text-gray-900 font-bold capitalize">{firstName}</p>
-              <p className="text-gray-400 text-xs truncate mt-0.5">{email}</p>
-              <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 gap-2 text-xs">
-                <div className="bg-gray-50 rounded-lg p-2.5 text-center">
-                  <p className="text-gray-800 font-black text-lg">{stats.total}</p>
-                  <p className="text-gray-400">Bookings</p>
+            {/* Account Card */}
+            <div className="bg-white rounded-3xl p-8 shadow-xl border border-gray-100">
+              <p className="uppercase tracking-widest text-xs font-semibold text-gray-400 mb-4">Account</p>
+              
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-amber-500 rounded-2xl flex items-center justify-center text-4xl shadow-inner">
+                  🎮
                 </div>
-                <div className="bg-red-50 rounded-lg p-2.5 text-center border border-red-100">
-                  <p className="text-red-500 font-black text-lg">{favCount}</p>
-                  <p className="text-gray-400">Favorites</p>
+                <div>
+                  <p className="text-2xl font-bold text-gray-900 capitalize">{firstName}</p>
+                  <p className="text-gray-500 text-sm truncate">{email}</p>
                 </div>
               </div>
-              <button onClick={() => navigate("/my-favorites")}
-                className="w-full mt-3 py-2 bg-red-50 border border-red-200 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition">
-                ♥ View Favorites
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-2xl p-5 text-center">
+                  <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
+                  <p className="text-xs text-gray-500 mt-1">Bookings</p>
+                </div>
+                <div className="bg-rose-50 rounded-2xl p-5 text-center border border-rose-100">
+                  <p className="text-3xl font-bold text-rose-600">{favCount}</p>
+                  <p className="text-xs text-gray-500 mt-1">Favorites</p>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => navigate("/my-favorites")}
+                className="w-full mt-6 py-3.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 rounded-2xl font-semibold transition flex items-center justify-center gap-2"
+              >
+                View All Favorites
               </button>
             </div>
           </div>
