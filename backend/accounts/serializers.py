@@ -1,23 +1,17 @@
-from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from rest_framework import serializers
 
 User = get_user_model()
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Registration Serializer
-# ─────────────────────────────────────────────────────────────────────────────
+# ─── Registration ──────────────────────────────────────────────────────────────
 
 class RegisterSerializer(serializers.ModelSerializer):
     """
     Handles new user registration.
-
-    Rules:
-      • PLAYER  → auto verified
-      • OWNER   → requires admin verification
-      • ADMIN   → cannot be self-registered
-      • Password is validated and properly hashed
+    - Players are created with is_verified=False (must verify email via OTP).
+    - Admins cannot self-register.
     """
 
     password = serializers.CharField(
@@ -26,28 +20,16 @@ class RegisterSerializer(serializers.ModelSerializer):
         validators=[validate_password],
         style={"input_type": "password"},
     )
-
     password2 = serializers.CharField(
         write_only=True,
         required=True,
-        style={"input_type": "password"},
         label="Confirm password",
     )
 
     class Meta:
-        model = User
-        fields = [
-            "id",
-            "email",
-            "full_name",
-            "phone",
-            "role",
-            "password",
-            "password2",
-        ]
+        model  = User
+        fields = ["id", "email", "full_name", "phone", "role", "password", "password2"]
         read_only_fields = ["id"]
-
-    # ── Field-level validation ─────────────────────────────────────────────
 
     def validate_email(self, value):
         value = value.lower().strip()
@@ -66,135 +48,94 @@ class RegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"password": "Passwords do not match."})
         return attrs
 
-    # ── Create user ────────────────────────────────────────────────────────
-
     def create(self, validated_data):
         validated_data.pop("password2")
-
         password = validated_data.pop("password")
-        role = validated_data.get("role", User.Role.PLAYER)
-
-        is_verified = True if role == User.Role.PLAYER else False
+        role     = validated_data.get("role", User.Role.PLAYER)
 
         user = User.objects.create_user(
-            email=validated_data["email"],
-            full_name=validated_data["full_name"],
-            password=password,
-            phone=validated_data.get("phone", ""),
-            role=role,
-            is_verified=is_verified,
+            email     = validated_data["email"],
+            full_name = validated_data["full_name"],
+            password  = password,
+            phone     = validated_data.get("phone", ""),
+            role      = role,
+            # All new users start unverified — OTP flow verifies them
+            is_verified = False,
         )
-
         return user
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Profile Serializer  (read + partial update, now includes image & city)
-# ─────────────────────────────────────────────────────────────────────────────
+# ─── OTP Verification ──────────────────────────────────────────────────────────
+
+class VerifyOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp   = serializers.CharField(min_length=6, max_length=6)
+
+    def validate_email(self, value):
+        return value.lower().strip()
+
+    def validate_otp(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError("OTP must contain only digits.")
+        return value
+
+
+# ─── Resend OTP ────────────────────────────────────────────────────────────────
+
+class ResendOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        return value.lower().strip()
+
+
+# ─── Profile (unchanged from original) ────────────────────────────────────────
 
 class ProfileSerializer(serializers.ModelSerializer):
-    """
-    Read / partial-update serializer for the authenticated user.
-
-    Writable fields : full_name, phone, city, profile_image
-    Read-only fields: id, email, role, is_verified, is_active, created_at
-    """
-
     class Meta:
-        model = User
+        model  = User
         fields = [
-            "id",
-            "email",
-            "full_name",
-            "phone",
-            "city",
-            "profile_image",
-            "role",
-            "is_verified",
-            "is_active",
-            "created_at",
+            "id", "email", "full_name", "phone", "city",
+            "profile_image", "role", "is_verified", "is_active", "created_at",
         ]
-        read_only_fields = [
-            "id",
-            "email",
-            "role",
-            "is_verified",
-            "is_active",
-            "created_at",
-        ]
+        read_only_fields = ["id", "email", "role", "is_verified", "is_active", "created_at"]
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Change Password Serializer
-# ─────────────────────────────────────────────────────────────────────────────
+# ─── Change Password ───────────────────────────────────────────────────────────
 
 class ChangePasswordSerializer(serializers.Serializer):
-    """
-    Validates the old password and the new password pair.
-    Used by PATCH /api/accounts/change-password/
-    """
-
-    old_password = serializers.CharField(
-        required=True,
-        write_only=True,
-        style={"input_type": "password"},
-    )
-    new_password = serializers.CharField(
-        required=True,
-        write_only=True,
-        validators=[validate_password],
-        style={"input_type": "password"},
-    )
+    old_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True, validators=[validate_password])
 
     def validate_old_password(self, value):
-        user = self.context["request"].user
-        if not user.check_password(value):
+        if not self.context["request"].user.check_password(value):
             raise serializers.ValidationError("Old password is incorrect.")
         return value
 
     def validate(self, attrs):
         if attrs["old_password"] == attrs["new_password"]:
             raise serializers.ValidationError(
-                {"new_password": "New password must be different from the old one."}
+                {"new_password": "New password must differ from the old one."}
             )
         return attrs
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Forgot Password Serializer  (simulated — no real email sending)
-# ─────────────────────────────────────────────────────────────────────────────
+# ─── Forgot Password ───────────────────────────────────────────────────────────
 
 class ForgotPasswordSerializer(serializers.Serializer):
-    """
-    Accepts an email address and simulates sending a password-reset link.
-    No email is actually dispatched; a success message is always returned
-    so as not to leak whether an account exists.
-    """
-
-    email = serializers.EmailField(required=True)
+    email = serializers.EmailField()
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Admin User List Serializer  (lightweight, read-only)
-# ─────────────────────────────────────────────────────────────────────────────
+# ─── Admin User List ───────────────────────────────────────────────────────────
 
 class UserListSerializer(serializers.ModelSerializer):
-    """
-    Minimal read-only serializer used by the admin user-list endpoint.
-    """
+    email_verified = serializers.BooleanField(source="is_verified", read_only=True)
 
     class Meta:
-        model = User
+        model  = User
         fields = [
-            "id",
-            "email",
-            "full_name",
-            "phone",
-            "city",
-            "profile_image",
-            "role",
-            "is_verified",
-            "is_active",
-            "created_at",
+            "id", "email", "full_name", "phone", "city",
+            "profile_image", "role", "is_verified", "email_verified",
+            "is_active", "created_at",
         ]
         read_only_fields = fields

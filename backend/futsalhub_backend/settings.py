@@ -1,10 +1,10 @@
 """
 Django settings for futsalhub_backend project.
 """
-
+import os
 from pathlib import Path
 from datetime import timedelta
-
+from decouple import config
 # ─────────────────────────────────────────────────────────────────────────────
 # BASE DIRECTORY
 # ─────────────────────────────────────────────────────────────────────────────
@@ -13,7 +13,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ─────────────────────────────────────────────────────────────────────────────
 # SECURITY
 # ─────────────────────────────────────────────────────────────────────────────
-SECRET_KEY = "django-insecure-change-this-in-production-use-env-variable"
+SECRET_KEY = config("SECRET_KEY")
 DEBUG      = True
 ALLOWED_HOSTS = ["*"]
 
@@ -181,3 +181,14 @@ CORS_ALLOW_HEADERS = [
     "x-csrftoken",
     "x-requested-with",
 ]
+from decouple import config
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+EMAIL_HOST_USER = config("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
+
+DEFAULT_FROM_EMAIL = f"FutsalHub <{EMAIL_HOST_USER}>"

@@ -12,7 +12,7 @@ import GroundDetail       from "./pages/GroundDetail";
 import NotFound           from "./pages/NotFound";
 import VerifyEmail        from "./pages/VerifyEmail";
 import ResendVerification from "./pages/ResendVerification";
-
+import VerifyOTP from "./pages/VerifyOTP";
 // ── Shared ─────────────────────────────────────────────────────
 import Profile       from "./pages/Profile";
 import KhaltiVerify  from "./pages/KhaltiVerify";
@@ -77,10 +77,10 @@ export default function App() {
           <Route path="/about"       element={<About />} />
           <Route path="/grounds"     element={<Grounds />} />
           <Route path="/grounds/:id" element={<GroundDetail />} />
-
+          <Route path="/verify-otp" element={<VerifyOTP />} /> 
           <Route path="/verify-email/:token"  element={<VerifyEmail />} />
           <Route path="/resend-verification"  element={<ResendVerification />} />
-
+        
           <Route path="/login"    element={token ? <Navigate to={dashboardRedirect} replace /> : <Login />} />
           <Route path="/register" element={token ? <Navigate to={dashboardRedirect} replace /> : <Register />} />
 
