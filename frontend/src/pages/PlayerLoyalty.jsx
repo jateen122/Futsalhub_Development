@@ -1,41 +1,36 @@
 // frontend/src/pages/PlayerLoyalty.jsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Trophy, Gift, Target, ArrowLeft, Calendar, Star } from "lucide-react";
 
 const BASE_URL = "http://127.0.0.1:8000";
 
-const timeAgo = (d) => {
-  const s = (Date.now() - new Date(d)) / 1000;
-  if (s < 60) return "just now";
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
-};
-
 function StampCard({ confirmed, threshold = 5 }) {
-  const stamps = Array.from({ length: threshold }, (_, i) => i < confirmed % threshold || (confirmed > 0 && confirmed % threshold === 0 && i < threshold));
-  // if just completed a set
-  const completedSets = Math.floor(confirmed / threshold);
   const currentProgress = confirmed % threshold;
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div className="flex items-center gap-3 flex-wrap">
       {Array.from({ length: threshold }, (_, i) => {
         const filled = i < currentProgress;
         return (
           <div
             key={i}
-            className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all duration-300 border-2
+            className={`w-12 h-12 rounded-2xl flex items-center justify-center border-2 transition-all duration-300
               ${filled
-                ? "bg-amber-400 border-amber-400 shadow-lg shadow-amber-400/30 scale-105"
-                : "bg-white/5 border-white/20"}`}
+                ? "bg-yellow-400 border-yellow-400 shadow-lg shadow-yellow-400/30 text-white"
+                : "bg-white border-gray-200 text-gray-300"}`}
           >
-            {filled ? "⚽" : <span className="text-white/20 text-xs font-bold">{i + 1}</span>}
+            {filled ? (
+              <Star size={24} className="fill-current" />
+            ) : (
+              <span className="text-sm font-bold">{i + 1}</span>
+            )}
           </div>
         );
       })}
-      <div className="ml-2 text-white/40 text-sm">
-        = <span className="text-2xl ml-1">🎁</span>
+      <div className="ml-4 text-gray-400 text-lg font-light">=</div>
+      <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center">
+        <Gift size={28} className="text-amber-500" />
       </div>
     </div>
   );
@@ -52,94 +47,93 @@ function LoyaltyCard({ record, onBook }) {
 
   return (
     <div
-      className={`relative rounded-2xl border overflow-hidden transition-all duration-300
-        ${hasFree
-          ? "border-amber-400/50 bg-gradient-to-br from-amber-400/10 to-amber-600/5 shadow-lg shadow-amber-400/10"
-          : "border-white/10 bg-white/3 hover:border-white/20"}`}
+      className={`bg-white rounded-3xl border overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300
+        ${hasFree ? "border-yellow-400 ring-1 ring-yellow-300/50" : "border-gray-200"}`}
     >
-      {/* Free badge */}
-      {hasFree && (
-        <div className="absolute top-0 right-0 z-10">
-          <div className="bg-amber-400 text-black text-xs font-black px-3 py-1.5 rounded-bl-xl flex items-center gap-1">
-            🎁 {record.free_bookings_available} FREE
-          </div>
-        </div>
-      )}
-
-      <div className="p-5">
-        {/* Ground info */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-14 h-14 rounded-xl overflow-hidden bg-white/10 flex-shrink-0 border border-white/10">
-            {imgSrc
-              ? <img src={imgSrc} alt={record.ground_name} className="w-full h-full object-cover" />
-              : <div className="w-full h-full flex items-center justify-center text-2xl">⚽</div>}
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-white font-black text-base truncate">{record.ground_name}</h3>
-            <p className="text-white/40 text-xs truncate">📍 {record.ground_location}</p>
-            <p className="text-white/30 text-xs mt-0.5">{record.confirmed_count} confirmed bookings total</p>
-          </div>
-        </div>
-
-        {/* Stamp progress */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-white/50 text-xs font-semibold uppercase tracking-widest">
-              Progress to Next Free
-            </span>
-            <span className="text-white/60 text-xs">
-              {record.confirmed_count % record.loyalty_threshold}/{record.loyalty_threshold}
-            </span>
-          </div>
-          <StampCard
-            confirmed={record.confirmed_count}
-            threshold={record.loyalty_threshold}
+      {/* Ground Image */}
+      <div className="h-48 bg-gray-100 relative">
+        {imgSrc ? (
+          <img
+            src={imgSrc}
+            alt={record.ground_name}
+            className="w-full h-full object-cover"
           />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-amber-50 to-yellow-50">
+            <Trophy size={52} className="text-amber-300" />
+          </div>
+        )}
+
+        {hasFree && (
+          <div className="absolute top-4 right-4 bg-gradient-to-r from-yellow-400 to-amber-500 text-white text-xs font-bold px-5 py-2 rounded-2xl shadow flex items-center gap-2">
+            <Gift size={18} />
+            FREE READY
+          </div>
+        )}
+      </div>
+
+      <div className="p-7">
+        <h3 className="font-semibold text-2xl text-gray-900 mb-1">{record.ground_name}</h3>
+        <p className="text-gray-500 flex items-center gap-2 text-sm">
+          <Calendar size={16} />
+          {record.ground_location}
+        </p>
+
+        {/* Stamps */}
+        <div className="my-8">
+          <div className="flex items-center justify-between text-xs font-semibold text-gray-500 tracking-widest mb-4">
+            <span>PROGRESS TO NEXT FREE BOOKING</span>
+            <span className="text-gray-400">
+              {record.confirmed_count % record.loyalty_threshold} / {record.loyalty_threshold}
+            </span>
+          </div>
+          <StampCard confirmed={record.confirmed_count} threshold={record.loyalty_threshold} />
         </div>
 
-        {/* Progress bar */}
-        <div className="mb-4">
-          <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+        {/* Progress Bar */}
+        <div className="mb-8">
+          <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-700"
+              className="h-full bg-gradient-to-r from-yellow-400 to-amber-500 rounded-full transition-all duration-700"
               style={{ width: `${record.progress_to_next_free}%` }}
             />
           </div>
-          <p className="text-white/35 text-xs mt-1.5">
+          <p className="text-sm text-gray-600 mt-3">
             {hasFree
-              ? "🎉 You have a free booking ready!"
-              : `${record.bookings_until_next_free} more booking${record.bookings_until_next_free !== 1 ? "s" : ""} to earn a free slot`}
+              ? "You can now redeem a free booking on this ground!"
+              : `${record.bookings_until_next_free} more confirmed booking${record.bookings_until_next_free !== 1 ? "s" : ""} needed for your next free slot`}
           </p>
         </div>
 
-        {/* Stats row */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-4 mb-8">
           {[
-            { label: "Confirmed", value: record.confirmed_count, color: "text-white" },
-            { label: "Earned", value: record.free_bookings_earned, color: "text-amber-400" },
-            { label: "Used", value: record.free_bookings_used, color: "text-emerald-400" },
+            { label: "Confirmed", value: record.confirmed_count },
+            { label: "Earned", value: record.free_bookings_earned },
+            { label: "Used", value: record.free_bookings_used },
           ].map((s) => (
-            <div key={s.label} className="bg-white/5 rounded-lg p-2.5 text-center border border-white/5">
-              <p className={`text-xl font-black ${s.color}`}>{s.value}</p>
-              <p className="text-white/30 text-xs">{s.label}</p>
+            <div key={s.label} className="bg-gray-50 rounded-2xl py-4 text-center">
+              <p className="text-3xl font-bold text-gray-900">{s.value}</p>
+              <p className="text-xs text-gray-400 mt-1">{s.label}</p>
             </div>
           ))}
         </div>
 
-        {/* Action */}
+        {/* Action Button */}
         {hasFree ? (
           <button
             onClick={() => onBook(record.ground)}
-            className="w-full py-3 bg-amber-400 text-black font-black rounded-xl hover:bg-amber-300 transition text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-400/20"
+            className="w-full py-4 bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 text-white font-bold rounded-2xl flex items-center justify-center gap-3 transition-all shadow-lg"
           >
-            🎁 Redeem Free Booking
+            <Gift size={22} />
+            Redeem Free Booking
           </button>
         ) : (
           <button
             onClick={() => onBook(record.ground)}
-            className="w-full py-3 bg-white/5 border border-white/10 text-white/60 font-semibold rounded-xl hover:bg-white/10 hover:text-white transition text-sm"
+            className="w-full py-4 border-2 border-gray-200 text-gray-700 font-semibold rounded-2xl hover:bg-gray-50 hover:border-yellow-300 transition"
           >
-            ⚽ Book This Ground
+            Book This Ground
           </button>
         )}
       </div>
@@ -149,13 +143,16 @@ function LoyaltyCard({ record, onBook }) {
 
 export default function PlayerLoyalty() {
   const navigate = useNavigate();
-  const token    = localStorage.getItem("access");
+  const token = localStorage.getItem("access");
 
-  const [data,    setData]    = useState(null);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!token) { navigate("/login"); return; }
+    if (!token) {
+      navigate("/login");
+      return;
+    }
     fetch(`${BASE_URL}/api/bookings/loyalty/`, {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -165,143 +162,116 @@ export default function PlayerLoyalty() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleBook = (groundId) => {
-    navigate(`/my-bookings`);
+  const handleBook = () => {
+    navigate("/my-bookings");
   };
 
   const records = data?.loyalty_records || [];
   const totalFree = data?.total_free_available || 0;
 
   return (
-    <div className="min-h-screen bg-[#070b14] pt-24 px-4 pb-16">
-      {/* bg blobs */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-amber-500/4 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-amber-400/3 rounded-full blur-3xl" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-amber-50 pt-20">
+
+      {/* Header */}
+      <div className="bg-white border-b border-gray-100 px-6 py-5 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate("/player-dashboard")}
+              className="flex items-center gap-2 text-gray-500 hover:text-gray-800 transition text-sm font-medium"
+            >
+              <ArrowLeft size={18} />
+              Dashboard
+            </button>
+            <span className="text-gray-300">/</span>
+            <h1 className="text-2xl font-semibold text-gray-900">My Loyalty Rewards</h1>
+          </div>
+
+          {totalFree > 0 && (
+            <div className="flex items-center gap-2.5 bg-gradient-to-r from-yellow-400 to-amber-500 text-white px-6 py-3 rounded-2xl font-semibold shadow">
+              <Gift size={20} />
+              {totalFree} Free Booking{totalFree > 1 ? "s" : ""} Ready
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="relative max-w-4xl mx-auto">
-
-        {/* Header */}
-        <div className="mb-8">
-          <button
-            onClick={() => navigate("/player-dashboard")}
-            className="text-white/30 hover:text-white text-sm mb-5 flex items-center gap-1.5 transition"
-          >
-            ← Dashboard
-          </button>
-          <div className="flex items-start justify-between flex-wrap gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-2xl">🏆</span>
-                <span className="text-amber-400 text-xs font-bold uppercase tracking-[0.2em]">
-                  Loyalty Rewards
-                </span>
-              </div>
-              <h1 className="text-4xl font-black text-white">My Rewards</h1>
-              <p className="text-white/40 mt-1 text-sm">
-                Book 5 times at the same ground, get the 6th FREE
-              </p>
-            </div>
-            {totalFree > 0 && (
-              <div className="bg-amber-400/15 border border-amber-400/40 rounded-2xl px-5 py-3 text-center">
-                <p className="text-amber-400 text-3xl font-black">{totalFree}</p>
-                <p className="text-amber-400/70 text-xs font-semibold uppercase tracking-wider">Free Slots Ready</p>
-              </div>
-            )}
-          </div>
-        </div>
+      <div className="max-w-6xl mx-auto px-6 py-10">
 
         {/* How it works */}
-        <div className="bg-white/3 border border-white/8 rounded-2xl p-6 mb-8">
-          <h2 className="text-white font-black text-sm uppercase tracking-widest mb-4 flex items-center gap-2">
-            <span className="text-amber-400">✦</span> How It Works
-          </h2>
-          <div className="grid grid-cols-3 gap-4">
+        <div className="bg-white rounded-3xl p-9 shadow border border-gray-100 mb-12">
+          <div className="flex items-center gap-4 mb-8">
+            <Trophy size={32} className="text-yellow-500" />
+            <h2 className="text-2xl font-semibold text-gray-900">How Loyalty Works</h2>
+          </div>
+          <div className="grid md:grid-cols-3 gap-10">
             {[
-              { icon: "⚽", step: "1", title: "Book & Play", desc: "Make confirmed bookings at any ground" },
-              { icon: "📈", step: "2", title: "Earn Stamps", desc: "Every 5 confirmed bookings = 1 free booking" },
-              { icon: "🎁", step: "3", title: "Play Free!", desc: "Redeem your free booking at the same ground" },
+              { step: "1", title: "Book & Play", desc: "Make confirmed bookings at any ground" },
+              { step: "2", title: "Earn Stamps", desc: "Every 5 confirmed bookings = 1 free booking" },
+              { step: "3", title: "Redeem Free", desc: "Use your free booking at the same ground" },
             ].map((item) => (
-              <div key={item.step} className="text-center">
-                <div className="w-12 h-12 rounded-xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center text-2xl mx-auto mb-2">
-                  {item.icon}
+              <div key={item.step} className="flex gap-6">
+                <div className="w-11 h-11 rounded-2xl bg-yellow-100 flex items-center justify-center text-yellow-600 font-bold text-2xl flex-shrink-0">
+                  {item.step}
                 </div>
-                <p className="text-white font-bold text-sm">{item.title}</p>
-                <p className="text-white/40 text-xs mt-1 leading-relaxed">{item.desc}</p>
+                <div>
+                  <p className="font-semibold text-xl text-gray-900 mb-2">{item.title}</p>
+                  <p className="text-gray-500 leading-relaxed">{item.desc}</p>
+                </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Loading */}
-        {loading && (
-          <div className="flex justify-center py-20">
-            <div className="w-10 h-10 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" />
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-24">
+            <div className="w-12 h-12 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-gray-500 mt-6">Loading your rewards...</p>
           </div>
-        )}
-
-        {/* Empty state */}
-        {!loading && records.length === 0 && (
-          <div className="text-center py-20 bg-white/3 border border-white/8 rounded-2xl">
-            <p className="text-6xl mb-4">🏆</p>
-            <h2 className="text-white text-xl font-black mb-2">No Loyalty Points Yet</h2>
-            <p className="text-white/40 text-sm mb-6 max-w-sm mx-auto">
-              Start booking futsal grounds to earn loyalty stamps. Every 5 confirmed bookings earns you a free slot!
+        ) : records.length === 0 ? (
+          <div className="bg-white rounded-3xl py-24 text-center shadow border border-gray-100">
+            <Trophy size={72} className="mx-auto text-gray-200 mb-8" />
+            <h2 className="text-3xl font-semibold text-gray-800">No loyalty points yet</h2>
+            <p className="text-gray-500 mt-4 max-w-md mx-auto">
+              Start booking futsal grounds to earn stamps.<br />Every 5 confirmed bookings at the same ground earns you a free slot!
             </p>
             <button
               onClick={() => navigate("/grounds")}
-              className="px-8 py-3 bg-amber-400 text-black font-black rounded-xl hover:bg-amber-300 transition"
+              className="mt-10 px-10 py-4 bg-yellow-500 text-white font-semibold rounded-2xl hover:bg-yellow-600 transition"
             >
-              Browse Grounds →
+              Browse Grounds
             </button>
           </div>
-        )}
-
-        {/* Free bookings alert */}
-        {!loading && totalFree > 0 && (
-          <div className="bg-amber-400/10 border border-amber-400/40 rounded-2xl p-5 mb-6 flex items-center gap-4">
-            <div className="text-4xl flex-shrink-0">🎉</div>
-            <div className="flex-1">
-              <p className="text-amber-300 font-black text-base">
-                You have {totalFree} free booking{totalFree > 1 ? "s" : ""} ready to use!
-              </p>
-              <p className="text-amber-400/60 text-sm mt-0.5">
-                Click "Redeem Free Booking" on any eligible ground below.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Loyalty cards grid */}
-        {!loading && records.length > 0 && (
+        ) : (
           <>
-            {/* Free first */}
-            {records.filter(r => r.free_bookings_available > 0).length > 0 && (
-              <div className="mb-6">
-                <h2 className="text-amber-400 text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <span>🎁</span> Ready to Redeem
-                </h2>
-                <div className="grid sm:grid-cols-2 gap-4">
+            {/* Ready to Redeem */}
+            {records.filter((r) => r.free_bookings_available > 0).length > 0 && (
+              <div className="mb-14">
+                <div className="flex items-center gap-4 mb-6">
+                  <Gift size={28} className="text-amber-500" />
+                  <h2 className="text-2xl font-semibold text-gray-900">Ready to Redeem</h2>
+                </div>
+                <div className="grid md:grid-cols-2 gap-8">
                   {records
-                    .filter(r => r.free_bookings_available > 0)
-                    .map(r => (
+                    .filter((r) => r.free_bookings_available > 0)
+                    .map((r) => (
                       <LoyaltyCard key={r.id} record={r} onBook={handleBook} />
                     ))}
                 </div>
               </div>
             )}
 
-            {/* In progress */}
-            {records.filter(r => r.free_bookings_available === 0).length > 0 && (
+            {/* In Progress */}
+            {records.filter((r) => r.free_bookings_available === 0).length > 0 && (
               <div>
-                <h2 className="text-white/40 text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <span>📈</span> In Progress
-                </h2>
-                <div className="grid sm:grid-cols-2 gap-4">
+                <div className="flex items-center gap-4 mb-6">
+                  <Target size={28} className="text-gray-400" />
+                  <h2 className="text-2xl font-semibold text-gray-900">In Progress</h2>
+                </div>
+                <div className="grid md:grid-cols-2 gap-8">
                   {records
-                    .filter(r => r.free_bookings_available === 0)
-                    .map(r => (
+                    .filter((r) => r.free_bookings_available === 0)
+                    .map((r) => (
                       <LoyaltyCard key={r.id} record={r} onBook={handleBook} />
                     ))}
                 </div>

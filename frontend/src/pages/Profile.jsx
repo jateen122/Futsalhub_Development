@@ -1,95 +1,100 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { 
+  User, Phone, MapPin, Mail, Calendar, Shield, 
+  Edit3, Save, LogOut, ArrowLeft 
+} from "lucide-react";
 
 const BASE_URL = "http://127.0.0.1:8000";
 
-/* ── helpers ─────────────────────────────────────────────────── */
-const fmt12 = (t) => {
-  if (!t) return "";
-  const [h, m] = t.split(":");
-  const hour = parseInt(h, 10);
-  return `${hour % 12 || 12}:${m} ${hour >= 12 ? "PM" : "AM"}`;
-};
-
 const ROLE_STYLE = {
-  player: "bg-sky-400/10 border-sky-400/30 text-sky-400",
-  owner:  "bg-amber-400/10 border-amber-400/30 text-amber-400",
-  admin:  "bg-violet-400/10 border-violet-400/30 text-violet-400",
+  player: "bg-blue-100 text-blue-700 border-blue-200",
+  owner:  "bg-amber-100 text-amber-700 border-amber-200",
+  admin:  "bg-violet-100 text-violet-700 border-violet-200",
 };
 
-/* ── Toast ───────────────────────────────────────────────────── */
 function Toast({ msg, type }) {
   if (!msg) return null;
-  const cls = type === "error"
-    ? "bg-[#0f1825] border-red-500/40 text-red-400"
-    : "bg-[#0f1825] border-emerald-500/40 text-emerald-400";
   return (
-    <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-2xl shadow-2xl text-sm font-semibold border whitespace-nowrap ${cls}`}>
+    <div className={`fixed top-6 right-6 z-50 px-6 py-3.5 rounded-2xl shadow-xl text-sm font-medium border
+      ${type === "error" 
+        ? "bg-red-50 border-red-200 text-red-700" 
+        : "bg-emerald-50 border-emerald-200 text-emerald-700"}`}>
       {msg}
     </div>
   );
 }
 
-/* ── Avatar ──────────────────────────────────────────────────── */
-function Avatar({ src, name, size = "w-24 h-24" }) {
+function Avatar({ src, name, size = "w-28 h-28" }) {
   const [err, setErr] = useState(false);
+  
   if (src && !err) {
     return (
-      <img src={src} alt={name} onError={() => setErr(true)}
-        className={`${size} rounded-full object-cover border-4 border-white/10`} />
+      <img 
+        src={src} 
+        alt={name} 
+        onError={() => setErr(true)}
+        className={`${size} rounded-2xl object-cover border-4 border-white shadow-md`} 
+      />
     );
   }
+
   return (
-    <div className={`${size} rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-black font-black text-3xl border-4 border-white/10`}>
-      {(name || "?")[0].toUpperCase()}
+    <div className={`${size} rounded-2xl bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center text-white font-bold text-5xl shadow-md border-4 border-white`}>
+      {(name || "?")[0]?.toUpperCase()}
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   MAIN
-═══════════════════════════════════════════════════════════════ */
 export default function Profile() {
   const navigate = useNavigate();
-  const token    = localStorage.getItem("access");
-  const fileRef  = useRef(null);
+  const token = localStorage.getItem("access");
+  const fileRef = useRef(null);
 
-  const [profile,      setProfile]      = useState(null);
-  const [loading,      setLoading]      = useState(true);
-  const [tab,          setTab]          = useState("Profile");
-  const [toast,        setToast]        = useState({ msg: "", type: "" });
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState("Profile");
+  const [toast, setToast] = useState({ msg: "", type: "" });
 
-  /* profile edit */
-  const [form,         setForm]         = useState({ full_name: "", phone: "", city: "" });
-  const [imageFile,    setImageFile]    = useState(null);
+  // Profile Edit Form
+  const [form, setForm] = useState({ full_name: "", phone: "", city: "" });
+  const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  const [saving,       setSaving]       = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  /* password */
-  const [pwForm,       setPwForm]       = useState({ old_password: "", new_password: "" });
-  const [pwSaving,     setPwSaving]     = useState(false);
-  const [pwErrors,     setPwErrors]     = useState({});
+  // Password Change
+  const [pwForm, setPwForm] = useState({ old_password: "", new_password: "" });
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwErrors, setPwErrors] = useState({});
 
-  /* activity */
-  const [activity,     setActivity]     = useState(null);
-  const [actLoading,   setActLoading]   = useState(false);
+  // Activity
+  const [activity, setActivity] = useState(null);
+  const [actLoading, setActLoading] = useState(false);
 
-  /* ── fetch profile ───────────────────────────────────────── */
+  /* Fetch Profile */
   useEffect(() => {
-    if (!token) { navigate("/login"); return; }
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
     fetch(`${BASE_URL}/api/accounts/profile/`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())
       .then((d) => {
         setProfile(d);
-        setForm({ full_name: d.full_name || "", phone: d.phone || "", city: d.city || "" });
+        setForm({
+          full_name: d.full_name || "",
+          phone: d.phone || "",
+          city: d.city || ""
+        });
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [token, navigate]);
 
-  /* ── fetch activity on tab switch ───────────────────────── */
+  /* Fetch Activity */
   useEffect(() => {
     if (tab !== "Activity" || activity) return;
     setActLoading(true);
@@ -100,45 +105,53 @@ export default function Profile() {
       .then(setActivity)
       .catch(console.error)
       .finally(() => setActLoading(false));
-  }, [tab]);
+  }, [tab, token, activity]);
 
-  /* ── helpers ─────────────────────────────────────────────── */
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
-    setTimeout(() => setToast({ msg: "", type: "" }), 3500);
+    setTimeout(() => setToast({ msg: "", type: "" }), 4000);
   };
 
-  const dashPath =
-    profile?.role === "owner" ? "/owner-dashboard" :
-    profile?.role === "admin" ? "/admin-dashboard" :
-                                "/player-dashboard";
+  const dashPath = profile?.role === "owner" 
+    ? "/owner-dashboard" 
+    : profile?.role === "admin" 
+      ? "/admin-dashboard" 
+      : "/player-dashboard";
 
-  /* ── save profile ────────────────────────────────────────── */
+  /* Save Profile */
   const handleProfileSave = async (e) => {
     e.preventDefault();
     setSaving(true);
+
     const fd = new FormData();
     fd.append("full_name", form.full_name);
-    fd.append("phone",     form.phone);
-    fd.append("city",      form.city);
+    fd.append("phone", form.phone);
+    fd.append("city", form.city);
     if (imageFile) fd.append("profile_image", imageFile);
+
     try {
-      const res  = await fetch(`${BASE_URL}/api/accounts/profile/`, {
-        method: "PATCH", headers: { Authorization: `Bearer ${token}` }, body: fd,
+      const res = await fetch(`${BASE_URL}/api/accounts/profile/`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
       });
+
       const data = await res.json();
       if (res.ok) {
         setProfile(data.user || data);
-        setImageFile(null); setImagePreview(null);
-        showToast("Profile updated successfully.");
+        setImageFile(null);
+        setImagePreview(null);
+        showToast("Profile updated successfully!");
       } else {
-        showToast(data?.detail || "Update failed.", "error");
+        showToast(data?.detail || "Failed to update profile.", "error");
       }
-    } catch { showToast("Network error.", "error"); }
-    finally  { setSaving(false); }
+    } catch {
+      showToast("Network error. Please try again.", "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  /* ── image pick ──────────────────────────────────────────── */
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -146,355 +159,336 @@ export default function Profile() {
     setImagePreview(URL.createObjectURL(file));
   };
 
-  /* ── change password ─────────────────────────────────────── */
+  /* Change Password */
   const handlePwChange = async (e) => {
     e.preventDefault();
     setPwErrors({});
-    if (!pwForm.old_password) { setPwErrors({ old_password: "Required." }); return; }
-    if (!pwForm.new_password) { setPwErrors({ new_password: "Required." }); return; }
+
+    if (!pwForm.old_password || !pwForm.new_password) {
+      setPwErrors({ general: "Both fields are required." });
+      return;
+    }
+
     setPwSaving(true);
     try {
-      const res  = await fetch(`${BASE_URL}/api/accounts/change-password/`, {
+      const res = await fetch(`${BASE_URL}/api/accounts/change-password/`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(pwForm),
       });
+
       const data = await res.json();
       if (res.ok) {
-        showToast("Password changed. Logging you out…");
-        setPwForm({ old_password: "", new_password: "" });
-        setTimeout(() => { localStorage.clear(); navigate("/login"); }, 2000);
+        showToast("Password changed successfully. Logging you out...");
+        setTimeout(() => {
+          localStorage.clear();
+          navigate("/login");
+        }, 1800);
       } else {
-        const errs = {};
-        if (data.old_password)      errs.old_password = Array.isArray(data.old_password) ? data.old_password[0] : data.old_password;
-        if (data.new_password)      errs.new_password = Array.isArray(data.new_password) ? data.new_password[0] : data.new_password;
-        if (data.non_field_errors)  errs.general      = data.non_field_errors[0];
-        if (data.detail)            errs.general      = data.detail;
-        if (!Object.keys(errs).length) errs.general   = "Change failed.";
-        setPwErrors(errs);
+        setPwErrors({
+          general: data.detail || data.non_field_errors?.[0] || "Failed to change password."
+        });
       }
-    } catch { setPwErrors({ general: "Network error." }); }
-    finally  { setPwSaving(false); }
+    } catch {
+      setPwErrors({ general: "Network error occurred." });
+    } finally {
+      setPwSaving(false);
+    }
   };
 
-  /* ── forgot password (simulated) ────────────────────────── */
-  const handleForgotPassword = async () => {
-    if (!profile?.email) return;
-    try {
-      const res  = await fetch(`${BASE_URL}/api/accounts/forgot-password/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: profile.email }),
-      });
-      const data = await res.json();
-      showToast(data.message || "Reset link sent.");
-    } catch { showToast("Network error.", "error"); }
-  };
-
-  /* ── loading ─────────────────────────────────────────────── */
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#080d18] flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
-  const avatarSrc = imagePreview
-    ? imagePreview
-    : profile?.profile_image
-    ? profile.profile_image.startsWith("http")
-      ? profile.profile_image
-      : `${BASE_URL}${profile.profile_image}`
-    : null;
+  const avatarSrc = imagePreview 
+    ? imagePreview 
+    : profile?.profile_image 
+      ? profile.profile_image.startsWith("http") 
+        ? profile.profile_image 
+        : `${BASE_URL}${profile.profile_image}`
+      : null;
 
-  /* ══════════════════════════════════════════════════════════
-     RENDER
-  ══════════════════════════════════════════════════════════ */
   return (
-    <div className="min-h-screen bg-[#080d18] pt-20 pb-16">
+    <div className="min-h-screen bg-gray-50 pt-20 pb-16">
+      <div className="max-w-4xl mx-auto px-6">
 
-      {/* bg blobs */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-40 right-0 w-[500px] h-[500px] bg-amber-500/4 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-emerald-500/4 rounded-full blur-3xl" />
-      </div>
+        {/* Back Button */}
+        <button
+          onClick={() => navigate(dashPath)}
+          className="flex items-center gap-2 text-gray-500 hover:text-gray-700 mb-8 transition"
+        >
+          <ArrowLeft size={20} />
+          Back to Dashboard
+        </button>
 
-      <Toast msg={toast.msg} type={toast.type} />
-
-      <div className="relative max-w-4xl mx-auto px-4">
-
-        {/* breadcrumb */}
-        <div className="flex items-center gap-2 text-sm mb-8">
-          <button onClick={() => navigate(dashPath)}
-            className="text-white/30 hover:text-white transition">Dashboard</button>
-          <span className="text-white/15">/</span>
-          <span className="text-amber-400 font-semibold">Profile</span>
+        {/* Header */}
+        <div className="flex items-center justify-between mb-10">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900">My Profile</h1>
+            <p className="text-gray-500 mt-1">Manage your account information</p>
+          </div>
+          <div className={`px-4 py-1.5 rounded-full text-sm font-semibold border capitalize ${ROLE_STYLE[profile?.role] || ROLE_STYLE.player}`}>
+            {profile?.role}
+          </div>
         </div>
 
-        {/* ── hero card ──────────────────────────────────────── */}
-        <div className="bg-white/3 border border-white/8 rounded-3xl p-8 mb-6 flex items-center gap-6 flex-wrap">
-          <div className="relative flex-shrink-0">
-            <Avatar src={avatarSrc} name={profile?.full_name} size="w-24 h-24" />
-            <button onClick={() => fileRef.current?.click()}
-              className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-amber-400 text-black flex items-center justify-center text-sm font-black shadow-lg hover:bg-amber-300 transition">
-              ✎
-            </button>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
-          </div>
+        {/* Profile Card */}
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 mb-10">
+          <div className="flex flex-col md:flex-row gap-8 items-start">
+            <div className="relative flex-shrink-0 mx-auto md:mx-0">
+              <Avatar src={avatarSrc} name={profile?.full_name} />
+              <button
+                onClick={() => fileRef.current?.click()}
+                className="absolute -bottom-2 -right-2 bg-white shadow-md border border-gray-200 rounded-full p-2 hover:bg-yellow-50 transition"
+              >
+                <Edit3 size={18} className="text-yellow-600" />
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageChange}
+              />
+            </div>
 
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-black text-white truncate">{profile?.full_name || "No name set"}</h1>
-            <p className="text-white/40 text-sm">{profile?.email}</p>
-            {profile?.city && <p className="text-white/30 text-xs mt-0.5">📍 {profile.city}</p>}
-            <div className="flex flex-wrap items-center gap-2 mt-2">
-              <span className={`px-2.5 py-1 rounded-full text-xs font-bold border capitalize ${ROLE_STYLE[profile?.role] || ROLE_STYLE.player}`}>
-                {profile?.role}
-              </span>
-              {profile?.is_verified
-                ? <span className="px-2.5 py-1 rounded-full text-xs font-bold border bg-emerald-400/10 border-emerald-400/30 text-emerald-400">✓ Verified</span>
-                : <span className="px-2.5 py-1 rounded-full text-xs font-bold border bg-amber-400/10 border-amber-400/30 text-amber-400">⏳ Pending</span>}
+            <div className="flex-1 text-center md:text-left mt-4 md:mt-0">
+              <h2 className="text-3xl font-semibold text-gray-900">
+                {profile?.full_name || "User"}
+              </h2>
+              <div className="flex items-center gap-2 justify-center md:justify-start text-gray-500 mt-2">
+                <Mail size={18} />
+                <span>{profile?.email}</span>
+              </div>
+              {profile?.city && (
+                <div className="flex items-center gap-2 justify-center md:justify-start text-gray-500 mt-1">
+                  <MapPin size={18} />
+                  <span>{profile.city}</span>
+                </div>
+              )}
+
+              <div className="mt-6 flex flex-wrap gap-3 justify-center md:justify-start">
+                {profile?.is_verified ? (
+                  <span className="inline-flex items-center gap-1 px-4 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium">
+                    <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                    Verified
+                  </span>
+                ) : (
+                  <span className="px-4 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-medium">
+                    Verification Pending
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
           {imageFile && (
-            <div className="text-right">
-              <p className="text-amber-400 text-xs font-semibold mb-1">New avatar selected</p>
-              <button onClick={() => { setImageFile(null); setImagePreview(null); }}
-                className="text-white/30 hover:text-white text-xs">Remove</button>
+            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-2xl flex items-center justify-between">
+              <div>
+                <p className="font-medium text-yellow-700">New photo selected</p>
+                <p className="text-yellow-600 text-sm">Click "Save Changes" to update</p>
+              </div>
+              <button
+                onClick={() => { setImageFile(null); setImagePreview(null); }}
+                className="text-red-600 hover:text-red-700 text-sm font-medium"
+              >
+                Remove
+              </button>
             </div>
           )}
         </div>
 
-        {/* ── tab bar ────────────────────────────────────────── */}
-        <div className="flex gap-1 bg-white/3 border border-white/8 rounded-2xl p-1.5 mb-6 w-fit">
+        {/* Tabs */}
+        <div className="flex border-b border-gray-200 mb-8">
           {["Profile", "Security", "Activity"].map((t) => (
-            <button key={t} onClick={() => setTab(t)}
-              className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all
-                ${tab === t ? "bg-amber-400 text-black shadow" : "text-white/40 hover:text-white hover:bg-white/5"}`}>
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-8 py-4 font-semibold text-lg transition-all border-b-2 -mb-px
+                ${tab === t 
+                  ? "border-yellow-500 text-yellow-600" 
+                  : "border-transparent text-gray-500 hover:text-gray-700"}`}
+            >
               {t}
             </button>
           ))}
         </div>
 
-        {/* ══════════════════════════════════════════════════════
-            TAB — Profile
-        ══════════════════════════════════════════════════════ */}
+        {/* Profile Tab */}
         {tab === "Profile" && (
-          <form onSubmit={handleProfileSave}
-            className="bg-white/3 border border-white/8 rounded-3xl p-8 space-y-6">
-            <h2 className="text-white font-black text-lg">Edit Profile</h2>
+          <form onSubmit={handleProfileSave} className="bg-white rounded-3xl shadow-sm border border-gray-100 p-10">
+            <h3 className="text-2xl font-semibold mb-8 flex items-center gap-3">
+              <User className="text-yellow-600" /> Personal Information
+            </h3>
 
-            <div className="grid md:grid-cols-2 gap-5">
-              {/* Full name */}
+            <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-white/40 text-xs uppercase tracking-widest mb-2">Full Name</label>
-                <input value={form.full_name}
-                  onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))}
-                  placeholder="Your full name"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/20 focus:outline-none focus:border-amber-400/50 transition text-sm" />
+                <label className="block text-sm font-medium text-gray-600 mb-2">Full Name</label>
+                <input
+                  value={form.full_name}
+                  onChange={(e) => setForm(f => ({ ...f, full_name: e.target.value }))}
+                  className="w-full px-5 py-3.5 border border-gray-200 rounded-2xl focus:outline-none focus:border-yellow-400 transition"
+                  placeholder="Enter your full name"
+                />
               </div>
 
-              {/* Phone */}
               <div>
-                <label className="block text-white/40 text-xs uppercase tracking-widest mb-2">Phone</label>
-                <input value={form.phone}
-                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                  placeholder="Your phone number"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/20 focus:outline-none focus:border-amber-400/50 transition text-sm" />
+                <label className="block text-sm font-medium text-gray-600 mb-2">Phone Number</label>
+                <input
+                  value={form.phone}
+                  onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))}
+                  className="w-full px-5 py-3.5 border border-gray-200 rounded-2xl focus:outline-none focus:border-yellow-400 transition"
+                  placeholder="+977 98XXXXXXXX"
+                />
               </div>
 
-              {/* City */}
               <div>
-                <label className="block text-white/40 text-xs uppercase tracking-widest mb-2">City</label>
-                <input value={form.city}
-                  onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
-                  placeholder="e.g. Kathmandu"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/20 focus:outline-none focus:border-amber-400/50 transition text-sm" />
+                <label className="block text-sm font-medium text-gray-600 mb-2">City</label>
+                <input
+                  value={form.city}
+                  onChange={(e) => setForm(f => ({ ...f, city: e.target.value }))}
+                  className="w-full px-5 py-3.5 border border-gray-200 rounded-2xl focus:outline-none focus:border-yellow-400 transition"
+                  placeholder="Kathmandu"
+                />
               </div>
 
-              {/* Email read-only */}
               <div>
-                <label className="block text-white/40 text-xs uppercase tracking-widest mb-2">Email (read-only)</label>
-                <input value={profile?.email || ""} readOnly
-                  className="w-full bg-white/3 border border-white/5 rounded-xl px-4 py-3 text-white/30 text-sm cursor-not-allowed" />
+                <label className="block text-sm font-medium text-gray-600 mb-2">Email Address</label>
+                <input
+                  value={profile?.email || ""}
+                  readOnly
+                  className="w-full px-5 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-400 cursor-not-allowed"
+                />
               </div>
             </div>
 
-            {/* avatar preview */}
-            {imagePreview && (
-              <div className="flex items-center gap-4 bg-amber-400/8 border border-amber-400/20 rounded-xl p-4">
-                <img src={imagePreview} alt="preview" className="w-14 h-14 rounded-full object-cover border-2 border-amber-400/50" />
-                <div>
-                  <p className="text-amber-400 font-semibold text-sm">New avatar ready to save</p>
-                  <p className="text-amber-400/50 text-xs">Click "Save Changes" to apply.</p>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end pt-2 border-t border-white/8">
-              <button type="submit" disabled={saving}
-                className="px-8 py-3 bg-amber-400 text-black font-black rounded-xl hover:bg-amber-300 transition disabled:opacity-50 flex items-center gap-2 text-sm">
-                {saving
-                  ? <><div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />Saving…</>
-                  : "Save Changes"}
+            <div className="flex justify-end mt-10">
+              <button
+                type="submit"
+                disabled={saving}
+                className="flex items-center gap-3 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold px-10 py-4 rounded-2xl transition disabled:opacity-70"
+              >
+                {saving ? (
+                  <>Saving Changes...</>
+                ) : (
+                  <>
+                    <Save size={20} /> Save Changes
+                  </>
+                )}
               </button>
             </div>
           </form>
         )}
 
-        {/* ══════════════════════════════════════════════════════
-            TAB — Security
-        ══════════════════════════════════════════════════════ */}
+        {/* Security Tab */}
         {tab === "Security" && (
-          <div className="space-y-5">
-
-            {/* change password */}
-            <form onSubmit={handlePwChange}
-              className="bg-white/3 border border-white/8 rounded-3xl p-8 space-y-5">
-              <h2 className="text-white font-black text-lg">Change Password</h2>
+          <div className="space-y-8">
+            <form onSubmit={handlePwChange} className="bg-white rounded-3xl shadow-sm border border-gray-100 p-10">
+              <h3 className="text-2xl font-semibold mb-8 flex items-center gap-3">
+                <Shield className="text-yellow-600" /> Change Password
+              </h3>
 
               {pwErrors.general && (
-                <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl p-3 text-sm">
+                <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl">
                   {pwErrors.general}
                 </div>
               )}
 
-              <div>
-                <label className="block text-white/40 text-xs uppercase tracking-widest mb-2">Current Password</label>
-                <input type="password" value={pwForm.old_password}
-                  onChange={(e) => setPwForm((f) => ({ ...f, old_password: e.target.value }))}
-                  placeholder="Enter current password"
-                  className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-white placeholder-white/20 focus:outline-none transition text-sm
-                    ${pwErrors.old_password ? "border-red-500/50" : "border-white/10 focus:border-amber-400/50"}`} />
-                {pwErrors.old_password && <p className="text-red-400 text-xs mt-1">{pwErrors.old_password}</p>}
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-2">Current Password</label>
+                  <input
+                    type="password"
+                    value={pwForm.old_password}
+                    onChange={(e) => setPwForm(f => ({ ...f, old_password: e.target.value }))}
+                    className="w-full px-5 py-3.5 border border-gray-200 rounded-2xl focus:outline-none focus:border-yellow-400"
+                    placeholder="••••••••"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-2">New Password</label>
+                  <input
+                    type="password"
+                    value={pwForm.new_password}
+                    onChange={(e) => setPwForm(f => ({ ...f, new_password: e.target.value }))}
+                    className="w-full px-5 py-3.5 border border-gray-200 rounded-2xl focus:outline-none focus:border-yellow-400"
+                    placeholder="New password (min 8 characters)"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-white/40 text-xs uppercase tracking-widest mb-2">New Password</label>
-                <input type="password" value={pwForm.new_password}
-                  onChange={(e) => setPwForm((f) => ({ ...f, new_password: e.target.value }))}
-                  placeholder="Enter new password"
-                  className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-white placeholder-white/20 focus:outline-none transition text-sm
-                    ${pwErrors.new_password ? "border-red-500/50" : "border-white/10 focus:border-amber-400/50"}`} />
-                {pwErrors.new_password && <p className="text-red-400 text-xs mt-1">{pwErrors.new_password}</p>}
-                <p className="text-white/20 text-xs mt-1.5">Min 8 chars. Cannot match your email.</p>
-              </div>
-
-              <div className="flex justify-end pt-2 border-t border-white/8">
-                <button type="submit" disabled={pwSaving}
-                  className="px-8 py-3 bg-amber-400 text-black font-black rounded-xl hover:bg-amber-300 transition disabled:opacity-50 flex items-center gap-2 text-sm">
-                  {pwSaving
-                    ? <><div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />Changing…</>
-                    : "Change Password"}
+              <div className="flex justify-end mt-10">
+                <button
+                  type="submit"
+                  disabled={pwSaving}
+                  className="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold px-10 py-4 rounded-2xl transition disabled:opacity-70"
+                >
+                  {pwSaving ? "Updating Password..." : "Update Password"}
                 </button>
               </div>
             </form>
-
-            {/* forgot password */}
-            <div className="bg-white/3 border border-white/8 rounded-3xl p-8">
-              <h2 className="text-white font-black text-lg mb-1">Forgot Password?</h2>
-              <p className="text-white/40 text-sm mb-5">
-                Simulate sending a reset link to <span className="text-white/60 font-semibold">{profile?.email}</span>.
-              </p>
-              <button onClick={handleForgotPassword}
-                className="px-6 py-2.5 bg-white/5 border border-white/10 text-white/60 rounded-xl text-sm font-semibold hover:bg-white/10 hover:text-white transition">
-                Send Reset Link
-              </button>
-            </div>
-
-            {/* account info */}
-            <div className="bg-white/3 border border-white/8 rounded-3xl p-8">
-              <h2 className="text-white font-black text-lg mb-4">Account Info</h2>
-              <div className="space-y-3 text-sm">
-                {[
-                  ["Member since", profile?.created_at
-                    ? new Date(profile.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
-                    : "—"],
-                  ["Role",      profile?.role     || "—"],
-                  ["Verified",  profile?.is_verified ? "Yes" : "No"],
-                  ["Active",    profile?.is_active   ? "Yes" : "No"],
-                ].map(([k, v]) => (
-                  <div key={k} className="flex justify-between items-center border-b border-white/5 pb-3 last:border-0 last:pb-0">
-                    <span className="text-white/30">{k}</span>
-                    <span className="text-white/70 font-semibold capitalize">{v}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         )}
 
-        {/* ══════════════════════════════════════════════════════
-            TAB — Activity
-        ══════════════════════════════════════════════════════ */}
+        {/* Activity Tab */}
         {tab === "Activity" && (
-          <div>
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-10">
             {actLoading ? (
-              <div className="flex items-center justify-center py-20">
-                <div className="w-10 h-10 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" />
+              <div className="flex justify-center py-20">
+                <div className="w-10 h-10 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin" />
               </div>
             ) : !activity ? (
-              <div className="text-center py-20 text-white/40">Could not load activity.</div>
+              <p className="text-center text-gray-500 py-20">No activity data available.</p>
             ) : (
-              <div className="space-y-5">
-
-                {/* stat cards */}
-                <div className="grid grid-cols-3 gap-4">
+              <div>
+                {/* Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
                   {[
-                    { label: "Total Bookings", value: activity.total_bookings,                                       color: "text-white"       },
-                    { label: "Total Spent",    value: `Rs ${parseFloat(activity.total_spent).toFixed(0)}`,           color: "text-amber-400"   },
-                    { label: "Last Booking",   value: activity.last_booking ? activity.last_booking.date : "None",   color: "text-emerald-400" },
-                  ].map((s) => (
-                    <div key={s.label} className="bg-white/3 border border-white/8 rounded-2xl p-5 text-center">
-                      <p className={`text-3xl font-black ${s.color}`}>{s.value}</p>
-                      <p className="text-white/30 text-xs mt-1.5 uppercase tracking-widest">{s.label}</p>
+                    { label: "Total Bookings", value: activity.total_bookings || 0 },
+                    { label: "Total Spent", value: `Rs ${parseFloat(activity.total_spent || 0).toFixed(0)}` },
+                    { label: "Last Booking", value: activity.last_booking ? "Recent" : "None" },
+                  ].map((stat, i) => (
+                    <div key={i} className="bg-gray-50 rounded-2xl p-6 text-center">
+                      <p className="text-4xl font-bold text-gray-900">{stat.value}</p>
+                      <p className="text-gray-500 mt-2 text-sm">{stat.label}</p>
                     </div>
                   ))}
                 </div>
 
-                {/* last booking detail */}
-                {activity.last_booking ? (
-                  <div className="bg-white/3 border border-white/8 rounded-3xl p-8">
-                    <h2 className="text-white font-black text-lg mb-5">Most Recent Booking</h2>
-                    <div className="space-y-3 text-sm">
-                      {[
-                        ["Ground",  activity.last_booking.ground_name],
-                        ["Date",    activity.last_booking.date],
-                        ["Time",    `${fmt12(activity.last_booking.start_time)} – ${fmt12(activity.last_booking.end_time)}`],
-                        ["Amount",  `Rs ${activity.last_booking.total_price}`],
-                        ["Status",  activity.last_booking.status],
-                      ].map(([k, v]) => (
-                        <div key={k} className="flex justify-between border-b border-white/5 pb-3 last:border-0 last:pb-0">
-                          <span className="text-white/30">{k}</span>
-                          <span className={`font-semibold capitalize
-                            ${k === "Amount" ? "text-amber-400" :
-                              k === "Status" && v === "confirmed" ? "text-emerald-400" :
-                              k === "Status" && v === "cancelled" ? "text-red-400" :
-                              k === "Status" && v === "pending"   ? "text-amber-400" :
-                              "text-white/70"}`}>
-                            {v}
-                          </span>
+                {activity.last_booking && (
+                  <div>
+                    <h3 className="text-xl font-semibold mb-6">Most Recent Booking</h3>
+                    <div className="space-y-4">
+                      {Object.entries({
+                        Ground: activity.last_booking.ground_name,
+                        Date: activity.last_booking.date,
+                        Time: `${activity.last_booking.start_time} - ${activity.last_booking.end_time}`,
+                        Amount: `Rs ${activity.last_booking.total_price}`,
+                        Status: activity.last_booking.status,
+                      }).map(([key, value]) => (
+                        <div key={key} className="flex justify-between py-4 border-b border-gray-100 last:border-0">
+                          <span className="text-gray-500">{key}</span>
+                          <span className="font-medium text-gray-900">{value}</span>
                         </div>
                       ))}
                     </div>
-                  </div>
-                ) : (
-                  <div className="bg-white/3 border border-white/8 rounded-3xl p-10 text-center">
-                    <p className="text-4xl mb-3">🏟️</p>
-                    <p className="text-white/40 mb-5">No bookings yet. Go book a futsal ground!</p>
-                    <button onClick={() => navigate("/grounds")}
-                      className="px-6 py-2.5 bg-amber-400 text-black font-black rounded-xl hover:bg-amber-300 transition text-sm">
-                      Browse Grounds
-                    </button>
                   </div>
                 )}
               </div>
             )}
           </div>
         )}
-
       </div>
+
+      <Toast msg={toast.msg} type={toast.type} />
     </div>
   );
 }
