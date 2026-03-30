@@ -12,19 +12,6 @@ from .permissions import IsPlayer, IsBookingOwner, IsOwnerOfGround
 # POST /api/bookings/create/
 # ─────────────────────────────────────────────────────────────────────────────
 class CreateBookingView(generics.CreateAPIView):
-    """
-    Creates exactly ONE booking per request.
-    Paid bookings → status=pending
-    Free bookings  → status=confirmed  (loyalty reward)
-
-    BUG FIX: Removed the duplicate record.record_confirmed_booking() call
-    that was firing after serializer.save(), which caused an extra loyalty
-    count increment — and because of how full_clean() interacts with the
-    overlap validator, it was also manifesting as ghost slot reservations.
-    The loyalty count is now recorded in ONE place only:
-      - Free bookings: recorded inside redeem_free_booking()
-      - Paid bookings: recorded inside UpdateBookingStatusView when owner confirms
-    """
     serializer_class = BookingSerializer
     permission_classes = [permissions.IsAuthenticated, IsPlayer]
 
@@ -37,17 +24,12 @@ class CreateBookingView(generics.CreateAPIView):
         is_free = bool(self.request.data.get("is_free_booking", False))
 
         if is_free:
-            # Validate free booking availability BEFORE saving anything
             record = LoyaltyRecord.get_or_create_for(self.request.user, ground)
             if record.free_bookings_available <= 0:
                 raise ValidationError("No free bookings available for this ground.")
 
-            # Redeem the free booking (decrements free_bookings_available)
             record.redeem_free_booking()
 
-            # Save the booking with free price and auto-confirmed status
-            # Pass only valid model fields — do NOT pass is_free_booking as kwarg
-            # because BookingSerializer will handle it via the model field
             booking = serializer.save(
                 user=self.request.user,
                 status=Booking.Status.CONFIRMED,
@@ -55,9 +37,6 @@ class CreateBookingView(generics.CreateAPIView):
                 is_free_booking=True,
             )
         else:
-            # Normal paid booking — status stays pending until owner confirms
-            # DO NOT call record_confirmed_booking() here.
-            # It is called in UpdateBookingStatusView when owner sets status=confirmed
             booking = serializer.save(
                 user=self.request.user,
                 status=Booking.Status.PENDING,
@@ -113,12 +92,6 @@ class CancelBookingView(generics.UpdateAPIView):
 # PATCH /api/bookings/<id>/update/   (owner confirms or cancels)
 # ─────────────────────────────────────────────────────────────────────────────
 class UpdateBookingStatusView(generics.UpdateAPIView):
-    """
-    Owner-only endpoint to confirm or cancel a booking.
-
-    When a PAID booking is confirmed here, loyalty is recorded ONCE.
-    Free bookings skip loyalty recording (already handled at creation).
-    """
     queryset = Booking.objects.all()
     serializer_class = BookingStatusSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOfGround]
@@ -144,16 +117,19 @@ class UpdateBookingStatusView(generics.UpdateAPIView):
         booking.status = new_status
         booking.save(update_fields=["status"])
 
-        # Record loyalty ONLY when:
-        #   1. Status changed TO confirmed (not already confirmed)
-        #   2. It is NOT a free booking (free bookings don't earn loyalty points)
         if (
             new_status == "confirmed"
             and old_status != "confirmed"
             and not booking.is_free_booking
         ):
-            record = LoyaltyRecord.get_or_create_for(booking.user, booking.ground)
-            record.record_confirmed_booking()
+            khalti_already_paid = booking.payments.filter(
+                status="success",
+                payment_method="khalti",
+            ).exists()
+
+            if not khalti_already_paid:
+                record = LoyaltyRecord.get_or_create_for(booking.user, booking.ground)
+                record.record_confirmed_booking()
 
         return Response(
             {
@@ -208,10 +184,6 @@ class OwnerBookingsView(generics.ListAPIView):
 # GET /api/bookings/loyalty/
 # ─────────────────────────────────────────────────────────────────────────────
 class UserLoyaltyView(generics.ListAPIView):
-    """
-    Returns all loyalty records for the logged-in player.
-    Shows progress toward free bookings for each ground they've booked.
-    """
     serializer_class = LoyaltySerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -239,10 +211,6 @@ class UserLoyaltyView(generics.ListAPIView):
 # GET /api/bookings/loyalty/<ground_id>/
 # ─────────────────────────────────────────────────────────────────────────────
 class GroundLoyaltyView(APIView):
-    """
-    Returns loyalty status for the current user at a specific ground.
-    Used by the booking modal to show progress bar and free booking option.
-    """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, ground_id):
@@ -269,14 +237,9 @@ class GroundLoyaltyView(APIView):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# GET /api/bookings/<ground_id>/booked-slots/
+# GET /api/bookings/ground/<ground_id>/booked-slots/
 # ─────────────────────────────────────────────────────────────────────────────
 class GroundBookedSlotsView(APIView):
-    """
-    Returns booked time slots for a ground on a specific date.
-    Used by the frontend slot picker to grey out unavailable hours.
-    Only returns active bookings (excludes cancelled/refunded).
-    """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, ground_id):
