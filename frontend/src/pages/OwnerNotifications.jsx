@@ -1,25 +1,35 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { 
+  ArrowLeft, 
+  Bell, 
+  Clock, 
+  CheckCircle 
+} from "lucide-react";
 
 const BASE_URL = "http://127.0.0.1:8000";
 
 const TYPE_CONFIG = {
   booking_received: {
-    color: "text-blue-400",
-    bg: "bg-blue-400/10",
+    color: "text-blue-600",
+    bg: "bg-blue-100",
     label: "New Booking",
   },
   booking_confirmed: {
-    color: "text-emerald-400",
-    bg: "bg-emerald-400/10",
+    color: "text-emerald-600",
+    bg: "bg-emerald-100",
     label: "Confirmed",
   },
   booking_cancelled: {
-    color: "text-red-400",
-    bg: "bg-red-400/10",
+    color: "text-red-600",
+    bg: "bg-red-100",
     label: "Cancelled",
   },
-  general: { color: "text-amber-400", bg: "bg-amber-400/10", label: "General" },
+  general: { 
+    color: "text-amber-600", 
+    bg: "bg-amber-100", 
+    label: "General" 
+  },
 };
 
 const timeAgo = (d) => {
@@ -86,105 +96,114 @@ export default function OwnerNotifications() {
   ).length;
 
   return (
-    <div className="min-h-screen bg-[#070b14] pt-24 px-4 pb-16">
+    <div className="min-h-screen bg-gray-50 pt-20 pb-16 px-4">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-10">
           <button
             onClick={() => navigate("/owner-dashboard")}
-            className="text-white/40 hover:text-white text-sm mb-4 flex items-center gap-1 transition"
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition mb-6 font-medium"
           >
-            ← Dashboard
+            <ArrowLeft size={20} />
+            Back to Dashboard
           </button>
+
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-black text-white">Notifications</h1>
-              {unreadCount > 0 && (
-                <p className="text-amber-400 text-sm mt-1">
-                  {unreadCount} unread
-                </p>
-              )}
+            <div className="flex items-center gap-4">
+              <div className="p-4 bg-white rounded-2xl shadow-sm border border-gray-100">
+                <Bell size={28} className="text-gray-700" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold text-gray-900 tracking-tight">Notifications</h1>
+                {unreadCount > 0 && (
+                  <p className="text-amber-600 font-medium mt-1">
+                    {unreadCount} unread messages
+                  </p>
+                )}
+              </div>
             </div>
+
             {unreadCount > 0 && (
               <button
                 onClick={markAllRead}
                 disabled={markingAll}
-                className="px-6 py-2 bg-white/5 border border-white/10 text-white/80 rounded-xl text-sm hover:bg-white/10 hover:border-white/20 transition disabled:opacity-50"
+                className="px-6 py-3 bg-gray-900 hover:bg-black text-white text-sm font-semibold rounded-2xl transition disabled:opacity-70 flex items-center gap-2"
               >
-                {markingAll ? "Marking..." : "Mark all read"}
+                <CheckCircle size={18} />
+                {markingAll ? "Marking all..." : "Mark all as read"}
               </button>
             )}
           </div>
         </div>
 
-        {/* New booking alert */}
+        {/* New Bookings Alert */}
         {newBookings > 0 && (
-          <div className="bg-gradient-to-r from-blue-500/10 to-blue-400/5 border border-blue-400/30 rounded-xl p-5 mb-6 flex items-center justify-between">
+          <div className="bg-blue-50 border border-blue-200 rounded-3xl p-6 mb-8 flex items-center justify-between">
             <div>
-              <p className="text-blue-300 font-semibold">
-                {newBookings} new booking{newBookings > 1 ? "s" : ""} received!
+              <p className="text-blue-700 font-semibold text-lg">
+                {newBookings} new booking{newBookings > 1 ? "s" : ""} received
               </p>
-              <p className="text-blue-400/60 text-sm mt-1">
-                Check your bookings page for details.
+              <p className="text-blue-600/80 text-sm mt-1">
+                Please check your bookings page to review them.
               </p>
             </div>
             <button
               onClick={() => navigate("/owner-bookings")}
-              className="ml-6 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold rounded-lg transition"
+              className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-2xl transition"
             >
-              View
+              View Bookings
             </button>
           </div>
         )}
 
-        {/* List */}
+        {/* Notifications List */}
         {loading ? (
           <div className="flex justify-center py-20">
-            <div className="w-10 h-10 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" />
+            <div className="w-12 h-12 border-4 border-gray-300 border-t-gray-900 rounded-full animate-spin" />
           </div>
         ) : notifications.length === 0 ? (
-          <div className="text-center py-20 bg-white/3 border border-white/5 rounded-2xl">
-            <p className="text-white/40 text-lg">No notifications yet</p>
-            <p className="text-white/20 text-sm mt-2">
-              You'll be notified when someone books your ground
+          <div className="text-center py-24 bg-white border border-gray-200 rounded-3xl">
+            <Bell size={64} className="mx-auto text-gray-300 mb-6" />
+            <h3 className="text-2xl font-semibold text-gray-800 mb-3">No notifications yet</h3>
+            <p className="text-gray-600 max-w-sm mx-auto">
+              You'll receive notifications here when players book your ground or when important updates occur.
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {notifications.map((n) => {
-              const cfg =
-                TYPE_CONFIG[n.notification_type] || TYPE_CONFIG.general;
+              const cfg = TYPE_CONFIG[n.notification_type] || TYPE_CONFIG.general;
               return (
                 <div
                   key={n.id}
                   onClick={() => !n.is_read && markRead(n.id)}
-                  className={`p-5 rounded-xl border transition cursor-pointer
-                    ${
-                      n.is_read
-                        ? "bg-white/2 border-white/5 opacity-50"
-                        : "bg-white/5 border-white/10 hover:bg-white/8 hover:border-white/15"
-                    }`}
+                  className={`p-7 rounded-3xl border transition-all cursor-pointer
+                    ${n.is_read 
+                      ? "bg-white border-gray-200 opacity-75" 
+                      : "bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm"}`}
                 >
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start justify-between gap-6">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center gap-3 mb-4">
                         <span
-                          className={`inline-block px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${cfg.bg} ${cfg.color}`}
+                          className={`inline-block px-4 py-1.5 rounded-2xl text-xs font-semibold uppercase tracking-wider ${cfg.bg} ${cfg.color}`}
                         >
                           {cfg.label}
                         </span>
                       </div>
-                      <p
-                        className={`text-sm leading-relaxed ${n.is_read ? "text-white/50" : "text-white/80"}`}
-                      >
+
+                      <p className={`text-[15px] leading-relaxed ${n.is_read ? "text-gray-600" : "text-gray-800"}`}>
                         {n.message}
                       </p>
-                      <p className="text-white/30 text-xs mt-2.5">
-                        {timeAgo(n.created_at)}
-                      </p>
+
+                      <div className="flex items-center gap-2 mt-5 text-xs text-gray-500">
+                        <Clock size={15} />
+                        <span>{timeAgo(n.created_at)}</span>
+                      </div>
                     </div>
+
                     {!n.is_read && (
-                      <div className="w-2.5 h-2.5 rounded-full bg-amber-400 flex-shrink-0 mt-1" />
+                      <div className="w-3 h-3 rounded-full bg-amber-500 flex-shrink-0 mt-2" />
                     )}
                   </div>
                 </div>

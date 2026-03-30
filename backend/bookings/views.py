@@ -28,11 +28,13 @@ class CreateBookingView(generics.CreateAPIView):
             if record.free_bookings_available <= 0:
                 raise ValidationError("No free bookings available for this ground.")
 
+            # Redeem the free booking credit
             record.redeem_free_booking()
 
+            # Now create as PENDING (same as normal bookings)
             booking = serializer.save(
                 user=self.request.user,
-                status=Booking.Status.CONFIRMED,
+                status=Booking.Status.PENDING,        # ← CHANGED HERE
                 total_price="0.00",
                 is_free_booking=True,
             )
