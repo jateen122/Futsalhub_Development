@@ -1,21 +1,23 @@
+# backend/grounds/views.py
 from django.db.models import Q
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import ValidationError
 
-from .models import Ground, Favorite
+from .models import Ground, Favorite, PeakPricingRule
 from .serializers import (
     GroundSerializer,
     GroundApprovalSerializer,
     PublicGroundSerializer,
     FavoriteSerializer,
+    PeakPricingRuleSerializer,
 )
 from .permissions import IsOwnerRole, IsGroundOwner, IsAdminRole
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# GET  /api/grounds/          — public, approved only, advanced filtering
+# GET  /api/grounds/   — public, approved only, advanced filtering
 # ─────────────────────────────────────────────────────────────────────────────
 
 class PublicGroundListView(generics.ListAPIView):
@@ -23,7 +25,7 @@ class PublicGroundListView(generics.ListAPIView):
     permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
-        qs     = Ground.objects.filter(is_approved=True).select_related("owner")
+        qs     = Ground.objects.filter(is_approved=True).select_related("owner").prefetch_related("peak_pricing_rules")
         params = self.request.query_params
 
         search = params.get("search")
@@ -59,7 +61,7 @@ class PublicGroundListView(generics.ListAPIView):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# GET  /api/grounds/admin/all/   — admin: all grounds
+# GET  /api/grounds/admin/all/
 # ─────────────────────────────────────────────────────────────────────────────
 
 class AdminGroundListView(generics.ListAPIView):
@@ -67,7 +69,7 @@ class AdminGroundListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated, IsAdminRole]
 
     def get_queryset(self):
-        qs     = Ground.objects.all().select_related("owner")
+        qs     = Ground.objects.all().select_related("owner").prefetch_related("peak_pricing_rules")
         params = self.request.query_params
 
         status_filter = params.get("status")
@@ -88,7 +90,7 @@ class AdminGroundListView(generics.ListAPIView):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class AdminGroundDetailView(generics.RetrieveAPIView):
-    queryset           = Ground.objects.all()
+    queryset           = Ground.objects.all().prefetch_related("peak_pricing_rules")
     serializer_class   = GroundSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdminRole]
 
@@ -185,7 +187,9 @@ class OwnerGroundListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated, IsOwnerRole]
 
     def get_queryset(self):
-        return Ground.objects.filter(owner=self.request.user).select_related("owner")
+        return Ground.objects.filter(
+            owner=self.request.user
+        ).select_related("owner").prefetch_related("peak_pricing_rules")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -193,11 +197,6 @@ class OwnerGroundListView(generics.ListAPIView):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class ToggleFavoriteView(APIView):
-    """
-    Toggle a ground as favorite for the logged-in user.
-    Body: { "ground_id": <int> }
-    Returns: { favorited: bool, message: str, ground_id: int, ground_name: str }
-    """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
@@ -237,10 +236,6 @@ class ToggleFavoriteView(APIView):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class FavoriteListView(generics.ListAPIView):
-    """
-    Return all favorited grounds for the logged-in user.
-    Response: { count: int, favorites: [...] }
-    """
     serializer_class   = FavoriteSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -254,11 +249,141 @@ class FavoriteListView(generics.ListAPIView):
 
     def list(self, request, *args, **kwargs):
         queryset   = self.get_queryset()
-        serializer = self.get_serializer(
-            queryset, many=True,
-            context={"request": request},
-        )
+        serializer = self.get_serializer(queryset, many=True, context={"request": request})
         return Response({
             "count":     queryset.count(),
             "favorites": serializer.data,
+        })
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET/POST /api/grounds/<ground_id>/pricing/   — owner manages peak pricing
+# ─────────────────────────────────────────────────────────────────────────────
+
+class PeakPricingRuleListCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated, IsOwnerRole]
+
+    def _get_ground(self, ground_id, user):
+        try:
+            ground = Ground.objects.get(pk=ground_id)
+        except Ground.DoesNotExist:
+            return None, Response({"detail": "Ground not found."}, status=404)
+        if ground.owner != user:
+            return None, Response({"detail": "You do not own this ground."}, status=403)
+        return ground, None
+
+    def get(self, request, ground_id):
+        ground, err = self._get_ground(ground_id, request.user)
+        if err:
+            return err
+        rules = PeakPricingRule.objects.filter(ground=ground)
+        serializer = PeakPricingRuleSerializer(rules, many=True)
+        return Response({
+            "ground_id":   ground.id,
+            "ground_name": ground.name,
+            "base_price":  str(ground.price_per_hour),
+            "rules":       serializer.data,
+        })
+
+    def post(self, request, ground_id):
+        ground, err = self._get_ground(ground_id, request.user)
+        if err:
+            return err
+        serializer = PeakPricingRuleSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(ground=ground)
+        return Response(
+            {"message": "Pricing rule created.", "rule": serializer.data},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET/PATCH/DELETE /api/grounds/<ground_id>/pricing/<pk>/
+# ─────────────────────────────────────────────────────────────────────────────
+
+class PeakPricingRuleDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated, IsOwnerRole]
+
+    def _get_rule(self, ground_id, pk, user):
+        try:
+            rule = PeakPricingRule.objects.select_related("ground").get(pk=pk, ground_id=ground_id)
+        except PeakPricingRule.DoesNotExist:
+            return None, Response({"detail": "Rule not found."}, status=404)
+        if rule.ground.owner != user:
+            return None, Response({"detail": "You do not own this ground."}, status=403)
+        return rule, None
+
+    def get(self, request, ground_id, pk):
+        rule, err = self._get_rule(ground_id, pk, request.user)
+        if err:
+            return err
+        return Response(PeakPricingRuleSerializer(rule).data)
+
+    def patch(self, request, ground_id, pk):
+        rule, err = self._get_rule(ground_id, pk, request.user)
+        if err:
+            return err
+        serializer = PeakPricingRuleSerializer(rule, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"message": "Rule updated.", "rule": serializer.data})
+
+    def delete(self, request, ground_id, pk):
+        rule, err = self._get_rule(ground_id, pk, request.user)
+        if err:
+            return err
+        rule.delete()
+        return Response({"message": "Rule deleted."}, status=status.HTTP_204_NO_CONTENT)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /api/grounds/<ground_id>/slot-price/?date=YYYY-MM-DD&hour=HH
+# Returns the effective price for a given date + hour
+# ─────────────────────────────────────────────────────────────────────────────
+
+class SlotPricingView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, ground_id):
+        try:
+            ground = Ground.objects.get(pk=ground_id, is_approved=True)
+        except Ground.DoesNotExist:
+            return Response({"detail": "Ground not found."}, status=404)
+
+        date_str = request.query_params.get("date")
+        hour_str = request.query_params.get("hour")
+
+        if not date_str or hour_str is None:
+            return Response({"detail": "date and hour query params are required."}, status=400)
+
+        try:
+            from datetime import date as date_cls
+            booking_date = date_cls.fromisoformat(date_str)
+            hour = int(hour_str)
+        except (ValueError, TypeError):
+            return Response({"detail": "Invalid date or hour format."}, status=400)
+
+        effective_price = ground.get_price_for_slot(booking_date, hour)
+
+        # Find the matching rule (if any)
+        day_of_week = booking_date.weekday()
+        rules = ground.peak_pricing_rules.filter(is_active=True)
+        matched_rule = None
+        for rule in rules:
+            day_match  = (rule.day_of_week == -1 or rule.day_of_week == day_of_week)
+            hour_match = rule.start_hour <= hour < rule.end_hour
+            if day_match and hour_match:
+                matched_rule = rule
+                break
+
+        return Response({
+            "ground_id":      ground.id,
+            "ground_name":    ground.name,
+            "date":           date_str,
+            "hour":           hour,
+            "base_price":     str(ground.price_per_hour),
+            "effective_price": str(effective_price),
+            "is_peak":        matched_rule is not None,
+            "peak_rule":      PeakPricingRuleSerializer(matched_rule).data if matched_rule else None,
         })

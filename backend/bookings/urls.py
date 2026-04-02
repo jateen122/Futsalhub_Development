@@ -1,3 +1,4 @@
+# backend/bookings/urls.py
 from django.urls import path
 from .views import (
     CreateBookingView,
@@ -7,7 +8,10 @@ from .views import (
     UpdateBookingStatusView,
     UserLoyaltyView,
     GroundLoyaltyView,
-    GroundBookedSlotsView,   # ← New endpoint
+    GroundBookedSlotsView,
+    # Rescheduling token views
+    UserReschedulingTokensView,
+    UseReschedulingTokenView,
 )
 
 app_name = "bookings"
@@ -34,11 +38,10 @@ urlpatterns = [
     # Loyalty — specific ground loyalty status
     path("loyalty/<int:ground_id>/", GroundLoyaltyView.as_view(), name="loyalty-ground"),
 
-    # NEW: Get all booked slots for a specific ground on a specific date
-    # Used by frontend to show red "Booked" slots to ALL users
-    path(
-        "ground/<int:ground_id>/booked-slots/",
-        GroundBookedSlotsView.as_view(),
-        name="ground-booked-slots",
-    ),
+    # Booked slots for a specific ground on a specific date
+    path("ground/<int:ground_id>/booked-slots/", GroundBookedSlotsView.as_view(), name="ground-booked-slots"),
+
+    # Rescheduling tokens
+    path("tokens/",            UserReschedulingTokensView.as_view(), name="token-list"),
+    path("tokens/<uuid:token>/use/", UseReschedulingTokenView.as_view(),  name="token-use"),
 ]

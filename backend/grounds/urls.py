@@ -1,3 +1,4 @@
+# backend/grounds/urls.py
 from django.urls import path
 from .views import (
     PublicGroundListView,
@@ -8,8 +9,13 @@ from .views import (
     DeleteGroundView,
     ApproveGroundView,
     OwnerGroundListView,
-    ToggleFavoriteView,    # ← favorites (no separate app)
-    FavoriteListView,      # ← favorites (no separate app)
+    ToggleFavoriteView,
+    FavoriteListView,
+    # Peak pricing
+    PeakPricingRuleListCreateView,
+    PeakPricingRuleDetailView,
+    # Slot pricing
+    SlotPricingView,
 )
 
 app_name = "grounds"
@@ -32,7 +38,16 @@ urlpatterns = [
     # ── Admin approval ───────────────────────────────────────────
     path("<int:pk>/approve/",      ApproveGroundView.as_view(),     name="ground-approve"),
 
-    # ── Favorites (inside grounds app, no separate app needed) ───
+    # ── Favorites ────────────────────────────────────────────────
     path("favorites/",             FavoriteListView.as_view(),      name="favorite-list"),
     path("favorites/toggle/",      ToggleFavoriteView.as_view(),    name="favorite-toggle"),
+
+    # ── Peak Pricing ─────────────────────────────────────────────
+    # Owner: list & create rules for their ground
+    path("<int:ground_id>/pricing/",       PeakPricingRuleListCreateView.as_view(), name="peak-pricing-list"),
+    # Owner: update & delete a specific rule
+    path("<int:ground_id>/pricing/<int:pk>/", PeakPricingRuleDetailView.as_view(),  name="peak-pricing-detail"),
+
+    # Public: get effective price for a specific date + hour
+    path("<int:ground_id>/slot-price/",    SlotPricingView.as_view(),               name="slot-price"),
 ]
