@@ -1,7 +1,7 @@
 // frontend/src/pages/BookingPage.jsx
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Clock, MapPin, Calendar, IndianRupee, Gift, ChevronRight, Tag, AlertCircle } from "lucide-react";
+import { Clock, MapPin, Calendar, IndianRupee, Gift, ChevronRight, Tag, AlertCircle, Ban } from "lucide-react";
 
 const BASE_URL = "http://127.0.0.1:8000";
 
@@ -24,17 +24,12 @@ const fmtDate = (d) => {
   });
 };
 
-/**
- * Returns true if the given slot has already started or passed on today's date.
- * For future dates, always returns false.
- */
 const isSlotInPast = (slotDate, slotStartHour) => {
   const now        = new Date();
   const todayStr   = today();
-  if (slotDate !== todayStr) return false;          // future date — always valid
+  if (slotDate !== todayStr) return false;
   const currentHour = now.getHours();
   const currentMin  = now.getMinutes();
-  // Block if current time >= slot start (e.g. slot starts at 14, now is 14:01 → blocked)
   return currentHour > slotStartHour || (currentHour === slotStartHour && currentMin > 0);
 };
 
@@ -50,18 +45,18 @@ const buildSlots = (openingStr, closingStr) => {
     const endH12    = endH % 12 === 0 ? 12 : endH % 12;
     const endAmpm   = endH >= 12 ? "PM" : "AM";
     slots.push({
-      start:      `${String(h).padStart(2, "0")}:00`,
-      end:        `${String(endH).padStart(2, "0")}:00`,
-      startHour:  h,
-      label:      `${startH12}:00 ${startAmpm} – ${endH12}:00 ${endAmpm}`,
-      shortStart: `${startH12} ${startAmpm}`,
-      shortEnd:   `${endH12} ${endAmpm}`,
+      start:     `${String(h).padStart(2, "0")}:00`,
+      end:       `${String(endH).padStart(2, "0")}:00`,
+      startHour: h,
+      label:     `${startH12}:00 ${startAmpm} – ${endH12}:00 ${endAmpm}`,
+      shortStart:`${startH12} ${startAmpm}`,
+      shortEnd:  `${endH12} ${endAmpm}`,
     });
   }
   return slots;
 };
 
-// ─── Loyalty / Peak Panel ─────────────────────────────────────────────────────
+// ─── Loyalty Panel ────────────────────────────────────────────────────────────
 
 function LoyaltyPanel({ groundId, useFree, onFreeToggle }) {
   const token   = localStorage.getItem("access");
@@ -151,9 +146,9 @@ function LoyaltyPanel({ groundId, useFree, onFreeToggle }) {
 
 function ReschedulingTokenPanel({ groundId, activeToken, onTokenApply, onTokenRemove }) {
   const token = localStorage.getItem("access");
-  const [tokens,    setTokens]    = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [showList,  setShowList]  = useState(false);
+  const [tokens,   setTokens]   = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [showList, setShowList] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -200,8 +195,7 @@ function ReschedulingTokenPanel({ groundId, activeToken, onTokenApply, onTokenRe
           </div>
           <button
             onClick={onTokenRemove}
-            className="w-full py-2.5 text-sm font-semibold border border-blue-300 text-blue-700 rounded-xl hover:bg-blue-50 transition"
-          >
+            className="w-full py-2.5 text-sm font-semibold border border-blue-300 text-blue-700 rounded-xl hover:bg-blue-50 transition">
             Remove Token
           </button>
         </div>
@@ -209,22 +203,16 @@ function ReschedulingTokenPanel({ groundId, activeToken, onTokenApply, onTokenRe
         <div>
           <button
             onClick={() => setShowList(!showList)}
-            className="w-full py-3 bg-blue-100 text-blue-700 font-bold text-sm rounded-xl hover:bg-blue-200 transition border border-blue-300"
-          >
+            className="w-full py-3 bg-blue-100 text-blue-700 font-bold text-sm rounded-xl hover:bg-blue-200 transition border border-blue-300">
             {showList ? "Hide Tokens ▲" : `Apply Rescheduling Token (${tokens.length}) ▼`}
           </button>
 
           {showList && (
             <div className="mt-3 space-y-2">
               {tokens.map((t) => (
-                <button
-                  key={t.token}
-                  onClick={() => { onTokenApply(t); setShowList(false); }}
-                  className="w-full text-left p-3 bg-white border border-blue-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition"
-                >
-                  <p className="text-sm font-semibold text-gray-900">
-                    Rs {t.original_price} credit
-                  </p>
+                <button key={t.token} onClick={() => { onTokenApply(t); setShowList(false); }}
+                  className="w-full text-left p-3 bg-white border border-blue-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition">
+                  <p className="text-sm font-semibold text-gray-900">Rs {t.original_price} credit</p>
                   <p className="text-xs text-gray-500 mt-0.5">
                     From: {t.original_date} · Expires in {t.days_until_expiry} day{t.days_until_expiry !== 1 ? "s" : ""}
                   </p>
@@ -251,10 +239,12 @@ export default function BookingPage() {
   const [selectedSlot,  setSelectedSlot]  = useState(null);
   const [method,        setMethod]        = useState("khalti");
   const [useFree,       setUseFree]       = useState(false);
-  const [activeToken,   setActiveToken]   = useState(null);   // rescheduling token
+  const [activeToken,   setActiveToken]   = useState(null);
   const [bookedSlots,   setBookedSlots]   = useState([]);
   const [loadingSlots,  setLoadingSlots]  = useState(false);
-  const [slotPrices,    setSlotPrices]    = useState({});     // hour → effective price
+  const [slotPrices,    setSlotPrices]    = useState({});
+  // Blocked slots: { full_day: bool, block_reason: str, blocked_hours: [{hour, reason}] }
+  const [blockedInfo,   setBlockedInfo]   = useState({ full_day: false, block_reason: "", blocked_hours: [] });
   const [step,          setStep]          = useState(1);
   const [submitting,    setSubmitting]    = useState(false);
   const [error,         setError]         = useState("");
@@ -273,29 +263,42 @@ export default function BookingPage() {
       .finally(() => setLoadingGround(false));
   }, [id]);
 
-  // Load booked slots
+  // Load booked slots + blocked info
   useEffect(() => {
     if (!ground || !selectedDate) return;
     setLoadingSlots(true);
     setSelectedSlot(null);
 
-    fetch(
-      `${BASE_URL}/api/bookings/ground/${ground.id}/booked-slots/?date=${selectedDate}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
-      .then((r) => r.ok ? r.json() : { booked_slots: [] })
-      .then((data) => {
-        const normalised = (data.booked_slots || []).map((b) => ({
+    Promise.all([
+      fetch(
+        `${BASE_URL}/api/bookings/ground/${ground.id}/booked-slots/?date=${selectedDate}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      ).then((r) => r.ok ? r.json() : { booked_slots: [] }),
+
+      fetch(
+        `${BASE_URL}/api/grounds/${ground.id}/blocked-slots/?date=${selectedDate}`
+      ).then((r) => r.ok ? r.json() : { full_day: false, block_reason: "", blocked_hours: [] }),
+    ])
+      .then(([bookedData, blockedData]) => {
+        const normalised = (bookedData.booked_slots || []).map((b) => ({
           start: b.start.slice(0, 5),
           end:   b.end.slice(0, 5),
         }));
         setBookedSlots(normalised);
+        setBlockedInfo({
+          full_day:      blockedData.full_day      || false,
+          block_reason:  blockedData.block_reason  || "",
+          blocked_hours: blockedData.blocked_hours || [],
+        });
       })
-      .catch(() => setBookedSlots([]))
+      .catch(() => {
+        setBookedSlots([]);
+        setBlockedInfo({ full_day: false, block_reason: "", blocked_hours: [] });
+      })
       .finally(() => setLoadingSlots(false));
   }, [ground, selectedDate]);
 
-  // Load dynamic prices for all slots on selected date
+  // Load dynamic prices
   useEffect(() => {
     if (!ground || !selectedDate) return;
 
@@ -314,9 +317,7 @@ export default function BookingPage() {
 
     Promise.all(fetches).then((results) => {
       const priceMap = {};
-      results.forEach((r) => {
-        if (r) priceMap[r[0]] = r[1];
-      });
+      results.forEach((r) => { if (r) priceMap[r[0]] = r[1]; });
       setSlotPrices(priceMap);
     });
   }, [ground, selectedDate]);
@@ -326,7 +327,13 @@ export default function BookingPage() {
   const isBooked = (slot) =>
     bookedSlots.some((b) => b.start < slot.end && b.end > slot.start);
 
-  // Get effective price for selected slot
+  const isBlocked = (slot) => {
+    if (blockedInfo.full_day) return { blocked: true, reason: blockedInfo.block_reason };
+    const match = blockedInfo.blocked_hours.find(bh => bh.hour === slot.startHour);
+    if (match) return { blocked: true, reason: match.reason };
+    return { blocked: false, reason: "" };
+  };
+
   const getSlotPrice = useCallback((slot) => {
     if (!slot) return null;
     const priceData = slotPrices[slot.startHour];
@@ -345,10 +352,7 @@ export default function BookingPage() {
   }, [slotPrices, ground]);
 
   const effectiveSlotPrice = selectedSlot ? getSlotPrice(selectedSlot) : 0;
-
-  const totalPrice = (useFree || activeToken)
-    ? "0.00"
-    : effectiveSlotPrice.toFixed(2);
+  const totalPrice = (useFree || activeToken) ? "0.00" : effectiveSlotPrice.toFixed(2);
 
   const handleConfirm = async () => {
     if (!selectedSlot || submitting) return;
@@ -363,9 +367,7 @@ export default function BookingPage() {
         end_time:        selectedSlot.end,
         is_free_booking: useFree || !!activeToken,
       };
-      if (activeToken) {
-        body.rescheduling_token = activeToken.token;
-      }
+      if (activeToken) body.rescheduling_token = activeToken.token;
 
       const bookRes  = await fetch(`${BASE_URL}/api/bookings/create/`, {
         method:  "POST",
@@ -380,7 +382,6 @@ export default function BookingPage() {
         return;
       }
 
-      // Free or rescheduled — no payment
       if (useFree || activeToken) { navigate("/my-bookings"); return; }
 
       const bookingId = bookData?.booking?.id || bookData?.id;
@@ -465,7 +466,6 @@ export default function BookingPage() {
 
           {/* ── LEFT: Ground info + panels ── */}
           <div className="col-span-12 lg:col-span-4 space-y-5">
-
             <div className="bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden sticky top-28">
               <div className="relative h-56 bg-gray-100 overflow-hidden">
                 {imgSrc
@@ -477,8 +477,7 @@ export default function BookingPage() {
               <div className="p-6">
                 <h2 className="font-black text-xl text-gray-900 tracking-tight">{ground.name}</h2>
                 <div className="flex items-center gap-1.5 text-gray-500 mt-1.5 text-sm">
-                  <MapPin size={15} />
-                  <span>{ground.location}</span>
+                  <MapPin size={15} /><span>{ground.location}</span>
                 </div>
 
                 <div className="mt-4 flex items-baseline gap-1">
@@ -509,30 +508,17 @@ export default function BookingPage() {
               </div>
 
               <div className="px-6 pb-6 space-y-4">
-                {/* Rescheduling token panel */}
                 <ReschedulingTokenPanel
                   groundId={ground.id}
                   activeToken={activeToken}
-                  onTokenApply={(t) => {
-                    setActiveToken(t);
-                    setUseFree(false);
-                    setMethod("free");
-                  }}
-                  onTokenRemove={() => {
-                    setActiveToken(null);
-                    setMethod("khalti");
-                  }}
+                  onTokenApply={(t) => { setActiveToken(t); setUseFree(false); setMethod("free"); }}
+                  onTokenRemove={() => { setActiveToken(null); setMethod("khalti"); }}
                 />
-
-                {/* Loyalty panel */}
                 {!activeToken && (
                   <LoyaltyPanel
                     groundId={ground.id}
                     useFree={useFree}
-                    onFreeToggle={(val) => {
-                      setUseFree(val);
-                      setMethod(val ? "free" : "khalti");
-                    }}
+                    onFreeToggle={(val) => { setUseFree(val); setMethod(val ? "free" : "khalti"); }}
                   />
                 )}
               </div>
@@ -558,7 +544,6 @@ export default function BookingPage() {
               ))}
             </div>
 
-            {/* Error */}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 mb-6 flex items-center justify-between text-sm">
                 <span>⚠ {error}</span>
@@ -566,7 +551,7 @@ export default function BookingPage() {
               </div>
             )}
 
-            {/* ── STEP 1: Date + Slot ── */}
+            {/* ── STEP 1 ── */}
             {step === 1 && (
               <div className="space-y-6">
 
@@ -577,13 +562,9 @@ export default function BookingPage() {
                     <h3 className="font-bold text-lg text-gray-900">Select Date</h3>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <input
-                      type="date"
-                      min={today()}
-                      value={selectedDate}
+                    <input type="date" min={today()} value={selectedDate}
                       onChange={(e) => setSelectedDate(e.target.value)}
-                      className="flex-1 border-2 border-gray-200 rounded-xl px-4 py-3 text-gray-900 font-semibold focus:outline-none focus:border-amber-400 transition"
-                    />
+                      className="flex-1 border-2 border-gray-200 rounded-xl px-4 py-3 text-gray-900 font-semibold focus:outline-none focus:border-amber-400 transition" />
                     {selectedDate && (
                       <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-3 text-center whitespace-nowrap">
                         <p className="text-amber-700 font-bold">{fmtDate(selectedDate)}</p>
@@ -591,6 +572,24 @@ export default function BookingPage() {
                     )}
                   </div>
                 </div>
+
+                {/* Full day block banner */}
+                {blockedInfo.full_day && (
+                  <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-5 flex items-start gap-4">
+                    <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <Ban size={20} className="text-red-600" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-red-800">Ground Fully Blocked on This Date</p>
+                      <p className="text-red-700 text-sm mt-1">
+                        {blockedInfo.block_reason
+                          ? `Reason: ${blockedInfo.block_reason}`
+                          : "The owner has closed this ground for the selected date."}
+                      </p>
+                      <p className="text-red-600 text-xs mt-2">Please select a different date.</p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Slot picker */}
                 <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
@@ -603,6 +602,7 @@ export default function BookingPage() {
                       <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-green-400 inline-block" />Available</span>
                       <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-amber-400 inline-block" />Peak</span>
                       <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-400 inline-block" />Booked</span>
+                      <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-slate-400 inline-block" />Blocked</span>
                       <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-gray-300 inline-block" />Past</span>
                     </div>
                   </div>
@@ -615,11 +615,13 @@ export default function BookingPage() {
                   ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                       {slots.map((slot) => {
-                        const booked   = isBooked(slot);
-                        const past     = isSlotInPast(selectedDate, slot.startHour);
-                        const disabled = booked || past;
-                        const selected = selectedSlot?.start === slot.start;
-                        const priceInfo = getSlotPriceInfo(slot);
+                        const booked     = isBooked(slot);
+                        const past       = isSlotInPast(selectedDate, slot.startHour);
+                        const blockInfo  = isBlocked(slot);
+                        const blocked    = blockInfo.blocked;
+                        const disabled   = booked || past || blocked || blockedInfo.full_day;
+                        const selected   = selectedSlot?.start === slot.start;
+                        const priceInfo  = getSlotPriceInfo(slot);
 
                         let btnClass = "";
                         let topBadge = null;
@@ -627,6 +629,9 @@ export default function BookingPage() {
                         if (past) {
                           btnClass = "bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed";
                           topBadge = <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-gray-400 text-white text-[9px] px-2 py-0.5 rounded-full font-black">Past</span>;
+                        } else if (blocked || blockedInfo.full_day) {
+                          btnClass = "bg-slate-100 border-slate-300 text-slate-400 cursor-not-allowed";
+                          topBadge = <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-slate-600 text-white text-[9px] px-2 py-0.5 rounded-full font-black flex items-center gap-0.5">🚫 Blocked</span>;
                         } else if (booked) {
                           btnClass = "bg-red-50 border-red-200 text-red-400 cursor-not-allowed";
                           topBadge = <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-full font-black">Booked</span>;
@@ -641,19 +646,15 @@ export default function BookingPage() {
                         }
 
                         return (
-                          <button
-                            key={slot.start}
-                            type="button"
-                            disabled={disabled}
+                          <button key={slot.start} type="button" disabled={disabled}
                             onClick={() => !disabled && setSelectedSlot(slot)}
                             className={`relative py-5 px-3 rounded-xl border-2 text-center transition-all font-semibold ${btnClass}`}
-                          >
+                            title={blocked ? (blockInfo.reason || "Blocked by owner") : undefined}>
                             {topBadge}
                             <div className="font-bold text-base">{slot.shortStart}</div>
                             <div className="text-xs text-current opacity-60 my-0.5">to</div>
                             <div className="font-bold text-base">{slot.shortEnd}</div>
-                            {/* Price tag */}
-                            {!past && !booked && (
+                            {!past && !booked && !blocked && !blockedInfo.full_day && (
                               <div className={`text-[10px] font-black mt-1.5 ${
                                 selected ? "text-white/80"
                                 : priceInfo.isPeak ? "text-amber-700"
@@ -663,33 +664,35 @@ export default function BookingPage() {
                                 {priceInfo.isPeak && !selected && " 🔥"}
                               </div>
                             )}
+                            {(blocked || blockedInfo.full_day) && !past && (
+                              <div className="text-[9px] text-slate-500 mt-1">
+                                {blockInfo.reason || blockedInfo.block_reason || "Unavailable"}
+                              </div>
+                            )}
                           </button>
                         );
                       })}
                     </div>
                   )}
 
-                  {/* Peak pricing notice */}
                   {hasPeakRules && (
                     <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-2">
                       <AlertCircle size={16} className="text-amber-600 flex-shrink-0" />
                       <p className="text-amber-700 text-xs">
-                        🔥 Peak hour slots have higher rates set by the ground owner. Off-peak slots use the base price.
+                        🔥 Peak hour slots have higher rates. Off-peak slots use the base price.
                       </p>
                     </div>
                   )}
                 </div>
 
-                {/* Selected slot CTA */}
+                {/* CTA */}
                 {selectedSlot && (
                   <div className={`rounded-2xl border-2 p-6 shadow-sm transition-all
                     ${(useFree || activeToken) ? "bg-amber-50 border-amber-400" : "bg-green-50 border-green-400"}`}>
                     <div className="flex justify-between items-center">
                       <div>
                         <p className={`text-xs font-bold uppercase tracking-widest mb-1
-                          ${(useFree || activeToken) ? "text-amber-600" : "text-green-600"}`}>
-                          Selected Slot
-                        </p>
+                          ${(useFree || activeToken) ? "text-amber-600" : "text-green-600"}`}>Selected Slot</p>
                         <p className="text-xl font-black text-gray-900">{selectedSlot.label}</p>
                         <p className="text-gray-500 text-sm mt-0.5">{fmtDate(selectedDate)}</p>
                         {getSlotPriceInfo(selectedSlot).isPeak && !(useFree || activeToken) && (
@@ -712,17 +715,13 @@ export default function BookingPage() {
                         )}
                       </div>
                     </div>
-                    <button
-                      onClick={() => setStep(2)}
+                    <button onClick={() => setStep(2)}
                       className={`w-full mt-5 py-3.5 font-black rounded-xl transition text-base
                         ${(useFree || activeToken)
                           ? "bg-amber-500 hover:bg-amber-600 text-white"
-                          : "bg-green-500 hover:bg-green-600 text-white"}`}
-                    >
-                      {activeToken
-                        ? "Continue with Rescheduling Token →"
-                        : useFree
-                        ? "Continue with Free Booking →"
+                          : "bg-green-500 hover:bg-green-600 text-white"}`}>
+                      {activeToken ? "Continue with Rescheduling Token →"
+                        : useFree ? "Continue with Free Booking →"
                         : "Continue to Payment →"}
                     </button>
                   </div>
@@ -730,11 +729,9 @@ export default function BookingPage() {
               </div>
             )}
 
-            {/* ── STEP 2: Payment ── */}
+            {/* ── STEP 2 ── */}
             {step === 2 && (
               <div className="space-y-5">
-
-                {/* Summary */}
                 <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
                   <h3 className="font-bold text-lg text-gray-900 mb-5">Booking Summary</h3>
                   <div className="space-y-3 text-sm">
@@ -750,7 +747,6 @@ export default function BookingPage() {
                         <span className="font-semibold text-gray-900">{v}</span>
                       </div>
                     ))}
-
                     {selectedSlot && getSlotPriceInfo(selectedSlot).isPeak && !(useFree || activeToken) && (
                       <div className="flex justify-between items-center py-2 border-b border-gray-100">
                         <span className="text-amber-600 font-semibold">Pricing</span>
@@ -791,7 +787,6 @@ export default function BookingPage() {
                   )}
                 </div>
 
-                {/* Payment method — hidden for free/rescheduled */}
                 {!(useFree || activeToken) && (
                   <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
                     <h3 className="font-bold text-lg text-gray-900 mb-5">Payment Method</h3>
@@ -802,8 +797,7 @@ export default function BookingPage() {
                       ].map((m) => (
                         <button key={m.id} onClick={() => setMethod(m.id)}
                           className={`p-4 rounded-xl border-2 text-left transition-all relative
-                            ${method === m.id ? "border-green-500 bg-green-50" : "border-gray-200 hover:border-gray-300"}`}
-                        >
+                            ${method === m.id ? "border-green-500 bg-green-50" : "border-gray-200 hover:border-gray-300"}`}>
                           {m.badge && (
                             <span className="absolute top-2 right-2 bg-green-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded">
                               {m.badge}
@@ -815,7 +809,6 @@ export default function BookingPage() {
                         </button>
                       ))}
                     </div>
-
                     {method === "khalti" && (
                       <div className="mt-4 bg-purple-50 border border-purple-200 rounded-xl p-4">
                         <p className="text-purple-700 text-xs leading-relaxed">
@@ -826,7 +819,6 @@ export default function BookingPage() {
                   </div>
                 )}
 
-                {/* Actions */}
                 <div className="flex gap-3">
                   <button onClick={() => { setStep(1); setError(""); }}
                     className="flex-1 py-3.5 border-2 border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition">
@@ -837,8 +829,7 @@ export default function BookingPage() {
                       ${activeToken ? "bg-blue-600 hover:bg-blue-700 text-white"
                       : useFree    ? "bg-amber-500 hover:bg-amber-600 text-white"
                       : method === "khalti" ? "bg-purple-600 hover:bg-purple-700 text-white"
-                      :              "bg-green-500 hover:bg-green-600 text-white"}`}
-                  >
+                      :              "bg-green-500 hover:bg-green-600 text-white"}`}>
                     {submitting
                       ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Processing…</>
                       : activeToken ? "🔄 Confirm Rescheduled Booking"

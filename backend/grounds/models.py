@@ -63,17 +63,43 @@ class Ground(models.Model):
         Returns the applicable price per hour for a given date + start hour.
         Checks active peak pricing rules; falls back to base price.
         """
-        from datetime import date as date_cls
         day_of_week = date.weekday() if hasattr(date, 'weekday') else -1
 
         rules = self.peak_pricing_rules.filter(is_active=True)
         for rule in rules:
-            # day_of_week == -1 means "all days"
-            day_match = (rule.day_of_week == -1 or rule.day_of_week == day_of_week)
+            day_match  = (rule.day_of_week == -1 or rule.day_of_week == day_of_week)
             hour_match = rule.start_hour <= start_hour < rule.end_hour
             if day_match and hour_match:
                 return rule.price_per_hour
         return self.price_per_hour
+
+    def is_slot_blocked(self, date, start_hour):
+        """
+        Returns (is_blocked: bool, reason: str | None).
+        Checks active BlockedSlot records for a specific date + hour combination.
+        """
+        day_of_week = date.weekday()
+
+        active_blocks = self.blocked_slots.filter(is_active=True)
+
+        for block in active_blocks:
+            # Check date match
+            if block.block_type == 'date':
+                if block.blocked_date != date:
+                    continue
+            elif block.block_type == 'recurring':
+                if block.day_of_week != day_of_week:
+                    continue
+
+            # Full day block
+            if block.start_hour is None or block.end_hour is None:
+                return True, block.reason or "Unavailable"
+
+            # Hour range block
+            if block.start_hour <= start_hour < block.end_hour:
+                return True, block.reason or "Unavailable"
+
+        return False, None
 
 
 class Favorite(models.Model):
@@ -102,8 +128,6 @@ class Favorite(models.Model):
 class PeakPricingRule(models.Model):
     """
     Defines a peak pricing window for a ground.
-    Multiple rules can exist per ground.
-    The most specific matching rule wins (first match in order).
     """
 
     DAY_CHOICES = [
@@ -156,3 +180,78 @@ class PeakPricingRule(models.Model):
             f"{day_name} {self.start_hour:02d}:00–{self.end_hour:02d}:00 "
             f"→ Rs {self.price_per_hour}/hr"
         )
+
+
+class BlockedSlot(models.Model):
+    """
+    Allows ground owners to block specific dates or recurring weekdays
+    for maintenance, private events, or closures.
+    Players cannot book slots that overlap with an active block.
+    """
+
+    BLOCK_TYPE_CHOICES = [
+        ('date',      'Specific Date'),
+        ('recurring', 'Recurring Day'),
+    ]
+
+    DAY_CHOICES = [
+        (0, 'Monday'),
+        (1, 'Tuesday'),
+        (2, 'Wednesday'),
+        (3, 'Thursday'),
+        (4, 'Friday'),
+        (5, 'Saturday'),
+        (6, 'Sunday'),
+    ]
+
+    ground = models.ForeignKey(
+        Ground,
+        on_delete=models.CASCADE,
+        related_name="blocked_slots",
+    )
+    block_type = models.CharField(
+        max_length=10,
+        choices=BLOCK_TYPE_CHOICES,
+        default='date',
+    )
+    # Used when block_type == 'date'
+    blocked_date = models.DateField(null=True, blank=True)
+
+    # Used when block_type == 'recurring'
+    day_of_week = models.IntegerField(
+        null=True, blank=True,
+        choices=DAY_CHOICES,
+        help_text="0=Monday…6=Sunday",
+    )
+
+    # If both null → full day block; otherwise hour range
+    start_hour = models.PositiveSmallIntegerField(null=True, blank=True)
+    end_hour   = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    reason    = models.CharField(max_length=200, blank=True, default='')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering            = ['ground', 'blocked_date', 'day_of_week', 'start_hour']
+        verbose_name        = "Blocked Slot"
+        verbose_name_plural = "Blocked Slots"
+
+    def __str__(self):
+        if self.block_type == 'date':
+            time_part = (
+                f"{self.start_hour:02d}:00–{self.end_hour:02d}:00"
+                if self.start_hour is not None else "All Day"
+            )
+            return f"{self.ground.name} | {self.blocked_date} | {time_part}"
+        else:
+            day_name  = dict(self.DAY_CHOICES).get(self.day_of_week, "?")
+            time_part = (
+                f"{self.start_hour:02d}:00–{self.end_hour:02d}:00"
+                if self.start_hour is not None else "All Day"
+            )
+            return f"{self.ground.name} | Every {day_name} | {time_part}"
+
+    @property
+    def is_full_day(self):
+        return self.start_hour is None or self.end_hour is None

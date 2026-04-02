@@ -28,12 +28,12 @@ import PlayerFavorites      from "./pages/PlayerFavorites";
 import PlayerLoyalty        from "./pages/PlayerLoyalty";
 
 // ── Owner ───────────────────────────────────────────────────────────────────
-import OwnerDashboard     from "./pages/OwnerDashboard";
-import OwnerAddGround     from "./pages/OwnerAddGround";
-import OwnerManageGround  from "./pages/OwnerManageGround";
-import OwnerBookings      from "./pages/OwnerBookings";
-import OwnerNotifications from "./pages/OwnerNotifications";
-import OwnerPeakPricing   from "./pages/OwnerPeakPricing";   // ← NEW
+import OwnerDashboard          from "./pages/OwnerDashboard";
+import OwnerAddGround          from "./pages/OwnerAddGround";
+import OwnerManageGround       from "./pages/OwnerManageGround";
+import OwnerBookings           from "./pages/OwnerBookings";
+import OwnerNotifications      from "./pages/OwnerNotifications";
+import OwnerPricingAndBlocking from "./pages/OwnerPricingAndBlocking"; // ← replaces OwnerPeakPricing
 
 // ── Admin ───────────────────────────────────────────────────────────────────
 import AdminDashboard      from "./pages/AdminDashboard";
@@ -53,7 +53,7 @@ function RequireAuth({ children }) {
 function ProtectedRoute({ children, allowedRole }) {
   const token = localStorage.getItem("access");
   const role  = localStorage.getItem("role");
-  if (!token)                           return <Navigate to="/login" replace />;
+  if (!token)                              return <Navigate to="/login" replace />;
   if (allowedRole && role !== allowedRole) return <Navigate to="/"     replace />;
   return children;
 }
@@ -80,9 +80,9 @@ export default function App() {
           <Route path="/grounds"     element={<Grounds />} />
           <Route path="/grounds/:id" element={<GroundDetail />} />
 
-          <Route path="/verify-otp"              element={<VerifyOTP />} />
-          <Route path="/verify-email/:token"     element={<VerifyEmail />} />
-          <Route path="/resend-verification"     element={<ResendVerification />} />
+          <Route path="/verify-otp"          element={<VerifyOTP />} />
+          <Route path="/verify-email/:token" element={<VerifyEmail />} />
+          <Route path="/resend-verification" element={<ResendVerification />} />
 
           <Route path="/login"
             element={token ? <Navigate to={dashboardRedirect} replace /> : <Login />} />
@@ -97,58 +97,44 @@ export default function App() {
           {/* ════ PLAYER ════ */}
           <Route path="/player-dashboard"
             element={<ProtectedRoute allowedRole="player"><PlayerDashboard /></ProtectedRoute>} />
-
           <Route path="/my-bookings"
             element={<ProtectedRoute allowedRole="player"><PlayerMyBookings /></ProtectedRoute>} />
-
           <Route path="/my-payments"
             element={<ProtectedRoute allowedRole="player"><PlayerPaymentHistory /></ProtectedRoute>} />
-
           <Route path="/notifications"
             element={<ProtectedRoute allowedRole="player"><PlayerNotifications /></ProtectedRoute>} />
-
           <Route path="/my-favorites"
             element={<ProtectedRoute allowedRole="player"><PlayerFavorites /></ProtectedRoute>} />
-
           <Route path="/player-loyalty"
             element={<ProtectedRoute allowedRole="player"><PlayerLoyalty /></ProtectedRoute>} />
 
           {/* ════ OWNER ════ */}
           <Route path="/owner-dashboard"
             element={<ProtectedRoute allowedRole="owner"><OwnerDashboard /></ProtectedRoute>} />
-
           <Route path="/add-ground"
             element={<ProtectedRoute allowedRole="owner"><OwnerAddGround /></ProtectedRoute>} />
-
           <Route path="/manage-grounds"
             element={<ProtectedRoute allowedRole="owner"><OwnerManageGround /></ProtectedRoute>} />
-
           <Route path="/owner-bookings"
             element={<ProtectedRoute allowedRole="owner"><OwnerBookings /></ProtectedRoute>} />
-
           <Route path="/owner-notifications"
             element={<ProtectedRoute allowedRole="owner"><OwnerNotifications /></ProtectedRoute>} />
 
-          {/* ── NEW: Dynamic peak pricing management ── */}
+          {/* ── Combined Pricing + Blocking (replaces /owner-pricing) ── */}
           <Route path="/owner-pricing"
-            element={<ProtectedRoute allowedRole="owner"><OwnerPeakPricing /></ProtectedRoute>} />
+            element={<ProtectedRoute allowedRole="owner"><OwnerPricingAndBlocking /></ProtectedRoute>} />
 
           {/* ════ ADMIN ════ */}
           <Route path="/admin-dashboard"
             element={<ProtectedRoute allowedRole="admin"><AdminDashboard /></ProtectedRoute>} />
-
           <Route path="/admin/grounds"
             element={<ProtectedRoute allowedRole="admin"><AdminGroundApproval /></ProtectedRoute>} />
-
           <Route path="/admin/ground/:id"
             element={<ProtectedRoute allowedRole="admin"><AdminGroundDetail /></ProtectedRoute>} />
-
           <Route path="/admin/users"
             element={<ProtectedRoute allowedRole="admin"><AdminUsers /></ProtectedRoute>} />
-
           <Route path="/admin/bookings"
             element={<ProtectedRoute allowedRole="admin"><AdminBookings /></ProtectedRoute>} />
-
           <Route path="/admin/notifications"
             element={<ProtectedRoute allowedRole="admin"><AdminNotifications /></ProtectedRoute>} />
 

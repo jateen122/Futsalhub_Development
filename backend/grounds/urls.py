@@ -16,6 +16,10 @@ from .views import (
     PeakPricingRuleDetailView,
     # Slot pricing
     SlotPricingView,
+    # Blocked slots
+    BlockedSlotListCreateView,
+    BlockedSlotDetailView,
+    PublicBlockedSlotsView,
 )
 
 app_name = "grounds"
@@ -43,11 +47,22 @@ urlpatterns = [
     path("favorites/toggle/",      ToggleFavoriteView.as_view(),    name="favorite-toggle"),
 
     # ── Peak Pricing ─────────────────────────────────────────────
-    # Owner: list & create rules for their ground
-    path("<int:ground_id>/pricing/",       PeakPricingRuleListCreateView.as_view(), name="peak-pricing-list"),
-    # Owner: update & delete a specific rule
-    path("<int:ground_id>/pricing/<int:pk>/", PeakPricingRuleDetailView.as_view(),  name="peak-pricing-detail"),
+    path("<int:ground_id>/pricing/",
+         PeakPricingRuleListCreateView.as_view(), name="peak-pricing-list"),
+    path("<int:ground_id>/pricing/<int:pk>/",
+         PeakPricingRuleDetailView.as_view(),     name="peak-pricing-detail"),
 
-    # Public: get effective price for a specific date + hour
-    path("<int:ground_id>/slot-price/",    SlotPricingView.as_view(),               name="slot-price"),
+    # ── Slot price (public) ───────────────────────────────────────
+    path("<int:ground_id>/slot-price/",
+         SlotPricingView.as_view(),               name="slot-price"),
+
+    # ── Blocked Slots (owner CRUD) ────────────────────────────────
+    path("<int:ground_id>/blocks/",
+         BlockedSlotListCreateView.as_view(),     name="blocked-slot-list"),
+    path("<int:ground_id>/blocks/<int:pk>/",
+         BlockedSlotDetailView.as_view(),         name="blocked-slot-detail"),
+
+    # ── Blocked Slots (public read for booking page) ──────────────
+    path("<int:ground_id>/blocked-slots/",
+         PublicBlockedSlotsView.as_view(),        name="public-blocked-slots"),
 ]

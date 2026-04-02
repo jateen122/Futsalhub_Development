@@ -8,9 +8,9 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
-LOYALTY_THRESHOLD = 5       # confirm this many bookings → earn 1 free
-CANCEL_WINDOW_HOURS = 4     # must cancel at least this many hours before slot
-TOKEN_EXPIRY_DAYS = 30      # rescheduling token valid for 30 days
+LOYALTY_THRESHOLD   = 5   # confirm this many bookings → earn 1 free
+CANCEL_WINDOW_HOURS = 4   # must cancel at least this many hours before slot
+TOKEN_EXPIRY_DAYS   = 30  # rescheduling token valid for 30 days
 
 
 class Booking(models.Model):
@@ -66,18 +66,14 @@ class Booking(models.Model):
             return
 
         if self.start_time >= self.end_time:
-            raise ValidationError(
-                {"end_time": "End time must be after start time."}
-            )
+            raise ValidationError({"end_time": "End time must be after start time."})
 
         conflicts = Booking.objects.filter(
             ground         = self.ground,
             date           = self.date,
             start_time__lt = self.end_time,
             end_time__gt   = self.start_time,
-        ).exclude(
-            status__in = [self.Status.CANCELLED, self.Status.REFUNDED]
-        )
+        ).exclude(status__in=[self.Status.CANCELLED, self.Status.REFUNDED])
 
         if self.pk:
             conflicts = conflicts.exclude(pk=self.pk)
@@ -95,18 +91,13 @@ class Booking(models.Model):
     # ── Cancellation helpers ──────────────────────────────────────────────────
 
     def can_cancel_with_token(self):
-        """
-        Returns True if the booking can still be cancelled with a rescheduling token.
-        Requires at least CANCEL_WINDOW_HOURS before the slot start.
-        """
-        from datetime import datetime, date
+        from datetime import datetime
         slot_datetime = timezone.make_aware(
             datetime.combine(self.date, self.start_time)
         )
         return timezone.now() <= slot_datetime - timedelta(hours=CANCEL_WINDOW_HOURS)
 
     def hours_until_slot(self):
-        """Returns how many hours until the booking slot starts."""
         from datetime import datetime
         slot_datetime = timezone.make_aware(
             datetime.combine(self.date, self.start_time)
@@ -117,7 +108,7 @@ class Booking(models.Model):
 
 class LoyaltyRecord(models.Model):
     """
-    Tracks how many confirmed bookings a user has at a specific ground.
+    Tracks confirmed bookings per user per ground.
     Every LOYALTY_THRESHOLD confirmed bookings earns 1 free booking.
     """
     user   = models.ForeignKey(
@@ -168,10 +159,36 @@ class LoyaltyRecord(models.Model):
         return int((remainder / LOYALTY_THRESHOLD) * 100)
 
     def record_confirmed_booking(self):
+        """Increment confirmed count and award free booking if threshold reached."""
         self.confirmed_count += 1
         new_earned = self.confirmed_count // LOYALTY_THRESHOLD
         if new_earned > self.free_bookings_earned:
             self.free_bookings_earned = new_earned
+        self.save(update_fields=["confirmed_count", "free_bookings_earned", "updated_at"])
+
+    def decrease_confirmed_booking(self):
+        """
+        Decrease confirmed count by 1 when a confirmed booking is cancelled.
+        Also decreases free_bookings_earned if the count drops below a threshold.
+        Never goes below 0.
+        """
+        if self.confirmed_count <= 0:
+            return
+
+        self.confirmed_count = max(0, self.confirmed_count - 1)
+
+        # Recalculate earned free bookings based on new count
+        new_earned = self.confirmed_count // LOYALTY_THRESHOLD
+        # Only decrease earned if it was higher (don't take back used free bookings)
+        if new_earned < self.free_bookings_earned:
+            # How many available (unspent) free bookings would we be removing?
+            diff = self.free_bookings_earned - new_earned
+            available = self.free_bookings_earned - self.free_bookings_used
+            # Only reduce if there are unspent free bookings to remove
+            if available > 0:
+                reduce_by = min(diff, available)
+                self.free_bookings_earned = max(self.free_bookings_used, self.free_bookings_earned - reduce_by)
+
         self.save(update_fields=["confirmed_count", "free_bookings_earned", "updated_at"])
 
     def redeem_free_booking(self):
@@ -190,8 +207,8 @@ class LoyaltyRecord(models.Model):
 class ReschedulingToken(models.Model):
     """
     Issued when a player cancels a confirmed booking at least CANCEL_WINDOW_HOURS
-    before the slot. The token holds the monetary value of the original booking
-    and can be redeemed for a new booking at the SAME ground within TOKEN_EXPIRY_DAYS.
+    before the slot. Valid for TOKEN_EXPIRY_DAYS at the same ground.
+    Rescheduled bookings (using a token) do NOT generate a new token if cancelled.
     """
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     user  = models.ForeignKey(
@@ -219,10 +236,10 @@ class ReschedulingToken(models.Model):
         verbose_name_plural = "Rescheduling Tokens"
 
     def __str__(self):
-        status = "USED" if self.is_used else ("EXPIRED" if self.is_expired() else "VALID")
+        s = "USED" if self.is_used else ("EXPIRED" if self.is_expired() else "VALID")
         return (
             f"Token {str(self.token)[:8]}… | {self.user.email} | "
-            f"{self.original_ground.name} | Rs {self.original_price} | [{status}]"
+            f"{self.original_ground.name} | Rs {self.original_price} | [{s}]"
         )
 
     def is_expired(self):
@@ -233,10 +250,6 @@ class ReschedulingToken(models.Model):
 
     @classmethod
     def create_for_booking(cls, booking):
-        """
-        Create a rescheduling token for a cancelled confirmed booking.
-        Returns the token instance.
-        """
         expires_at = timezone.now() + timedelta(days=TOKEN_EXPIRY_DAYS)
         return cls.objects.create(
             user                = booking.user,
@@ -249,7 +262,6 @@ class ReschedulingToken(models.Model):
         )
 
     def redeem(self):
-        """Mark this token as used. Returns True on success."""
         if not self.is_valid():
             return False
         self.is_used = True

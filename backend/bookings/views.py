@@ -26,14 +26,23 @@ class CreateBookingView(generics.CreateAPIView):
     permission_classes = [permissions.IsAuthenticated, IsPlayer]
 
     def perform_create(self, serializer):
-        ground      = serializer.validated_data.get("ground")
-        start_time  = serializer.validated_data.get("start_time")
+        ground       = serializer.validated_data.get("ground")
+        start_time   = serializer.validated_data.get("start_time")
         booking_date = serializer.validated_data.get("date")
 
         if not ground.is_approved:
             raise ValidationError("This ground is not yet approved and cannot be booked.")
 
-        # ── Dynamic pricing: calculate price based on date + hour ─────────────
+        # ── Check blocked slots ───────────────────────────────────────────────
+        if start_time and booking_date:
+            is_blocked, block_reason = ground.is_slot_blocked(booking_date, start_time.hour)
+            if is_blocked:
+                raise ValidationError(
+                    f"This time slot is blocked by the owner: {block_reason or 'Unavailable'}. "
+                    "Please choose a different time."
+                )
+
+        # ── Dynamic pricing ───────────────────────────────────────────────────
         if start_time and booking_date and not self.request.data.get("is_free_booking"):
             effective_price = ground.get_price_for_slot(booking_date, start_time.hour)
             end_time = serializer.validated_data.get("end_time")
@@ -60,16 +69,11 @@ class CreateBookingView(generics.CreateAPIView):
                     original_ground=ground,
                 )
                 if not token_obj.is_valid():
-                    raise ValidationError(
-                        "Rescheduling token is expired or already used."
-                    )
-                # Price is covered by the original booking's value
+                    raise ValidationError("Rescheduling token is expired or already used.")
                 total_price = Decimal("0.00")
                 is_free     = True
             except ReschedulingToken.DoesNotExist:
-                raise ValidationError(
-                    "Invalid rescheduling token. It must be for this ground."
-                )
+                raise ValidationError("Invalid rescheduling token. It must be for this ground.")
 
         if is_free and not token_obj:
             record = LoyaltyRecord.get_or_create_for(self.request.user, ground)
@@ -84,7 +88,6 @@ class CreateBookingView(generics.CreateAPIView):
             is_free_booking = is_free,
         )
 
-        # Mark token as used AFTER booking is saved
         if token_obj:
             token_obj.redeem()
 
@@ -94,19 +97,15 @@ class CreateBookingView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         booking = self.perform_create(serializer)
-
         return Response(
-            {
-                "message": "Booking created successfully.",
-                "booking": BookingSerializer(booking).data,
-            },
+            {"message": "Booking created successfully.", "booking": BookingSerializer(booking).data},
             status=status.HTTP_201_CREATED,
         )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PATCH /api/bookings/<id>/cancel/
-# Issues a rescheduling token if cancelled 4+ hours before the slot
+# Decreases loyalty count + issues rescheduling token if eligible
 # ─────────────────────────────────────────────────────────────────────────────
 
 class CancelBookingView(generics.UpdateAPIView):
@@ -124,7 +123,9 @@ class CancelBookingView(generics.UpdateAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Determine if eligible for rescheduling token
+        was_confirmed = (booking.status == Booking.Status.CONFIRMED)
+
+        # Only issue token for non-free, non-rescheduled bookings
         token_issued = None
         eligible_for_token = (
             booking.can_cancel_with_token()
@@ -135,8 +136,18 @@ class CancelBookingView(generics.UpdateAPIView):
         booking.status = Booking.Status.CANCELLED
         booking.save(update_fields=["status"])
 
+        # ── Decrease loyalty points if booking was confirmed ──────────────────
+        # Only for non-free bookings that previously earned a loyalty point
+        if was_confirmed and not booking.is_free_booking and booking.total_price > 0:
+            try:
+                record = LoyaltyRecord.objects.get(user=booking.user, ground=booking.ground)
+                record.decrease_confirmed_booking()
+            except LoyaltyRecord.DoesNotExist:
+                pass  # No loyalty record — nothing to decrease
+
+        # ── Issue rescheduling token if eligible ──────────────────────────────
         if eligible_for_token:
-            token_obj   = ReschedulingToken.create_for_booking(booking)
+            token_obj    = ReschedulingToken.create_for_booking(booking)
             token_issued = ReschedulingTokenSerializer(token_obj).data
 
         response_data = {
@@ -153,10 +164,14 @@ class CancelBookingView(generics.UpdateAPIView):
             )
         else:
             hours = round(booking.hours_until_slot(), 1)
-            if hours < CANCEL_WINDOW_HOURS:
+            if hours < CANCEL_WINDOW_HOURS and not booking.is_free_booking:
                 response_data["token_message"] = (
                     f"No rescheduling token issued — cancellation was less than "
                     f"{CANCEL_WINDOW_HOURS} hours before the slot ({hours}h remaining)."
+                )
+            elif booking.is_free_booking:
+                response_data["token_message"] = (
+                    "Free bookings and rescheduling-token bookings cannot generate a new token on cancellation."
                 )
 
         return Response(response_data)
@@ -188,8 +203,8 @@ class UpdateBookingStatusView(generics.UpdateAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        old_status      = booking.status
-        booking.status  = new_status
+        old_status     = booking.status
+        booking.status = new_status
         booking.save(update_fields=["status"])
 
         if (
@@ -204,6 +219,19 @@ class UpdateBookingStatusView(generics.UpdateAPIView):
             if not khalti_already_paid:
                 record = LoyaltyRecord.get_or_create_for(booking.user, booking.ground)
                 record.record_confirmed_booking()
+
+        # If owner cancels a confirmed booking, decrease loyalty
+        if (
+            new_status == "cancelled"
+            and old_status == "confirmed"
+            and not booking.is_free_booking
+            and booking.total_price > 0
+        ):
+            try:
+                record = LoyaltyRecord.objects.get(user=booking.user, ground=booking.ground)
+                record.decrease_confirmed_booking()
+            except LoyaltyRecord.DoesNotExist:
+                pass
 
         return Response({
             "message": f"Booking {new_status}.",
@@ -338,7 +366,7 @@ class GroundBookedSlotsView(APIView):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# GET /api/bookings/tokens/    — list user's rescheduling tokens
+# GET /api/bookings/tokens/
 # ─────────────────────────────────────────────────────────────────────────────
 
 class UserReschedulingTokensView(generics.ListAPIView):
@@ -357,22 +385,14 @@ class UserReschedulingTokensView(generics.ListAPIView):
         qs         = self.get_queryset()
         serializer = self.get_serializer(qs, many=True)
         valid      = [t for t in qs if t.is_valid()]
-        return Response({
-            "valid_count": len(valid),
-            "tokens":      serializer.data,
-        })
+        return Response({"valid_count": len(valid), "tokens": serializer.data})
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# POST /api/bookings/tokens/<token>/use/  — validate a token before booking
+# GET /api/bookings/tokens/<token>/use/
 # ─────────────────────────────────────────────────────────────────────────────
 
 class UseReschedulingTokenView(APIView):
-    """
-    GET: Check if a rescheduling token is valid (used on booking page).
-    The actual redemption happens inside CreateBookingView when the
-    'rescheduling_token' field is passed.
-    """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, token):

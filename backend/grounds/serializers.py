@@ -1,6 +1,6 @@
 # backend/grounds/serializers.py
 from rest_framework import serializers
-from .models import Ground, Favorite, PeakPricingRule
+from .models import Ground, Favorite, PeakPricingRule, BlockedSlot
 
 
 # ─── Peak Pricing Serializer ──────────────────────────────────────────────────
@@ -29,14 +29,66 @@ class PeakPricingRuleSerializer(serializers.ModelSerializer):
                     {"end_hour": "End hour must be after start hour."}
                 )
             if start < 0 or end > 24:
-                raise serializers.ValidationError(
-                    "Hours must be between 0 and 24."
-                )
+                raise serializers.ValidationError("Hours must be between 0 and 24.")
         price = attrs.get("price_per_hour")
         if price is not None and price <= 0:
             raise serializers.ValidationError(
                 {"price_per_hour": "Price must be greater than zero."}
             )
+        return attrs
+
+
+# ─── Blocked Slot Serializer ──────────────────────────────────────────────────
+
+class BlockedSlotSerializer(serializers.ModelSerializer):
+    block_type_display  = serializers.CharField(source="get_block_type_display",  read_only=True)
+    day_of_week_display = serializers.SerializerMethodField()
+    is_full_day         = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model  = BlockedSlot
+        fields = [
+            "id", "block_type", "block_type_display",
+            "blocked_date", "day_of_week", "day_of_week_display",
+            "start_hour", "end_hour",
+            "reason", "is_active", "is_full_day", "created_at",
+        ]
+        read_only_fields = ["id", "created_at", "block_type_display", "day_of_week_display", "is_full_day"]
+
+    def get_day_of_week_display(self, obj):
+        if obj.day_of_week is None:
+            return None
+        return dict(BlockedSlot.DAY_CHOICES).get(obj.day_of_week, "Unknown")
+
+    def validate(self, attrs):
+        block_type   = attrs.get("block_type",   getattr(self.instance, "block_type",   None))
+        blocked_date = attrs.get("blocked_date",  getattr(self.instance, "blocked_date",  None))
+        day_of_week  = attrs.get("day_of_week",   getattr(self.instance, "day_of_week",   None))
+        start_hour   = attrs.get("start_hour",    getattr(self.instance, "start_hour",    None))
+        end_hour     = attrs.get("end_hour",      getattr(self.instance, "end_hour",      None))
+
+        if block_type == "date" and not blocked_date:
+            raise serializers.ValidationError(
+                {"blocked_date": "A specific date is required for block_type='date'."}
+            )
+        if block_type == "recurring" and day_of_week is None:
+            raise serializers.ValidationError(
+                {"day_of_week": "A day of week is required for block_type='recurring'."}
+            )
+
+        # If partial hour block, both start and end must be provided
+        if (start_hour is None) != (end_hour is None):
+            raise serializers.ValidationError(
+                "Both start_hour and end_hour must be provided together, or both left blank for a full-day block."
+            )
+        if start_hour is not None and end_hour is not None:
+            if start_hour >= end_hour:
+                raise serializers.ValidationError(
+                    {"end_hour": "End hour must be after start hour."}
+                )
+            if start_hour < 0 or end_hour > 24:
+                raise serializers.ValidationError("Hours must be between 0 and 24.")
+
         return attrs
 
 
@@ -47,6 +99,7 @@ class GroundSerializer(serializers.ModelSerializer):
     ground_size_display = serializers.CharField(source="get_ground_size_display", read_only=True)
     ground_type_display = serializers.CharField(source="get_ground_type_display", read_only=True)
     peak_pricing_rules  = PeakPricingRuleSerializer(many=True, read_only=True)
+    blocked_slots       = BlockedSlotSerializer(many=True, read_only=True)
 
     class Meta:
         model  = Ground
@@ -59,10 +112,12 @@ class GroundSerializer(serializers.ModelSerializer):
             "latitude", "longitude",
             "is_approved", "created_at",
             "peak_pricing_rules",
+            "blocked_slots",
         ]
         read_only_fields = [
             "id", "owner", "is_approved", "created_at",
-            "ground_size_display", "ground_type_display", "peak_pricing_rules",
+            "ground_size_display", "ground_type_display",
+            "peak_pricing_rules", "blocked_slots",
         ]
 
     def validate(self, attrs):
@@ -90,6 +145,7 @@ class PublicGroundSerializer(serializers.ModelSerializer):
     ground_size_display = serializers.CharField(source="get_ground_size_display", read_only=True)
     ground_type_display = serializers.CharField(source="get_ground_type_display", read_only=True)
     peak_pricing_rules  = PeakPricingRuleSerializer(many=True, read_only=True)
+    blocked_slots       = BlockedSlotSerializer(many=True, read_only=True)
 
     class Meta:
         model  = Ground
@@ -101,6 +157,7 @@ class PublicGroundSerializer(serializers.ModelSerializer):
             "ground_type", "ground_type_display",
             "latitude", "longitude",
             "peak_pricing_rules",
+            "blocked_slots",
         ]
 
 

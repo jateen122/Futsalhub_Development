@@ -1,7 +1,7 @@
 # backend/grounds/admin.py
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Ground, Favorite, PeakPricingRule
+from .models import Ground, Favorite, PeakPricingRule, BlockedSlot
 
 
 @admin.register(Ground)
@@ -89,3 +89,42 @@ class PeakPricingRuleAdmin(admin.ModelAdmin):
         ("Schedule", {"fields": ("day_of_week", "start_hour", "end_hour")}),
         ("Pricing",  {"fields": ("price_per_hour", "label", "is_active")}),
     )
+
+
+@admin.register(BlockedSlot)
+class BlockedSlotAdmin(admin.ModelAdmin):
+    list_display  = (
+        "id", "ground_name", "block_type", "date_or_day", "time_range",
+        "reason", "is_active", "created_at",
+    )
+    list_filter   = ("block_type", "is_active", "ground")
+    search_fields = ("ground__name", "reason")
+    ordering      = ("ground", "-created_at")
+
+    @admin.display(description="Ground")
+    def ground_name(self, obj):
+        return obj.ground.name
+
+    @admin.display(description="Date / Day")
+    def date_or_day(self, obj):
+        if obj.block_type == 'date':
+            return str(obj.blocked_date)
+        return dict(BlockedSlot.DAY_CHOICES).get(obj.day_of_week, "?")
+
+    @admin.display(description="Time Range")
+    def time_range(self, obj):
+        if obj.is_full_day:
+            return "All Day"
+        return f"{obj.start_hour:02d}:00 – {obj.end_hour:02d}:00"
+
+    actions = ["activate_blocks", "deactivate_blocks"]
+
+    @admin.action(description="✅ Activate selected blocks")
+    def activate_blocks(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f"{updated} block(s) activated.")
+
+    @admin.action(description="🚫 Deactivate selected blocks")
+    def deactivate_blocks(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f"{updated} block(s) deactivated.")
