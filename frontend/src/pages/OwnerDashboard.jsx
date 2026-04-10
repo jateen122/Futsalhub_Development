@@ -1,11 +1,29 @@
+// frontend/src/pages/OwnerDashboard.jsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { 
-  Plus, MapPin, Calendar, Bell, LogOut, 
-  TrendingUp, Award, Clock 
+import {
+  Plus, MapPin, Calendar, Bell, LogOut,
+  TrendingUp, Award, Clock,
 } from "lucide-react";
 
 const BASE_URL = "http://127.0.0.1:8000";
+
+// ── fetch ALL pages of a paginated DRF endpoint ────────────────────────────
+async function fetchAllPages(url, token) {
+  let results = [];
+  let nextUrl = url;
+  while (nextUrl) {
+    const res = await fetch(nextUrl, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) break;
+    const data = await res.json();
+    if (Array.isArray(data)) { results = results.concat(data); break; }
+    results = results.concat(data.results || []);
+    nextUrl = data.next || null;
+  }
+  return results;
+}
 
 const fmt12 = (t) => {
   if (!t) return "";
@@ -15,88 +33,71 @@ const fmt12 = (t) => {
 };
 
 const STATUS_STYLES = {
-  pending: { 
-    dot: "bg-amber-500", 
-    text: "text-amber-700", 
-    badge: "bg-amber-100 text-amber-700 border border-amber-200" 
-  },
-  confirmed: { 
-    dot: "bg-emerald-500", 
-    text: "text-emerald-700", 
-    badge: "bg-emerald-100 text-emerald-700 border border-emerald-200" 
-  },
-  cancelled: { 
-    dot: "bg-red-500", 
-    text: "text-red-700", 
-    badge: "bg-red-100 text-red-700 border border-red-200" 
-  },
-  refunded: { 
-    dot: "bg-blue-500", 
-    text: "text-blue-700", 
-    badge: "bg-blue-100 text-blue-700 border border-blue-200" 
-  },
+  pending:   { dot: "bg-amber-500",   text: "text-amber-700",   badge: "bg-amber-100 text-amber-700 border border-amber-200" },
+  confirmed: { dot: "bg-emerald-500", text: "text-emerald-700", badge: "bg-emerald-100 text-emerald-700 border border-emerald-200" },
+  cancelled: { dot: "bg-red-500",     text: "text-red-700",     badge: "bg-red-100 text-red-700 border border-red-200" },
+  refunded:  { dot: "bg-blue-500",    text: "text-blue-700",    badge: "bg-blue-100 text-blue-700 border border-blue-200" },
 };
 
 export default function OwnerDashboard() {
-  const navigate = useNavigate();
-  const token = localStorage.getItem("access");
-  const userEmail = localStorage.getItem("email") || "";
-  const firstName = userEmail.split("@")[0] || "Owner";
+  const navigate    = useNavigate();
+  const token       = localStorage.getItem("access");
+  const userEmail   = localStorage.getItem("email") || "";
+  const firstName   = userEmail.split("@")[0] || "Owner";
 
-  const [profile, setProfile] = useState(null);
-  const [myGrounds, setMyGrounds] = useState([]);
-  const [bookings, setBookings] = useState([]);
+  const [profile,       setProfile]       = useState(null);
+  const [myGrounds,     setMyGrounds]     = useState([]);
+  const [bookings,      setBookings]      = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading,       setLoading]       = useState(true);
 
   useEffect(() => {
-    if (!token) {
-      navigate("/login");
-      return;
-    }
+    if (!token) { navigate("/login"); return; }
 
-    Promise.all([
-      fetch(`${BASE_URL}/api/accounts/profile/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      }).then((r) => r.json()),
-      fetch(`${BASE_URL}/api/grounds/my/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      }).then((r) => r.json()),
-      fetch(`${BASE_URL}/api/bookings/owner/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      }).then((r) => r.json()),
-      fetch(`${BASE_URL}/api/notifications/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      }).then((r) => r.json()),
-    ])
-      .then(([prof, grounds, book, notif]) => {
-        setProfile(prof);
-        setMyGrounds(grounds.results || grounds || []);
-        setBookings(book.results || book || []);
-        setNotifications((notif.notifications || notif.results || notif || []).slice(0, 5));
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    const load = async () => {
+      try {
+        const [profRes, groundsRes, notifRes] = await Promise.all([
+          fetch(`${BASE_URL}/api/accounts/profile/`,    { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${BASE_URL}/api/grounds/my/`,          { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${BASE_URL}/api/notifications/`,       { headers: { Authorization: `Bearer ${token}` } }),
+        ]);
+
+        const [profData, groundsData, notifData] = await Promise.all([
+          profRes.json(), groundsRes.json(), notifRes.json(),
+        ]);
+
+        setProfile(profData);
+        setMyGrounds(groundsData.results || groundsData || []);
+        setNotifications((notifData.notifications || notifData.results || notifData || []).slice(0, 5));
+
+        // Fetch ALL booking pages for accurate stats
+        const allBookings = await fetchAllPages(`${BASE_URL}/api/bookings/owner/`, token);
+        setBookings(allBookings);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
   }, [token, navigate]);
 
-  const handleLogout = () => {
-    localStorage.clear();
-    navigate("/login");
-  };
+  const handleLogout = () => { localStorage.clear(); navigate("/login"); };
 
   const stats = {
-    totalGrounds: myGrounds.length,
+    totalGrounds:    myGrounds.length,
     approvedGrounds: myGrounds.filter((g) => g.is_approved).length,
-    pendingGrounds: myGrounds.filter((g) => !g.is_approved).length,
-    totalBookings: bookings.length,
+    pendingGrounds:  myGrounds.filter((g) => !g.is_approved).length,
+    totalBookings:   bookings.length,
     pendingBookings: bookings.filter((b) => b.status === "pending").length,
-    revenue: bookings
+    revenue:         bookings
       .filter((b) => b.status === "confirmed")
       .reduce((s, b) => s + parseFloat(b.total_price || 0), 0),
   };
 
-  const recentBookings = [...bookings].slice(0, 4);
-  const unreadCount = notifications.filter((n) => !n.is_read).length;
+  const recentBookings  = [...bookings].slice(0, 4);
+  const unreadCount     = notifications.filter((n) => !n.is_read).length;
   const newBookingCount = notifications.filter(
     (n) => n.notification_type === "booking_received" && !n.is_read
   ).length;
@@ -106,7 +107,7 @@ export default function OwnerDashboard() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-12 h-12 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-gray-500 text-sm font-medium">Loading your dashboard...</p>
+          <p className="text-gray-500 text-sm font-medium">Loading your dashboard…</p>
         </div>
       </div>
     );
@@ -125,31 +126,28 @@ export default function OwnerDashboard() {
             </h1>
             {profile?.email && <p className="text-gray-500 mt-1">{profile.email}</p>}
           </div>
-
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-6 py-3 text-red-600 hover:bg-red-50 rounded-2xl font-medium transition border border-red-100"
-          >
-            <LogOut size={20} />
-            Sign Out
+          <button onClick={handleLogout}
+            className="flex items-center gap-2 px-6 py-3 text-red-600 hover:bg-red-50 rounded-2xl font-medium transition border border-red-100">
+            <LogOut size={20} />Sign Out
           </button>
         </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-12">
           {[
-            { label: "My Grounds", value: stats.totalGrounds, icon: MapPin },
-            { label: "Approved", value: stats.approvedGrounds, icon: Award, color: "text-emerald-600" },
-            { label: "Pending Grounds", value: stats.pendingGrounds, icon: Clock, color: "text-amber-600" },
-            { label: "Total Bookings", value: stats.totalBookings, icon: Calendar },
-            { label: "Pending Bookings", value: stats.pendingBookings, icon: Bell, color: "text-amber-600" },
-            { label: "Revenue", value: `Rs ${stats.revenue.toLocaleString()}`, icon: TrendingUp, color: "text-emerald-600" },
+            { label: "My Grounds",       value: stats.totalGrounds,                      icon: MapPin,      color: "" },
+            { label: "Approved",         value: stats.approvedGrounds,                   icon: Award,       color: "text-emerald-600" },
+            { label: "Pending Grounds",  value: stats.pendingGrounds,                    icon: Clock,       color: "text-amber-600" },
+            { label: "Total Bookings",   value: stats.totalBookings,                     icon: Calendar,    color: "" },
+            { label: "Pending Bookings", value: stats.pendingBookings,                   icon: Bell,        color: "text-amber-600" },
+            { label: "Revenue",          value: `Rs ${stats.revenue.toLocaleString()}`,  icon: TrendingUp,  color: "text-emerald-600" },
           ].map((stat, index) => (
-            <div key={index} className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm hover:shadow transition">
+            <div key={index}
+              className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm hover:shadow transition">
               <div className="flex items-center justify-between mb-4">
                 <stat.icon size={28} className={stat.color || "text-gray-400"} />
               </div>
-              <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
+              <p className={`text-3xl font-bold text-gray-900 ${stat.color}`}>{stat.value}</p>
               <p className="text-gray-500 text-sm mt-2 font-medium">{stat.label}</p>
             </div>
           ))}
@@ -158,52 +156,24 @@ export default function OwnerDashboard() {
         {/* Quick Action Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           {[
-            {
-              label: "Add New Ground",
-              desc: "List a new futsal ground",
-              path: "/add-ground",
-              icon: Plus,
-              primary: true,
-            },
-            {
-              label: "My Grounds",
-              desc: `${stats.totalGrounds} grounds listed`,
-              path: "/add-ground",
-              icon: MapPin,
-            },
-            {
-              label: "Bookings",
-              desc: `${stats.pendingBookings} pending`,
-              path: "/owner-bookings",
-              icon: Calendar,
-              badge: stats.pendingBookings || null,
-            },
-            {
-              label: "Notifications",
-              desc: unreadCount > 0 ? `${unreadCount} unread` : "All read",
-              path: "/owner-notifications",
-              icon: Bell,
-              badge: unreadCount || null,
-            },
+            { label: "Add New Ground",  desc: "List a new futsal ground",       path: "/add-ground",          icon: Plus,     primary: true },
+            { label: "My Grounds",      desc: `${stats.totalGrounds} listed`,   path: "/add-ground",          icon: MapPin },
+            { label: "Bookings",        desc: `${stats.pendingBookings} pending`,path: "/owner-bookings",      icon: Calendar, badge: stats.pendingBookings || null },
+            { label: "Notifications",   desc: unreadCount > 0 ? `${unreadCount} unread` : "All read",
+                                                                                 path: "/owner-notifications", icon: Bell,     badge: unreadCount || null },
           ].map((action, i) => (
-            <button
-              key={i}
-              onClick={() => navigate(action.path)}
-              className={`group p-7 rounded-3xl border border-gray-200 bg-white hover:border-yellow-300 transition-all flex flex-col h-full relative ${action.primary ? "bg-yellow-600 text-white border-yellow-600 hover:bg-yellow-700" : ""}`}
-            >
-              {action.badge && (
+            <button key={i} onClick={() => navigate(action.path)}
+              className={`group p-7 rounded-3xl border border-gray-200 bg-white hover:border-yellow-300 transition-all flex flex-col h-full relative
+                ${action.primary ? "bg-yellow-600 text-white border-yellow-600 hover:bg-yellow-700" : ""}`}>
+              {action.badge ? (
                 <span className="absolute top-5 right-5 bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">
-                  {action.badge}
+                  {action.badge > 9 ? "9+" : action.badge}
                 </span>
-              )}
-
+              ) : null}
               <action.icon size={32} className={action.primary ? "text-white" : "text-gray-400 group-hover:text-yellow-600"} />
-
               <div className="mt-auto">
                 <p className="font-semibold text-xl mt-8">{action.label}</p>
-                <p className={`text-sm mt-1 ${action.primary ? "text-white/80" : "text-gray-500"}`}>
-                  {action.desc}
-                </p>
+                <p className={`text-sm mt-1 ${action.primary ? "text-white/80" : "text-gray-500"}`}>{action.desc}</p>
               </div>
             </button>
           ))}
@@ -221,38 +191,31 @@ export default function OwnerDashboard() {
               </p>
               <p className="text-emerald-600 mt-1">Check and confirm them quickly.</p>
             </div>
-            <button
-              onClick={() => navigate("/owner-bookings")}
-              className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-2xl transition"
-            >
+            <button onClick={() => navigate("/owner-bookings")}
+              className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-2xl transition">
               View Bookings
             </button>
           </div>
         )}
 
         <div className="grid lg:grid-cols-5 gap-8">
-          {/* Left Column - Grounds & Bookings */}
+          {/* Left Column */}
           <div className="lg:col-span-3 space-y-8">
 
             {/* My Grounds */}
             <div className="bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-sm">
               <div className="px-8 py-6 border-b flex items-center justify-between">
                 <h2 className="font-semibold text-2xl text-gray-900">My Grounds</h2>
-                <button
-                  onClick={() => navigate("/add-ground")}
-                  className="text-yellow-600 hover:text-yellow-700 font-medium flex items-center gap-1"
-                >
-                  Add Ground <Plus size={18} />
+                <button onClick={() => navigate("/add-ground")}
+                  className="text-yellow-600 hover:text-yellow-700 font-medium flex items-center gap-1">
+                  Add <Plus size={18} />
                 </button>
               </div>
-
               {myGrounds.length === 0 ? (
                 <div className="px-8 py-16 text-center">
-                  <p className="text-gray-400 mb-6">You haven't listed any grounds yet.</p>
-                  <button
-                    onClick={() => navigate("/add-ground")}
-                    className="px-8 py-3.5 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-2xl transition"
-                  >
+                  <p className="text-gray-400 mb-6">No grounds listed yet.</p>
+                  <button onClick={() => navigate("/add-ground")}
+                    className="px-8 py-3.5 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-2xl transition">
                     List Your First Ground
                   </button>
                 </div>
@@ -260,19 +223,14 @@ export default function OwnerDashboard() {
                 <div className="divide-y divide-gray-100">
                   {myGrounds.map((g) => {
                     const imgSrc = g.image
-                      ? g.image.startsWith("http")
-                        ? g.image
-                        : `${BASE_URL}${g.image}`
+                      ? g.image.startsWith("http") ? g.image : `${BASE_URL}${g.image}`
                       : null;
-
                     return (
                       <div key={g.id} className="px-8 py-6 flex items-center gap-6 hover:bg-gray-50 transition">
                         <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-100">
-                          {imgSrc ? (
-                            <img src={imgSrc} alt={g.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-4xl bg-gray-50">⚽</div>
-                          )}
+                          {imgSrc
+                            ? <img src={imgSrc} alt={g.name} className="w-full h-full object-cover" />
+                            : <div className="w-full h-full flex items-center justify-center text-4xl bg-gray-50">⚽</div>}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-gray-900 truncate">{g.name}</p>
@@ -280,7 +238,8 @@ export default function OwnerDashboard() {
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-lg">Rs {g.price_per_hour}</p>
-                          <span className={`text-xs px-4 py-1.5 rounded-full mt-2 inline-block border ${g.is_approved ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-amber-100 text-amber-700 border-amber-200"}`}>
+                          <span className={`text-xs px-4 py-1.5 rounded-full mt-2 inline-block border
+                            ${g.is_approved ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-amber-100 text-amber-700 border-amber-200"}`}>
                             {g.is_approved ? "Approved" : "Pending"}
                           </span>
                         </div>
@@ -294,15 +253,15 @@ export default function OwnerDashboard() {
             {/* Recent Bookings */}
             <div className="bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-sm">
               <div className="px-8 py-6 border-b flex items-center justify-between">
-                <h2 className="font-semibold text-2xl text-gray-900">Recent Bookings</h2>
-                <button
-                  onClick={() => navigate("/owner-bookings")}
-                  className="text-yellow-600 hover:text-yellow-700 font-medium"
-                >
+                <div>
+                  <h2 className="font-semibold text-2xl text-gray-900">Recent Bookings</h2>
+                  <p className="text-gray-400 text-sm mt-0.5">{bookings.length} total</p>
+                </div>
+                <button onClick={() => navigate("/owner-bookings")}
+                  className="text-yellow-600 hover:text-yellow-700 font-medium">
                   View All
                 </button>
               </div>
-
               {recentBookings.length === 0 ? (
                 <div className="px-8 py-16 text-center text-gray-400">No bookings received yet</div>
               ) : (
@@ -314,10 +273,12 @@ export default function OwnerDashboard() {
                         <div className={`w-3 h-3 rounded-full flex-shrink-0 ${s.dot}`} />
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-gray-900 truncate">{b.ground_name}</p>
-                          <p className="text-gray-500 text-sm mt-1">{b.user_email} • {b.date}</p>
+                          <p className="text-gray-500 text-sm mt-1">{b.user_email} · {b.date}</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-bold text-lg">Rs {b.total_price}</p>
+                          <p className="font-bold text-lg">
+                            {b.is_free_booking ? <span className="text-amber-600 text-sm">FREE</span> : `Rs ${b.total_price}`}
+                          </p>
                           <span className={`text-xs px-4 py-1.5 rounded-full mt-2 inline-block border ${s.badge}`}>
                             {b.status}
                           </span>
@@ -325,6 +286,14 @@ export default function OwnerDashboard() {
                       </div>
                     );
                   })}
+                </div>
+              )}
+              {bookings.length > 4 && (
+                <div className="px-8 py-4 border-t text-center">
+                  <button onClick={() => navigate("/owner-bookings")}
+                    className="text-yellow-600 text-sm font-medium hover:text-yellow-700">
+                    View all {bookings.length} bookings →
+                  </button>
                 </div>
               )}
             </div>
@@ -344,14 +313,11 @@ export default function OwnerDashboard() {
                     </span>
                   )}
                 </h2>
-                <button
-                  onClick={() => navigate("/owner-notifications")}
-                  className="text-yellow-600 hover:text-yellow-700 font-medium text-sm"
-                >
+                <button onClick={() => navigate("/owner-notifications")}
+                  className="text-yellow-600 hover:text-yellow-700 font-medium text-sm">
                   View All
                 </button>
               </div>
-
               {notifications.length === 0 ? (
                 <div className="px-8 py-12 text-center text-gray-400">No notifications yet</div>
               ) : (
@@ -359,7 +325,7 @@ export default function OwnerDashboard() {
                   {notifications.map((n) => (
                     <div key={n.id} className={`px-8 py-5 hover:bg-gray-50 transition ${!n.is_read ? "bg-yellow-50" : ""}`}>
                       <p className={`text-sm ${n.is_read ? "text-gray-600" : "text-gray-900 font-medium"}`}>
-                        {n.message.length > 95 ? n.message.slice(0, 95) + "..." : n.message}
+                        {n.message.length > 95 ? n.message.slice(0, 95) + "…" : n.message}
                       </p>
                       <p className="text-xs text-gray-400 mt-2">
                         {new Date(n.created_at).toLocaleDateString()}
@@ -386,11 +352,8 @@ export default function OwnerDashboard() {
                   </span>
                 </div>
               </div>
-
-              <button
-                onClick={() => navigate("/profile")}
-                className="mt-10 w-full py-4 border border-gray-300 hover:bg-gray-50 rounded-2xl font-medium transition"
-              >
+              <button onClick={() => navigate("/profile")}
+                className="mt-10 w-full py-4 border border-gray-300 hover:bg-gray-50 rounded-2xl font-medium transition">
                 Edit Profile
               </button>
             </div>

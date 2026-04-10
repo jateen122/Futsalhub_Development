@@ -192,3 +192,18 @@ EMAIL_HOST_USER = config("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
 
 DEFAULT_FROM_EMAIL = f"FutsalHub <{EMAIL_HOST_USER}>"
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+    ],
+    # Use a custom pagination class that respects ?page_size=N
+    "DEFAULT_PAGINATION_CLASS": "futsalhub_backend.pagination.FlexiblePageNumberPagination",
+    "PAGE_SIZE": 10,
+}

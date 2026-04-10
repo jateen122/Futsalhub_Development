@@ -1,13 +1,29 @@
+// frontend/src/pages/AdminBookings.jsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const BASE_URL = "http://127.0.0.1:8000";
 
+// ── fetch ALL pages of a paginated DRF endpoint ────────────────────────────
+async function fetchAllPages(url, token) {
+  let results = [];
+  let nextUrl = url;
+  while (nextUrl) {
+    const res  = await fetch(nextUrl, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) break;
+    const data = await res.json();
+    if (Array.isArray(data)) { results = results.concat(data); break; }
+    results = results.concat(data.results || []);
+    nextUrl = data.next || null;
+  }
+  return results;
+}
+
 const STATUS_CONFIG = {
-  pending:   { color: "text-amber-400",  bg: "bg-amber-400/10",  border: "border-amber-400/30"  },
-  confirmed: { color: "text-emerald-400",bg: "bg-emerald-400/10",border: "border-emerald-400/30" },
-  cancelled: { color: "text-red-400",    bg: "bg-red-400/10",    border: "border-red-400/30"    },
-  refunded:  { color: "text-blue-400",   bg: "bg-blue-400/10",   border: "border-blue-400/30"   },
+  pending:   { color: "text-amber-400",   bg: "bg-amber-400/10",   border: "border-amber-400/30"   },
+  confirmed: { color: "text-emerald-400", bg: "bg-emerald-400/10", border: "border-emerald-400/30" },
+  cancelled: { color: "text-red-400",     bg: "bg-red-400/10",     border: "border-red-400/30"     },
+  refunded:  { color: "text-blue-400",    bg: "bg-blue-400/10",    border: "border-blue-400/30"    },
 };
 
 const fmt12 = (t) => {
@@ -19,27 +35,22 @@ const fmt12 = (t) => {
 
 export default function AdminBookings() {
   const navigate = useNavigate();
-  const token = localStorage.getItem("access");
+  const token    = localStorage.getItem("access");
 
-  const [bookings, setBookings]       = useState([]);
-  const [loading, setLoading]         = useState(true);
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [dateFilter, setDateFilter]   = useState("");
-  const [search, setSearch]           = useState("");
+  const [bookings,      setBookings]      = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [statusFilter,  setStatusFilter]  = useState("all");
+  const [dateFilter,    setDateFilter]    = useState("");
+  const [search,        setSearch]        = useState("");
 
   useEffect(() => {
     if (!token) { navigate("/login"); return; }
-
-    // Admin fetches all bookings by hitting owner endpoint with admin JWT
-    // or you can add a dedicated admin endpoint in Django
-    fetch(`${BASE_URL}/api/bookings/owner/`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then((d) => { setBookings(d.results || d || []); setLoading(false); })
+    fetchAllPages(`${BASE_URL}/api/bookings/owner/`, token)
+      .then((all) => { setBookings(all); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 
+  // Client-side filtering
   const filtered = bookings.filter((b) => {
     const matchStatus = statusFilter === "all" || b.status === statusFilter;
     const matchDate   = !dateFilter || b.date === dateFilter;
@@ -64,11 +75,16 @@ export default function AdminBookings() {
 
         {/* Header */}
         <div className="mb-10">
-          <button onClick={() => navigate("/admin-dashboard")} className="text-white/40 hover:text-white text-sm mb-4 flex items-center gap-1 transition">
+          <button onClick={() => navigate("/admin-dashboard")}
+            className="text-white/40 hover:text-white text-sm mb-4 flex items-center gap-1 transition">
             ← Dashboard
           </button>
-          <h1 className="text-4xl font-black text-white">All Bookings</h1>
-          <p className="text-white/40 mt-1">Platform-wide booking overview</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-black text-white">All Bookings</h1>
+              <p className="text-white/40 mt-1">Platform-wide booking overview · {bookings.length} total</p>
+            </div>
+          </div>
         </div>
 
         {/* Stats */}
@@ -88,32 +104,32 @@ export default function AdminBookings() {
 
         {/* Filters */}
         <div className="flex flex-wrap gap-3 mb-6">
-          <input
-            type="text"
-            placeholder="Search player or ground..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 min-w-[200px] bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-amber-400/50 text-sm"
-          />
-          <input
-            type="date"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            className="bg-white/5 border border-white/10 text-white/70 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-400/50"
-          />
+          <input type="text" placeholder="Search player or ground…"
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            className="flex-1 min-w-[200px] bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-amber-400/50 text-sm" />
+          <input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}
+            className="bg-white/5 border border-white/10 text-white/70 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-400/50" />
+          {dateFilter && (
+            <button onClick={() => setDateFilter("")}
+              className="px-4 py-2.5 bg-white/5 border border-white/10 text-white/50 rounded-xl text-sm hover:bg-white/10 transition">
+              Clear Date
+            </button>
+          )}
           <div className="flex gap-2">
             {["all", "pending", "confirmed", "cancelled"].map((f) => (
-              <button
-                key={f}
-                onClick={() => setStatusFilter(f)}
+              <button key={f} onClick={() => setStatusFilter(f)}
                 className={`px-4 py-2 rounded-full text-sm font-semibold capitalize transition
-                  ${statusFilter === f ? "bg-amber-400 text-black" : "bg-white/5 text-white/50 hover:bg-white/10"}`}
-              >
+                  ${statusFilter === f ? "bg-amber-400 text-black" : "bg-white/5 text-white/50 hover:bg-white/10"}`}>
                 {f}
               </button>
             ))}
           </div>
         </div>
+
+        {/* Result count */}
+        <p className="text-white/30 text-xs mb-4">
+          Showing {filtered.length} of {bookings.length} bookings
+        </p>
 
         {/* Table */}
         {loading ? (
@@ -122,12 +138,11 @@ export default function AdminBookings() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-20">
-            <p className="text-5xl mb-4"></p>
+            <p className="text-5xl mb-4">📋</p>
             <p className="text-white/40 text-lg">No bookings found</p>
           </div>
         ) : (
           <div className="bg-white/3 border border-white/10 rounded-2xl overflow-hidden">
-            {/* Head */}
             <div className="hidden md:grid grid-cols-12 px-5 py-3 border-b border-white/10 text-xs uppercase tracking-widest text-white/30">
               <div className="col-span-1">#</div>
               <div className="col-span-2">Ground</div>
@@ -137,17 +152,21 @@ export default function AdminBookings() {
               <div className="col-span-1">Amount</div>
               <div className="col-span-1">Status</div>
             </div>
-
             {filtered.map((b, i) => {
               const cfg = STATUS_CONFIG[b.status] || STATUS_CONFIG.pending;
               return (
-                <div key={b.id} className="grid md:grid-cols-12 grid-cols-1 gap-2 md:gap-0 px-5 py-4 border-b border-white/5 last:border-0 hover:bg-white/5 transition items-center">
+                <div key={b.id}
+                  className="grid md:grid-cols-12 grid-cols-1 gap-2 md:gap-0 px-5 py-4 border-b border-white/5 last:border-0 hover:bg-white/5 transition items-center">
                   <div className="col-span-1 text-white/30 text-sm">{i + 1}</div>
                   <div className="col-span-2 text-white font-medium text-sm truncate">{b.ground_name}</div>
                   <div className="col-span-3 text-white/60 text-sm truncate">{b.user_email}</div>
                   <div className="col-span-2 text-white/80 text-sm">{b.date}</div>
                   <div className="col-span-2 text-white/80 text-sm">{fmt12(b.start_time)} – {fmt12(b.end_time)}</div>
-                  <div className="col-span-1 text-amber-400 font-bold text-sm">Rs {b.total_price}</div>
+                  <div className="col-span-1 font-bold text-sm">
+                    {b.is_free_booking
+                      ? <span className="text-amber-400 text-xs">FREE</span>
+                      : <span className="text-amber-400">Rs {b.total_price}</span>}
+                  </div>
                   <div className="col-span-1">
                     <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${cfg.color} ${cfg.bg} ${cfg.border} capitalize`}>
                       {b.status}

@@ -1,9 +1,26 @@
 // frontend/src/pages/PlayerMyBookings.jsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Ticket, Calendar, Clock, Gift, IndianRupee, Tag, AlertCircle } from "lucide-react";
+import {
+  Ticket, Calendar, Clock, Gift, IndianRupee, Tag, AlertCircle,
+} from "lucide-react";
 
 const BASE_URL = "http://127.0.0.1:8000";
+
+// ── fetch ALL pages of a paginated DRF endpoint ────────────────────────────
+async function fetchAllPages(url, token) {
+  let results = [];
+  let nextUrl = url;
+  while (nextUrl) {
+    const res  = await fetch(nextUrl, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) break;
+    const data = await res.json();
+    if (Array.isArray(data)) { results = results.concat(data); break; }
+    results = results.concat(data.results || []);
+    nextUrl = data.next || null;
+  }
+  return results;
+}
 
 const fmt12t = (t) => {
   if (!t) return "";
@@ -16,22 +33,32 @@ export default function PlayerMyBookings() {
   const navigate = useNavigate();
   const token    = localStorage.getItem("access");
 
-  const [bookings,      setBookings]      = useState([]);
-  const [tokens,        setTokens]        = useState([]);
-  const [loading,       setLoading]       = useState(true);
-  const [filter,        setFilter]        = useState("all");
-  const [activeTab,     setActiveTab]     = useState("bookings"); // bookings | tokens
-  const [cancelling,    setCancelling]    = useState(null);
-  const [cancelResult,  setCancelResult]  = useState(null); // holds newly issued token info
-  const [loyaltyTotal,  setLoyaltyTotal]  = useState(0);
+  const [bookings,     setBookings]     = useState([]);
+  const [tokens,       setTokens]       = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [filter,       setFilter]       = useState("all");
+  const [activeTab,    setActiveTab]    = useState("bookings");
+  const [cancelling,   setCancelling]   = useState(null);
+  const [cancelResult, setCancelResult] = useState(null);
+  const [loyaltyTotal, setLoyaltyTotal] = useState(0);
 
-  const fetchBookings = async () => {
+  const loadData = async () => {
+    if (!token) { navigate("/login"); return; }
+    setLoading(true);
     try {
-      const res  = await fetch(`${BASE_URL}/api/bookings/my/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      setBookings(data.results || data || []);
+      const [allB, tokRes, loyRes] = await Promise.all([
+        fetchAllPages(`${BASE_URL}/api/bookings/my/`, token),
+        fetch(`${BASE_URL}/api/bookings/tokens/`,  { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${BASE_URL}/api/bookings/loyalty/`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+
+      setBookings(allB);
+
+      const tokData = await tokRes.json();
+      setTokens(tokData.tokens || []);
+
+      const loyData = await loyRes.json();
+      setLoyaltyTotal(loyData.total_free_available || 0);
     } catch (e) {
       console.error(e);
     } finally {
@@ -39,30 +66,7 @@ export default function PlayerMyBookings() {
     }
   };
 
-  const fetchTokens = async () => {
-    try {
-      const res  = await fetch(`${BASE_URL}/api/bookings/tokens/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      setTokens(data.tokens || []);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  useEffect(() => {
-    if (!token) return navigate("/login");
-    fetchBookings();
-    fetchTokens();
-
-    // Loyalty total
-    fetch(`${BASE_URL}/api/bookings/loyalty/`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then((d) => setLoyaltyTotal(d.total_free_available || 0));
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
   const handleCancel = async (id) => {
     const booking = bookings.find((b) => b.id === id);
@@ -89,19 +93,12 @@ export default function PlayerMyBookings() {
       });
       const data = await res.json();
       if (res.ok) {
-        fetchBookings();
-        fetchTokens();
+        // Re-fetch all bookings for accurate count
+        await loadData();
         if (data.token_issued) {
-          setCancelResult({
-            type:    "token",
-            token:   data.token_issued,
-            message: data.token_message,
-          });
+          setCancelResult({ type: "token",    token: data.token_issued, message: data.token_message });
         } else {
-          setCancelResult({
-            type:    "no_token",
-            message: data.token_message || "Booking cancelled. No rescheduling token issued.",
-          });
+          setCancelResult({ type: "no_token", message: data.token_message || "Booking cancelled." });
         }
       }
     } finally {
@@ -109,14 +106,15 @@ export default function PlayerMyBookings() {
     }
   };
 
-  const filtered =
-    filter === "all"
-      ? bookings
-      : bookings.filter((b) => b.status === filter);
+  // Client-side filter
+  const filtered = filter === "all"
+    ? bookings
+    : bookings.filter((b) => b.status === filter);
 
   const validTokens   = tokens.filter((t) => t.is_valid);
   const expiredTokens = tokens.filter((t) => !t.is_valid);
 
+  // Stats from ALL bookings
   const stats = {
     total:     bookings.length,
     confirmed: bookings.filter((b) => b.status === "confirmed").length,
@@ -131,31 +129,28 @@ export default function PlayerMyBookings() {
       <div className="bg-white border-b border-gray-100 px-6 py-5 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate("/player-dashboard")}
-              className="flex items-center gap-2 text-gray-500 hover:text-gray-800 transition text-sm font-medium"
-            >
+            <button onClick={() => navigate("/player-dashboard")}
+              className="flex items-center gap-2 text-gray-500 hover:text-gray-800 transition text-sm font-medium">
               ← Dashboard
             </button>
             <span className="text-gray-300">/</span>
             <h1 className="text-2xl font-semibold text-gray-900">My Bookings</h1>
+            <span className="bg-gray-100 text-gray-600 text-xs font-bold px-2.5 py-1 rounded-full">
+              {bookings.length} total
+            </span>
           </div>
 
           <div className="flex items-center gap-3">
             {validTokens.length > 0 && (
-              <button
-                onClick={() => setActiveTab("tokens")}
-                className="flex items-center gap-2 bg-blue-500 text-white px-5 py-2.5 rounded-2xl font-semibold text-sm shadow hover:bg-blue-600 transition"
-              >
+              <button onClick={() => setActiveTab("tokens")}
+                className="flex items-center gap-2 bg-blue-500 text-white px-5 py-2.5 rounded-2xl font-semibold text-sm shadow hover:bg-blue-600 transition">
                 <Tag size={16} />
-                {validTokens.length} Reschedule Token{validTokens.length > 1 ? "s" : ""}
+                {validTokens.length} Token{validTokens.length > 1 ? "s" : ""}
               </button>
             )}
             {loyaltyTotal > 0 && (
-              <button
-                onClick={() => navigate("/player-loyalty")}
-                className="flex items-center gap-2.5 bg-gradient-to-r from-yellow-400 to-amber-500 text-white px-6 py-2.5 rounded-2xl font-semibold shadow hover:shadow-xl hover:scale-105 transition-all"
-              >
+              <button onClick={() => navigate("/player-loyalty")}
+                className="flex items-center gap-2.5 bg-gradient-to-r from-yellow-400 to-amber-500 text-white px-6 py-2.5 rounded-2xl font-semibold shadow hover:shadow-xl hover:scale-105 transition-all">
                 <Gift size={18} />
                 {loyaltyTotal} Free Booking{loyaltyTotal > 1 ? "s" : ""}
               </button>
@@ -168,14 +163,10 @@ export default function PlayerMyBookings() {
 
         {/* Cancel Result Banner */}
         {cancelResult && (
-          <div className={`rounded-3xl p-6 mb-8 flex items-start gap-4 ${
-            cancelResult.type === "token"
-              ? "bg-blue-50 border-2 border-blue-300"
-              : "bg-gray-50 border border-gray-200"
-          }`}>
-            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 ${
-              cancelResult.type === "token" ? "bg-blue-500" : "bg-gray-400"
-            }`}>
+          <div className={`rounded-3xl p-6 mb-8 flex items-start gap-4
+            ${cancelResult.type === "token" ? "bg-blue-50 border-2 border-blue-300" : "bg-gray-50 border border-gray-200"}`}>
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0
+              ${cancelResult.type === "token" ? "bg-blue-500" : "bg-gray-400"}`}>
               {cancelResult.type === "token" ? <Tag size={20} className="text-white" /> : <AlertCircle size={20} className="text-white" />}
             </div>
             <div className="flex-1">
@@ -186,10 +177,8 @@ export default function PlayerMyBookings() {
                 {cancelResult.message}
               </p>
               {cancelResult.type === "token" && (
-                <button
-                  onClick={() => { setActiveTab("tokens"); setCancelResult(null); }}
-                  className="mt-3 px-5 py-2 bg-blue-500 text-white text-sm font-semibold rounded-xl hover:bg-blue-600 transition"
-                >
+                <button onClick={() => { setActiveTab("tokens"); setCancelResult(null); }}
+                  className="mt-3 px-5 py-2 bg-blue-500 text-white text-sm font-semibold rounded-xl hover:bg-blue-600 transition">
                   View Token →
                 </button>
               )}
@@ -208,8 +197,7 @@ export default function PlayerMyBookings() {
               className={`px-8 py-3 rounded-2xl font-semibold transition-all text-sm flex items-center gap-2
                 ${activeTab === tab.id
                   ? tab.highlight ? "bg-blue-500 text-white shadow" : "bg-yellow-500 text-white shadow"
-                  : "bg-transparent hover:bg-gray-100 text-gray-600"}`}
-            >
+                  : "bg-transparent hover:bg-gray-100 text-gray-600"}`}>
               {tab.label}
               {tab.count > 0 && (
                 <span className={`text-xs font-black px-2 py-0.5 rounded-full
@@ -251,9 +239,8 @@ export default function PlayerMyBookings() {
               {["all", "pending", "confirmed", "cancelled"].map((f) => (
                 <button key={f} onClick={() => setFilter(f)}
                   className={`px-8 py-3 rounded-2xl font-semibold capitalize transition-all text-sm
-                    ${filter === f ? "bg-yellow-500 text-white shadow" : "bg-transparent hover:bg-gray-100 text-gray-600"}`}
-                >
-                  {f === "all" ? "All Bookings" : f.charAt(0).toUpperCase() + f.slice(1)}
+                    ${filter === f ? "bg-yellow-500 text-white shadow" : "bg-transparent hover:bg-gray-100 text-gray-600"}`}>
+                  {f === "all" ? `All (${bookings.length})` : `${f.charAt(0).toUpperCase() + f.slice(1)} (${bookings.filter(b => b.status === f).length})`}
                 </button>
               ))}
             </div>
@@ -262,7 +249,7 @@ export default function PlayerMyBookings() {
             {loading ? (
               <div className="flex flex-col items-center justify-center py-24">
                 <div className="w-10 h-10 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin" />
-                <p className="text-gray-500 mt-4">Loading your bookings...</p>
+                <p className="text-gray-500 mt-4">Loading your bookings…</p>
               </div>
             ) : filtered.length === 0 ? (
               <div className="bg-white rounded-3xl py-24 text-center shadow">
@@ -270,7 +257,9 @@ export default function PlayerMyBookings() {
                   <Ticket size={42} className="text-gray-400" />
                 </div>
                 <h3 className="text-2xl font-semibold text-gray-800">No bookings found</h3>
-                <p className="text-gray-500 mt-2">You don't have any {filter !== "all" ? filter : ""} bookings yet.</p>
+                <p className="text-gray-500 mt-2">
+                  {bookings.length === 0 ? "You don't have any bookings yet." : "Try a different filter."}
+                </p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -292,7 +281,6 @@ export default function PlayerMyBookings() {
                               </span>
                             )}
                           </div>
-
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                             <div className="flex items-center gap-3">
                               <Calendar size={18} className="text-yellow-600" />
@@ -301,7 +289,6 @@ export default function PlayerMyBookings() {
                                 <p className="font-medium">{b.date}</p>
                               </div>
                             </div>
-
                             <div className="flex items-center gap-3">
                               <Clock size={18} className="text-yellow-600" />
                               <div>
@@ -309,21 +296,16 @@ export default function PlayerMyBookings() {
                                 <p className="font-medium">{fmt12t(b.start_time)} – {fmt12t(b.end_time)}</p>
                               </div>
                             </div>
-
                             <div className="flex items-center gap-3">
                               <IndianRupee size={18} className="text-emerald-600" />
                               <div>
                                 <p className="text-gray-400 text-xs">AMOUNT</p>
-                                {b.is_free_booking ? (
-                                  <p className="font-bold text-2xl text-amber-600">FREE</p>
-                                ) : (
-                                  <p className="font-bold text-2xl text-emerald-600">Rs {b.total_price}</p>
-                                )}
+                                {b.is_free_booking
+                                  ? <p className="font-bold text-xl text-amber-600">FREE</p>
+                                  : <p className="font-bold text-xl text-emerald-600">Rs {b.total_price}</p>}
                               </div>
                             </div>
                           </div>
-
-                          {/* Cancellation info */}
                           {isPending && b.status !== "cancelled" && (
                             <div className={`text-xs flex items-center gap-1.5 rounded-xl px-3 py-2 w-fit
                               ${canCancelWithToken && !b.is_free_booking
@@ -333,7 +315,7 @@ export default function PlayerMyBookings() {
                               {canCancelWithToken && !b.is_free_booking
                                 ? `Cancel now to get a rescheduling token (${hoursLeft}h until slot)`
                                 : hoursLeft !== null && hoursLeft < 4
-                                ? `Within 4h window — no token if cancelled`
+                                ? "Within 4h window — no token if cancelled"
                                 : "Cancel anytime"}
                             </div>
                           )}
@@ -342,18 +324,14 @@ export default function PlayerMyBookings() {
                         <div className="flex flex-col items-end gap-3">
                           <span className={`px-5 py-1.5 rounded-2xl text-xs font-bold uppercase tracking-widest
                             ${b.status === "confirmed" ? "bg-emerald-100 text-emerald-700"
-                            : b.status === "pending"   ? "bg-amber-100 text-amber-700"
-                            :                            "bg-red-100 text-red-700"}`}>
+                              : b.status === "pending" ? "bg-amber-100 text-amber-700"
+                              : "bg-red-100 text-red-700"}`}>
                             {b.status}
                           </span>
-
                           {(b.status === "pending" || b.status === "confirmed") && (
-                            <button
-                              onClick={() => handleCancel(b.id)}
-                              disabled={cancelling === b.id}
-                              className="text-red-600 hover:text-red-700 text-sm font-medium transition disabled:opacity-50"
-                            >
-                              {cancelling === b.id ? "Cancelling..." : "Cancel Booking"}
+                            <button onClick={() => handleCancel(b.id)} disabled={cancelling === b.id}
+                              className="text-red-600 hover:text-red-700 text-sm font-medium transition disabled:opacity-50">
+                              {cancelling === b.id ? "Cancelling…" : "Cancel Booking"}
                             </button>
                           )}
                         </div>
@@ -377,17 +355,14 @@ export default function PlayerMyBookings() {
               </p>
             </div>
 
-            {/* Valid tokens */}
             {validTokens.length > 0 && (
               <div className="mb-10">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <span className="w-3 h-3 bg-green-400 rounded-full" />
-                  Active Tokens ({validTokens.length})
+                  <span className="w-3 h-3 bg-green-400 rounded-full" />Active Tokens ({validTokens.length})
                 </h3>
                 <div className="grid sm:grid-cols-2 gap-5">
                   {validTokens.map((t) => (
-                    <div key={t.token}
-                      className="bg-white rounded-3xl border-2 border-blue-300 p-7 shadow-lg">
+                    <div key={t.token} className="bg-white rounded-3xl border-2 border-blue-300 p-7 shadow-lg">
                       <div className="flex items-start justify-between mb-4">
                         <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center">
                           <Tag size={24} className="text-white" />
@@ -396,14 +371,8 @@ export default function PlayerMyBookings() {
                           ✓ Valid · {t.days_until_expiry}d left
                         </span>
                       </div>
-
-                      <p className="text-2xl font-black text-gray-900 mb-1">
-                        Rs {t.original_price} Credit
-                      </p>
-                      <p className="text-blue-600 font-semibold text-sm mb-4">
-                        {t.original_ground_name}
-                      </p>
-
+                      <p className="text-2xl font-black text-gray-900 mb-1">Rs {t.original_price} Credit</p>
+                      <p className="text-blue-600 font-semibold text-sm mb-4">{t.original_ground_name}</p>
                       <div className="space-y-2 text-sm text-gray-600 mb-5">
                         <div className="flex justify-between">
                           <span className="text-gray-400">Original Date</span>
@@ -418,11 +387,8 @@ export default function PlayerMyBookings() {
                           <span className="font-medium">{new Date(t.expires_at).toLocaleDateString()}</span>
                         </div>
                       </div>
-
-                      <button
-                        onClick={() => navigate(`/book/${t.original_ground}`)}
-                        className="w-full py-3.5 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-2xl transition flex items-center justify-center gap-2"
-                      >
+                      <button onClick={() => navigate(`/book/${t.original_ground}`)}
+                        className="w-full py-3.5 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-2xl transition flex items-center justify-center gap-2">
                         🔄 Use to Rebook Ground
                       </button>
                     </div>
@@ -431,21 +397,17 @@ export default function PlayerMyBookings() {
               </div>
             )}
 
-            {/* Expired / Used tokens */}
             {expiredTokens.length > 0 && (
               <div>
                 <h3 className="text-lg font-semibold text-gray-500 mb-4 flex items-center gap-2">
-                  <span className="w-3 h-3 bg-gray-300 rounded-full" />
-                  Used / Expired ({expiredTokens.length})
+                  <span className="w-3 h-3 bg-gray-300 rounded-full" />Used / Expired ({expiredTokens.length})
                 </h3>
                 <div className="grid sm:grid-cols-2 gap-5">
                   {expiredTokens.map((t) => (
-                    <div key={t.token}
-                      className="bg-white rounded-3xl border border-gray-200 p-6 opacity-60">
+                    <div key={t.token} className="bg-white rounded-3xl border border-gray-200 p-6 opacity-60">
                       <div className="flex items-center justify-between mb-3">
                         <p className="font-bold text-gray-900">Rs {t.original_price}</p>
-                        <span className={`text-xs font-bold px-3 py-1 rounded-full
-                          ${t.is_used ? "bg-purple-100 text-purple-600" : "bg-gray-100 text-gray-500"}`}>
+                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${t.is_used ? "bg-purple-100 text-purple-600" : "bg-gray-100 text-gray-500"}`}>
                           {t.is_used ? "Used" : "Expired"}
                         </span>
                       </div>
@@ -463,7 +425,7 @@ export default function PlayerMyBookings() {
                 </div>
                 <h3 className="text-2xl font-semibold text-gray-800">No rescheduling tokens</h3>
                 <p className="text-gray-500 mt-2 max-w-md mx-auto">
-                  When you cancel a confirmed booking 4+ hours before your slot, you'll receive a rescheduling token to book again for free.
+                  When you cancel a confirmed booking 4+ hours before your slot, you'll receive a rescheduling token.
                 </p>
               </div>
             )}
