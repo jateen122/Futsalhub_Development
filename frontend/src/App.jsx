@@ -33,7 +33,8 @@ import OwnerAddGround          from "./pages/OwnerAddGround";
 import OwnerManageGround       from "./pages/OwnerManageGround";
 import OwnerBookings           from "./pages/OwnerBookings";
 import OwnerNotifications      from "./pages/OwnerNotifications";
-import OwnerPricingAndBlocking from "./pages/OwnerPricingAndBlocking"; // ← replaces OwnerPeakPricing
+import OwnerPricingAndBlocking from "./pages/OwnerPricingAndBlocking";
+import OwnerAnalytics          from "./pages/OwnerAnalytics";
 
 // ── Admin ───────────────────────────────────────────────────────────────────
 import AdminDashboard      from "./pages/AdminDashboard";
@@ -43,7 +44,7 @@ import AdminUsers          from "./pages/AdminUsers";
 import AdminBookings       from "./pages/AdminBookings";
 import AdminNotifications  from "./pages/AdminNotifications";
 
-/* ── Route guards ──────────────────────────────────────────────────────────── */
+/* ── Route guards ─────────────────────────────────────────────────────────── */
 function RequireAuth({ children }) {
   const token = localStorage.getItem("access");
   if (!token) return <Navigate to="/login" replace />;
@@ -58,7 +59,7 @@ function ProtectedRoute({ children, allowedRole }) {
   return children;
 }
 
-/* ── App ───────────────────────────────────────────────────────────────────── */
+/* ── App ──────────────────────────────────────────────────────────────────── */
 export default function App() {
   const token = localStorage.getItem("access");
   const role  = localStorage.getItem("role");
@@ -119,10 +120,10 @@ export default function App() {
             element={<ProtectedRoute allowedRole="owner"><OwnerBookings /></ProtectedRoute>} />
           <Route path="/owner-notifications"
             element={<ProtectedRoute allowedRole="owner"><OwnerNotifications /></ProtectedRoute>} />
-
-          {/* ── Combined Pricing + Blocking (replaces /owner-pricing) ── */}
           <Route path="/owner-pricing"
             element={<ProtectedRoute allowedRole="owner"><OwnerPricingAndBlocking /></ProtectedRoute>} />
+          <Route path="/owner-analytics"
+            element={<ProtectedRoute allowedRole="owner"><OwnerAnalytics /></ProtectedRoute>} />
 
           {/* ════ ADMIN ════ */}
           <Route path="/admin-dashboard"

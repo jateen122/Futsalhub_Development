@@ -1,5 +1,4 @@
 # backend/bookings/models.py
-
 import uuid
 from datetime import timedelta
 
@@ -8,9 +7,9 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
-LOYALTY_THRESHOLD   = 5   # confirm this many bookings → earn 1 free
-CANCEL_WINDOW_HOURS = 4   # must cancel at least this many hours before slot
-TOKEN_EXPIRY_DAYS   = 30  # rescheduling token valid for 30 days
+LOYALTY_THRESHOLD   = 5   # 5 paid confirmed bookings = 1 free (each = 20%)
+CANCEL_WINDOW_HOURS = 4
+TOKEN_EXPIRY_DAYS   = 30
 
 
 class Booking(models.Model):
@@ -22,28 +21,20 @@ class Booking(models.Model):
         REFUNDED  = "refunded",  "Refunded"
 
     user   = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="bookings",
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="bookings",
     )
     ground = models.ForeignKey(
-        "grounds.Ground",
-        on_delete=models.CASCADE,
-        related_name="bookings",
+        "grounds.Ground", on_delete=models.CASCADE, related_name="bookings",
     )
     date        = models.DateField()
     start_time  = models.TimeField()
     end_time    = models.TimeField()
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
-    status      = models.CharField(
-        max_length=15,
-        choices=Status.choices,
-        default=Status.PENDING,
-    )
+    status      = models.CharField(max_length=15, choices=Status.choices, default=Status.PENDING)
     is_free_booking = models.BooleanField(
         default=False,
         verbose_name="Free Booking",
-        help_text="True if this booking was redeemed as a loyalty free booking.",
+        help_text="True for loyalty-free or rescheduling-token bookings. Does NOT earn loyalty points.",
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -53,26 +44,21 @@ class Booking(models.Model):
         verbose_name_plural = "Bookings"
 
     def __str__(self):
-        free_tag = " [FREE]" if self.is_free_booking else ""
+        tag = " [FREE]" if self.is_free_booking else ""
         return (
             f"{self.user.email} → {self.ground.name} "
-            f"on {self.date} ({self.start_time}–{self.end_time}) [{self.status}]{free_tag}"
+            f"on {self.date} ({self.start_time}–{self.end_time}) [{self.status}]{tag}"
         )
-
-    # ── Overlap validation ────────────────────────────────────────────────────
 
     def clean(self):
         if not self.start_time or not self.end_time:
             return
-
         if self.start_time >= self.end_time:
             raise ValidationError({"end_time": "End time must be after start time."})
 
         conflicts = Booking.objects.filter(
-            ground         = self.ground,
-            date           = self.date,
-            start_time__lt = self.end_time,
-            end_time__gt   = self.start_time,
+            ground=self.ground, date=self.date,
+            start_time__lt=self.end_time, end_time__gt=self.start_time,
         ).exclude(status__in=[self.Status.CANCELLED, self.Status.REFUNDED])
 
         if self.pk:
@@ -88,46 +74,39 @@ class Booking(models.Model):
         self.full_clean()
         super().save(*args, **kwargs)
 
-    # ── Cancellation helpers ──────────────────────────────────────────────────
-
     def can_cancel_with_token(self):
         from datetime import datetime
-        slot_datetime = timezone.make_aware(
-            datetime.combine(self.date, self.start_time)
-        )
+        slot_datetime = timezone.make_aware(datetime.combine(self.date, self.start_time))
         return timezone.now() <= slot_datetime - timedelta(hours=CANCEL_WINDOW_HOURS)
 
     def hours_until_slot(self):
         from datetime import datetime
-        slot_datetime = timezone.make_aware(
-            datetime.combine(self.date, self.start_time)
-        )
+        slot_datetime = timezone.make_aware(datetime.combine(self.date, self.start_time))
         delta = slot_datetime - timezone.now()
         return delta.total_seconds() / 3600
 
 
 class LoyaltyRecord(models.Model):
     """
-    Tracks confirmed bookings per user per ground.
-    Every LOYALTY_THRESHOLD confirmed bookings earns 1 free booking.
+    Tracks confirmed PAID bookings per user per ground.
+    Each paid booking = 20% progress (1/5).
+    5 paid confirmed bookings = 1 free booking earned.
+
+    RULE: is_free_booking=True bookings do NOT earn loyalty points.
     """
     user   = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="loyalty_records",
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="loyalty_records",
     )
     ground = models.ForeignKey(
-        "grounds.Ground",
-        on_delete=models.CASCADE,
-        related_name="loyalty_records",
+        "grounds.Ground", on_delete=models.CASCADE, related_name="loyalty_records",
     )
     confirmed_count      = models.PositiveIntegerField(
         default=0,
-        help_text="Number of confirmed (non-free) bookings by this user at this ground.",
+        help_text="Number of confirmed PAID (non-free) bookings.",
     )
     free_bookings_earned = models.PositiveIntegerField(
         default=0,
-        help_text="Total free bookings earned (every 5 confirmed bookings).",
+        help_text="Total free bookings earned (every 5 paid confirmed bookings).",
     )
     free_bookings_used   = models.PositiveIntegerField(
         default=0,
@@ -142,7 +121,7 @@ class LoyaltyRecord(models.Model):
         verbose_name_plural = "Loyalty Records"
 
     def __str__(self):
-        return f"{self.user.email} @ {self.ground.name} — {self.confirmed_count} bookings"
+        return f"{self.user.email} @ {self.ground.name} — {self.confirmed_count} paid bookings"
 
     @property
     def free_bookings_available(self):
@@ -155,11 +134,15 @@ class LoyaltyRecord(models.Model):
 
     @property
     def progress_to_next_free(self):
+        """Each paid booking = 20% (1/5). Returns 0–100."""
         remainder = self.confirmed_count % LOYALTY_THRESHOLD
         return int((remainder / LOYALTY_THRESHOLD) * 100)
 
     def record_confirmed_booking(self):
-        """Increment confirmed count and award free booking if threshold reached."""
+        """
+        Call this when a PAID booking is confirmed (+20% progress).
+        Do NOT call for free / token bookings.
+        """
         self.confirmed_count += 1
         new_earned = self.confirmed_count // LOYALTY_THRESHOLD
         if new_earned > self.free_bookings_earned:
@@ -168,26 +151,23 @@ class LoyaltyRecord(models.Model):
 
     def decrease_confirmed_booking(self):
         """
-        Decrease confirmed count by 1 when a confirmed booking is cancelled.
-        Also decreases free_bookings_earned if the count drops below a threshold.
+        Reverse one loyalty point when a confirmed PAID booking is cancelled.
         Never goes below 0.
         """
         if self.confirmed_count <= 0:
             return
 
         self.confirmed_count = max(0, self.confirmed_count - 1)
-
-        # Recalculate earned free bookings based on new count
         new_earned = self.confirmed_count // LOYALTY_THRESHOLD
-        # Only decrease earned if it was higher (don't take back used free bookings)
         if new_earned < self.free_bookings_earned:
-            # How many available (unspent) free bookings would we be removing?
-            diff = self.free_bookings_earned - new_earned
+            diff      = self.free_bookings_earned - new_earned
             available = self.free_bookings_earned - self.free_bookings_used
-            # Only reduce if there are unspent free bookings to remove
             if available > 0:
                 reduce_by = min(diff, available)
-                self.free_bookings_earned = max(self.free_bookings_used, self.free_bookings_earned - reduce_by)
+                self.free_bookings_earned = max(
+                    self.free_bookings_used,
+                    self.free_bookings_earned - reduce_by,
+                )
 
         self.save(update_fields=["confirmed_count", "free_bookings_earned", "updated_at"])
 
@@ -206,21 +186,17 @@ class LoyaltyRecord(models.Model):
 
 class ReschedulingToken(models.Model):
     """
-    Issued when a player cancels a confirmed booking at least CANCEL_WINDOW_HOURS
-    before the slot. Valid for TOKEN_EXPIRY_DAYS at the same ground.
-    Rescheduled bookings (using a token) do NOT generate a new token if cancelled.
+    Issued when a player cancels a confirmed PAID booking 4+ hours before the slot.
+    Valid for 30 days at the same ground.
+    Bookings made with a token are is_free_booking=True and do NOT earn loyalty points.
     """
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     user  = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="rescheduling_tokens",
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="rescheduling_tokens",
     )
     original_ground = models.ForeignKey(
-        "grounds.Ground",
-        on_delete=models.CASCADE,
-        related_name="rescheduling_tokens",
-        verbose_name="Original Ground",
+        "grounds.Ground", on_delete=models.CASCADE,
+        related_name="rescheduling_tokens", verbose_name="Original Ground",
     )
     original_date       = models.DateField()
     original_start_time = models.TimeField()

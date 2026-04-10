@@ -1,34 +1,24 @@
 # backend/bookings/serializers.py
-
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, timedelta
 from rest_framework import serializers
+from django.utils import timezone
 from .models import Booking, LoyaltyRecord, ReschedulingToken, LOYALTY_THRESHOLD, CANCEL_WINDOW_HOURS
 
 
 class BookingSerializer(serializers.ModelSerializer):
-    user_email  = serializers.EmailField(source="user.email",   read_only=True)
-    ground_name = serializers.CharField(source="ground.name",   read_only=True)
+    user_email  = serializers.EmailField(source="user.email",  read_only=True)
+    ground_name = serializers.CharField(source="ground.name",  read_only=True)
     can_cancel_with_token = serializers.SerializerMethodField()
     hours_until_slot      = serializers.SerializerMethodField()
 
     class Meta:
         model  = Booking
         fields = [
-            "id",
-            "user",
-            "user_email",
-            "ground",
-            "ground_name",
-            "date",
-            "start_time",
-            "end_time",
-            "total_price",
-            "status",
-            "is_free_booking",
-            "created_at",
-            "can_cancel_with_token",
-            "hours_until_slot",
+            "id", "user", "user_email", "ground", "ground_name",
+            "date", "start_time", "end_time", "total_price",
+            "status", "is_free_booking", "created_at",
+            "can_cancel_with_token", "hours_until_slot",
         ]
         read_only_fields = [
             "id", "user", "user_email", "ground_name",
@@ -39,17 +29,18 @@ class BookingSerializer(serializers.ModelSerializer):
     def get_can_cancel_with_token(self, obj):
         if obj.status not in [Booking.Status.PENDING, Booking.Status.CONFIRMED]:
             return False
-        return obj.can_cancel_with_token()
+        try:
+            return obj.can_cancel_with_token()
+        except Exception:
+            return False
 
     def get_hours_until_slot(self, obj):
         try:
-            h = obj.hours_until_slot()
-            return round(h, 1)
+            return round(obj.hours_until_slot(), 1)
         except Exception:
             return None
 
     def validate_date(self, value):
-        from django.utils import timezone
         if value < timezone.localdate():
             raise serializers.ValidationError("Booking date cannot be in the past.")
         return value
@@ -58,12 +49,23 @@ class BookingSerializer(serializers.ModelSerializer):
         start  = attrs.get("start_time")
         end    = attrs.get("end_time")
         ground = attrs.get("ground")
+        date   = attrs.get("date")
 
         if start and end:
             if start >= end:
                 raise serializers.ValidationError(
                     {"end_time": "End time must be after start time."}
                 )
+
+            # 30-minute advance booking rule
+            if date:
+                slot_dt = timezone.make_aware(datetime.combine(date, start))
+                cutoff  = timezone.now() + timedelta(minutes=30)
+                if slot_dt < cutoff:
+                    raise serializers.ValidationError(
+                        "You must book at least 30 minutes before the slot starts. "
+                        "Please choose a later time slot."
+                    )
 
             start_dt    = datetime.combine(datetime.today(), start)
             end_dt      = datetime.combine(datetime.today(), end)
@@ -86,7 +88,7 @@ class BookingStatusSerializer(serializers.ModelSerializer):
 
 
 class ReschedulingTokenSerializer(serializers.ModelSerializer):
-    original_ground_name     = serializers.CharField(source="original_ground.name", read_only=True)
+    original_ground_name     = serializers.CharField(source="original_ground.name",     read_only=True)
     original_ground_location = serializers.CharField(source="original_ground.location", read_only=True)
     is_valid                 = serializers.SerializerMethodField()
     is_expired               = serializers.SerializerMethodField()
@@ -95,21 +97,10 @@ class ReschedulingTokenSerializer(serializers.ModelSerializer):
     class Meta:
         model  = ReschedulingToken
         fields = [
-            "id",
-            "token",
-            "original_ground",
-            "original_ground_name",
-            "original_ground_location",
-            "original_date",
-            "original_start_time",
-            "original_end_time",
-            "original_price",
-            "is_used",
-            "is_valid",
-            "is_expired",
-            "days_until_expiry",
-            "created_at",
-            "expires_at",
+            "id", "token", "original_ground", "original_ground_name",
+            "original_ground_location", "original_date", "original_start_time",
+            "original_end_time", "original_price", "is_used", "is_valid",
+            "is_expired", "days_until_expiry", "created_at", "expires_at",
         ]
         read_only_fields = fields
 
@@ -120,7 +111,6 @@ class ReschedulingTokenSerializer(serializers.ModelSerializer):
         return obj.is_expired()
 
     def get_days_until_expiry(self, obj):
-        from django.utils import timezone
         if obj.is_used or obj.is_expired():
             return 0
         delta = obj.expires_at - timezone.now()

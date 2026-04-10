@@ -3,22 +3,36 @@ from rest_framework import serializers
 from .models import Ground, Favorite, PeakPricingRule, BlockedSlot
 
 
-# ─── Peak Pricing Serializer ──────────────────────────────────────────────────
+# ─── Peak / Off-Peak Pricing Serializer ──────────────────────────────────────
 
 class PeakPricingRuleSerializer(serializers.ModelSerializer):
     day_of_week_display = serializers.SerializerMethodField()
+    rule_type_display   = serializers.SerializerMethodField()
 
     class Meta:
         model  = PeakPricingRule
         fields = [
-            "id", "day_of_week", "day_of_week_display",
-            "start_hour", "end_hour", "price_per_hour",
-            "label", "is_active", "created_at",
+            "id",
+            "rule_type",
+            "rule_type_display",
+            "day_of_week",
+            "day_of_week_display",
+            "start_hour",
+            "end_hour",
+            "price_per_hour",
+            "label",
+            "is_active",
+            "created_at",
         ]
-        read_only_fields = ["id", "created_at", "day_of_week_display"]
+        read_only_fields = ["id", "created_at", "day_of_week_display", "rule_type_display"]
 
     def get_day_of_week_display(self, obj):
         return dict(PeakPricingRule.DAY_CHOICES).get(obj.day_of_week, "All Days")
+
+    def get_rule_type_display(self, obj):
+        return dict(PeakPricingRule.RULE_TYPE_CHOICES).get(
+            getattr(obj, "rule_type", "peak"), "Peak Pricing"
+        )
 
     def validate(self, attrs):
         start = attrs.get("start_hour", getattr(self.instance, "start_hour", None))
@@ -53,7 +67,9 @@ class BlockedSlotSerializer(serializers.ModelSerializer):
             "start_hour", "end_hour",
             "reason", "is_active", "is_full_day", "created_at",
         ]
-        read_only_fields = ["id", "created_at", "block_type_display", "day_of_week_display", "is_full_day"]
+        read_only_fields = [
+            "id", "created_at", "block_type_display", "day_of_week_display", "is_full_day",
+        ]
 
     def get_day_of_week_display(self, obj):
         if obj.day_of_week is None:
@@ -75,11 +91,9 @@ class BlockedSlotSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"day_of_week": "A day of week is required for block_type='recurring'."}
             )
-
-        # If partial hour block, both start and end must be provided
         if (start_hour is None) != (end_hour is None):
             raise serializers.ValidationError(
-                "Both start_hour and end_hour must be provided together, or both left blank for a full-day block."
+                "Both start_hour and end_hour must be provided together, or both left blank."
             )
         if start_hour is not None and end_hour is not None:
             if start_hour >= end_hour:
@@ -88,11 +102,10 @@ class BlockedSlotSerializer(serializers.ModelSerializer):
                 )
             if start_hour < 0 or end_hour > 24:
                 raise serializers.ValidationError("Hours must be between 0 and 24.")
-
         return attrs
 
 
-# ─── Ground serializers ───────────────────────────────────────────────────────
+# ─── Ground Serializers ───────────────────────────────────────────────────────
 
 class GroundSerializer(serializers.ModelSerializer):
     owner               = serializers.EmailField(source="owner.email", read_only=True)
@@ -124,7 +137,9 @@ class GroundSerializer(serializers.ModelSerializer):
         opening = attrs.get("opening_time") or (self.instance.opening_time if self.instance else None)
         closing = attrs.get("closing_time") or (self.instance.closing_time if self.instance else None)
         if opening and closing and opening >= closing:
-            raise serializers.ValidationError({"closing_time": "Closing time must be after opening time."})
+            raise serializers.ValidationError(
+                {"closing_time": "Closing time must be after opening time."}
+            )
         return attrs
 
     def validate_price_per_hour(self, value):
@@ -161,7 +176,7 @@ class PublicGroundSerializer(serializers.ModelSerializer):
         ]
 
 
-# ─── Favorite serializer ──────────────────────────────────────────────────────
+# ─── Favorite Serializer ──────────────────────────────────────────────────────
 
 class FavoriteSerializer(serializers.ModelSerializer):
     ground_id      = serializers.IntegerField(source="ground.id",            read_only=True)

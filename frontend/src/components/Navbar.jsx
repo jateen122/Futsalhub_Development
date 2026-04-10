@@ -1,8 +1,9 @@
+// frontend/src/components/Navbar.jsx
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   Bell, User, Trophy, Heart, CreditCard,
-  LayoutDashboard, Home, MapPin, Settings,
+  LayoutDashboard, Home, MapPin, Settings, BarChart2,
 } from "lucide-react";
 
 const BASE_URL = "http://127.0.0.1:8000";
@@ -13,13 +14,12 @@ export default function Navbar() {
   const role     = localStorage.getItem("role");
   const token    = localStorage.getItem("access");
 
-  const [unreadCount,  setUnreadCount]  = useState(0);
-  const [menuOpen,     setMenuOpen]     = useState(false);
-  const [profileOpen,  setProfileOpen]  = useState(false);
+  const [unreadCount, setUnreadCount]  = useState(0);
+  const [menuOpen,    setMenuOpen]     = useState(false);
+  const [profileOpen, setProfileOpen]  = useState(false);
   const menuRef    = useRef(null);
   const profileRef = useRef(null);
 
-  /* ── notifications ───────────────────────── */
   useEffect(() => {
     if (!token) return;
     const fetchUnread = async () => {
@@ -37,7 +37,6 @@ export default function Navbar() {
     return () => clearInterval(iv);
   }, [token]);
 
-  /* ── close menus on outside click ─────────── */
   useEffect(() => {
     const handler = (e) => {
       if (menuRef.current    && !menuRef.current.contains(e.target))    setMenuOpen(false);
@@ -68,24 +67,23 @@ export default function Navbar() {
     : role === "owner" ? "/owner-dashboard"
     : "/player-dashboard";
 
-  /* ── Nav links per role ──────────────────── */
-
   const playerLinks = [
-    { to: "/",               icon: <Home size={16} />,          label: "Home"      },
-    { to: "/grounds",        icon: <MapPin size={16} />,         label: "Grounds"   },
+    { to: "/",                 icon: <Home size={16} />,          label: "Home"      },
+    { to: "/grounds",          icon: <MapPin size={16} />,         label: "Grounds"   },
     { to: "/player-dashboard", icon: <LayoutDashboard size={16} />, label: "Dashboard" },
-    { to: "/my-bookings",    icon: <LayoutDashboard size={16} />, label: "Bookings"  },
-    { to: "/my-payments",    icon: <CreditCard size={16} />,     label: "Payments"  },
-    { to: "/my-favorites",   icon: <Heart size={16} />,          label: "Favorites" },
-    { to: "/player-loyalty", icon: <Trophy size={16} />,         label: "Loyalty"   },
+    { to: "/my-bookings",      icon: <LayoutDashboard size={16} />, label: "Bookings"  },
+    { to: "/my-payments",      icon: <CreditCard size={16} />,     label: "Payments"  },
+    { to: "/my-favorites",     icon: <Heart size={16} />,          label: "Favorites" },
+    { to: "/player-loyalty",   icon: <Trophy size={16} />,         label: "Loyalty"   },
   ];
 
   const ownerLinks = [
-    { to: "/owner-dashboard",   label: "Dashboard"          },
-    { to: "/add-ground",        label: "Add Ground"         },
-    { to: "/manage-grounds",    label: "My Grounds"         },
-    { to: "/owner-bookings",    label: "Bookings"           },
-    { to: "/owner-pricing",     icon: <Settings size={16} />, label: "Pricing & Availability" }, // ← updated
+    { to: "/owner-dashboard",    label: "Dashboard"   },
+    { to: "/add-ground",         label: "Add Ground"  },
+    { to: "/manage-grounds",     label: "My Grounds"  },
+    { to: "/owner-bookings",     label: "Bookings"    },
+    { to: "/owner-pricing",      icon: <Settings  size={16} />, label: "Pricing & Availability" },
+    { to: "/owner-analytics",    icon: <BarChart2 size={16} />, label: "Analytics"  },
   ];
 
   const adminLinks = [
@@ -96,7 +94,7 @@ export default function Navbar() {
   ];
 
   const publicLinks = [
-    { to: "/",       label: "Home"    },
+    { to: "/",        label: "Home"    },
     { to: "/grounds", label: "Grounds" },
     { to: "/about",   label: "About"   },
   ];
@@ -106,6 +104,8 @@ export default function Navbar() {
     : role === "owner"  ? ownerLinks
     : role === "admin"  ? adminLinks
     : publicLinks;
+
+  const isActive = (to) => location.pathname === to;
 
   return (
     <nav className="fixed top-0 w-full z-50 bg-black border-b border-white/10">
@@ -120,14 +120,19 @@ export default function Navbar() {
         <div className="hidden md:flex items-center gap-6">
           {links.map((l) => (
             <Link key={l.to} to={l.to}
-              className={`flex items-center gap-1 text-sm font-semibold transition
-                ${location.pathname === l.to ? "text-white" : "text-gray-400 hover:text-white"}`}>
+              className={`flex items-center gap-1.5 text-sm font-semibold transition
+                ${isActive(l.to) ? "text-white" : "text-gray-400 hover:text-white"}`}>
               {l.icon}
               {l.label}
+              {/* Analytics highlight badge */}
+              {l.to === "/owner-analytics" && (
+                <span className="ml-0.5 text-[9px] bg-amber-400 text-black font-black px-1.5 py-0.5 rounded-full">
+                  NEW
+                </span>
+              )}
             </Link>
           ))}
 
-          {/* Auth area */}
           {!role ? (
             <>
               <Link to="/login"    className="text-gray-400 hover:text-white text-sm">Login</Link>
@@ -135,12 +140,12 @@ export default function Navbar() {
             </>
           ) : (
             <div className="flex items-center gap-4">
-              {/* Notification bell */}
+              {/* Bell */}
               <Link to={notifPath} className="relative text-gray-400 hover:text-white">
                 <Bell size={20} />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-400 text-black text-[9px] rounded-full flex items-center justify-center">
-                    {unreadCount}
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-400 text-black text-[9px] rounded-full flex items-center justify-center font-black">
+                    {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
                 )}
               </Link>
@@ -152,7 +157,7 @@ export default function Navbar() {
                 </button>
 
                 {profileOpen && (
-                  <div className="absolute right-0 top-10 w-48 bg-[#0f1825] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+                  <div className="absolute right-0 top-10 w-52 bg-[#0f1825] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
                     <Link to="/profile"
                       className="block px-4 py-3 text-sm text-white/70 hover:bg-white/10 transition">
                       👤 Profile
@@ -168,10 +173,17 @@ export default function Navbar() {
                       </Link>
                     )}
                     {role === "owner" && (
-                      <Link to="/owner-pricing"
-                        className="block px-4 py-3 text-sm text-white/70 hover:bg-white/10 transition">
-                        ⚙️ Pricing & Availability
-                      </Link>
+                      <>
+                        <Link to="/owner-pricing"
+                          className="block px-4 py-3 text-sm text-white/70 hover:bg-white/10 transition">
+                          ⚙️ Pricing & Availability
+                        </Link>
+                        <Link to="/owner-analytics"
+                          className="block px-4 py-3 text-sm text-white/70 hover:bg-white/10 transition">
+                          📈 Analytics
+                          <span className="ml-2 text-[9px] bg-amber-400 text-black font-black px-1.5 py-0.5 rounded-full">NEW</span>
+                        </Link>
+                      </>
                     )}
                     <div className="border-t border-white/10" />
                     <button onClick={handleLogout}
@@ -197,25 +209,27 @@ export default function Navbar() {
           {links.map((l) => (
             <Link key={l.to} to={l.to}
               className={`text-sm font-medium transition flex items-center gap-2
-                ${location.pathname === l.to ? "text-white" : "text-gray-400 hover:text-white"}`}>
-              {l.icon}{l.label}
+                ${isActive(l.to) ? "text-white" : "text-gray-400 hover:text-white"}`}>
+              {l.icon}
+              {l.label}
+              {l.to === "/owner-analytics" && (
+                <span className="text-[9px] bg-amber-400 text-black font-black px-1.5 py-0.5 rounded-full">NEW</span>
+              )}
             </Link>
           ))}
           {role && (
-            <>
-              <div className="border-t border-white/10 pt-3 mt-1 space-y-3">
-                <Link to="/profile" className="text-gray-400 hover:text-white text-sm block">👤 Profile</Link>
-                <Link to={notifPath} className="text-gray-400 hover:text-white text-sm flex items-center gap-2">
-                  <Bell size={14} /> Notifications
-                  {unreadCount > 0 && (
-                    <span className="ml-1 bg-amber-400 text-black text-[9px] font-black px-1.5 py-0.5 rounded-full">
-                      {unreadCount}
-                    </span>
-                  )}
-                </Link>
-                <button onClick={handleLogout} className="text-red-400 text-sm text-left">🚪 Logout</button>
-              </div>
-            </>
+            <div className="border-t border-white/10 pt-3 mt-1 space-y-3">
+              <Link to="/profile" className="text-gray-400 hover:text-white text-sm block">👤 Profile</Link>
+              <Link to={notifPath} className="text-gray-400 hover:text-white text-sm flex items-center gap-2">
+                <Bell size={14} /> Notifications
+                {unreadCount > 0 && (
+                  <span className="bg-amber-400 text-black text-[9px] font-black px-1.5 py-0.5 rounded-full">
+                    {unreadCount}
+                  </span>
+                )}
+              </Link>
+              <button onClick={handleLogout} className="text-red-400 text-sm text-left">🚪 Logout</button>
+            </div>
           )}
           {!role && (
             <div className="border-t border-white/10 pt-3 mt-1 flex gap-3">

@@ -241,7 +241,7 @@ class FavoriteListView(generics.ListAPIView):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Peak Pricing
+# Peak Pricing (now supports both peak and off_peak rule types)
 # ─────────────────────────────────────────────────────────────────────────────
 
 class PeakPricingRuleListCreateView(APIView):
@@ -263,8 +263,10 @@ class PeakPricingRuleListCreateView(APIView):
         rules = PeakPricingRule.objects.filter(ground=ground)
         serializer = PeakPricingRuleSerializer(rules, many=True)
         return Response({
-            "ground_id": ground.id, "ground_name": ground.name,
-            "base_price": str(ground.price_per_hour), "rules": serializer.data,
+            "ground_id":   ground.id,
+            "ground_name": ground.name,
+            "base_price":  str(ground.price_per_hour),
+            "rules":       serializer.data,
         })
 
     def post(self, request, ground_id):
@@ -313,7 +315,7 @@ class PeakPricingRuleDetailView(APIView):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Slot Pricing (public)
+# Slot Pricing (public) — now returns is_off_peak too
 # ─────────────────────────────────────────────────────────────────────────────
 
 class SlotPricingView(APIView):
@@ -338,20 +340,24 @@ class SlotPricingView(APIView):
         except (ValueError, TypeError):
             return Response({"detail": "Invalid date or hour format."}, status=400)
 
-        # Check if slot is blocked
         is_blocked, block_reason = ground.is_slot_blocked(booking_date, hour)
-
         effective_price = ground.get_price_for_slot(booking_date, hour)
 
         day_of_week = booking_date.weekday()
         rules = ground.peak_pricing_rules.filter(is_active=True)
-        matched_rule = None
+
+        matched_peak_rule    = None
+        matched_off_peak_rule = None
+
         for rule in rules:
             day_match  = (rule.day_of_week == -1 or rule.day_of_week == day_of_week)
             hour_match = rule.start_hour <= hour < rule.end_hour
             if day_match and hour_match:
-                matched_rule = rule
-                break
+                rule_type = getattr(rule, "rule_type", "peak")
+                if rule_type == "off_peak":
+                    matched_off_peak_rule = rule
+                else:
+                    matched_peak_rule = rule
 
         return Response({
             "ground_id":       ground.id,
@@ -360,8 +366,10 @@ class SlotPricingView(APIView):
             "hour":            hour,
             "base_price":      str(ground.price_per_hour),
             "effective_price": str(effective_price),
-            "is_peak":         matched_rule is not None,
-            "peak_rule":       PeakPricingRuleSerializer(matched_rule).data if matched_rule else None,
+            "is_peak":         matched_peak_rule is not None,
+            "is_off_peak":     matched_off_peak_rule is not None,
+            "peak_rule":       PeakPricingRuleSerializer(matched_peak_rule).data if matched_peak_rule else None,
+            "off_peak_rule":   PeakPricingRuleSerializer(matched_off_peak_rule).data if matched_off_peak_rule else None,
             "is_blocked":      is_blocked,
             "block_reason":    block_reason,
         })
@@ -369,7 +377,6 @@ class SlotPricingView(APIView):
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Blocked Slots — Owner CRUD
-# GET/POST /api/grounds/<ground_id>/blocks/
 # ─────────────────────────────────────────────────────────────────────────────
 
 class BlockedSlotListCreateView(APIView):
@@ -409,11 +416,6 @@ class BlockedSlotListCreateView(APIView):
         )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Blocked Slots — Owner detail
-# GET/PATCH/DELETE /api/grounds/<ground_id>/blocks/<pk>/
-# ─────────────────────────────────────────────────────────────────────────────
-
 class BlockedSlotDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsOwnerRole]
 
@@ -447,8 +449,7 @@ class BlockedSlotDetailView(APIView):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Public blocked slots — used by booking page
-# GET /api/grounds/<ground_id>/blocked-slots/?date=YYYY-MM-DD
+# Public blocked slots — for booking page
 # ─────────────────────────────────────────────────────────────────────────────
 
 class PublicBlockedSlotsView(APIView):
@@ -478,11 +479,10 @@ class PublicBlockedSlotsView(APIView):
         block_reason  = ""
 
         for block in active_blocks:
-            # Date match
-            if block.block_type == 'date':
+            if block.block_type == "date":
                 if block.blocked_date != booking_date:
                     continue
-            elif block.block_type == 'recurring':
+            elif block.block_type == "recurring":
                 if block.day_of_week != day_of_week:
                     continue
 
