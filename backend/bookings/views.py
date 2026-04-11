@@ -116,16 +116,42 @@ class CancelBookingView(generics.UpdateAPIView):
     def patch(self, request, *args, **kwargs):
         booking = self.get_object()
 
+        # Already cancelled/refunded
         if booking.status in [Booking.Status.CANCELLED, Booking.Status.REFUNDED]:
             return Response(
                 {"detail": f"Booking is already {booking.status}."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # ── Enforce 4-hour cancellation window ─────────────────────────────
+        # Players can only cancel if the slot is still 4+ hours away.
+        # We reuse can_cancel_with_token() which checks the 4h window.
+        if not booking.can_cancel_with_token():
+            hours_left = round(booking.hours_until_slot(), 1) if hasattr(booking, 'hours_until_slot') else 0
+            return Response(
+                {
+                    "detail": (
+                        f"Cancellation is not allowed within {CANCEL_WINDOW_HOURS} hours of the slot. "
+                        f"Your slot starts in approximately {hours_left} hour(s)."
+                    ),
+                    "error_code": "CANCEL_WINDOW_PASSED",
+                    "hours_until_slot": hours_left,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         was_confirmed  = (booking.status == Booking.Status.CONFIRMED)
         is_paid        = not booking.is_free_booking and booking.total_price > 0
-        eligible_token = booking.can_cancel_with_token() and is_paid
 
+        # ── Determine if a rescheduling token should be issued ──────────────
+        # Token is ONLY issued for Khalti-paid bookings (not cash, not free)
+        is_khalti_paid = booking.payments.filter(
+            status="SUCCESS",
+            payment_method="khalti",
+        ).exists()
+        eligible_token = is_paid and is_khalti_paid
+
+        # Cancel the booking
         booking.status = Booking.Status.CANCELLED
         booking.save(update_fields=["status"])
 
@@ -137,7 +163,7 @@ class CancelBookingView(generics.UpdateAPIView):
             except LoyaltyRecord.DoesNotExist:
                 pass
 
-        # Issue rescheduling token if eligible
+        # Issue rescheduling token if eligible (Khalti only)
         token_issued = None
         if eligible_token:
             token_obj    = ReschedulingToken.create_for_booking(booking)
@@ -151,16 +177,18 @@ class CancelBookingView(generics.UpdateAPIView):
 
         if token_issued:
             resp["token_message"] = (
-                f"Rescheduling token issued (Rs {booking.total_price}). "
-                f"Valid for 30 days at the same ground."
+                f"A rescheduling token worth Rs {booking.total_price} has been issued. "
+                f"Use it to rebook the same ground within 30 days — completely free!"
             )
-        elif not is_paid:
+        elif booking.is_free_booking:
             resp["token_message"] = "Free bookings do not generate rescheduling tokens."
-        else:
-            hours = round(booking.hours_until_slot(), 1) if hasattr(booking, 'hours_until_slot') else 0
+        elif not is_khalti_paid:
             resp["token_message"] = (
-                f"No token issued — cancellation was within {CANCEL_WINDOW_HOURS} hours of the slot."
+                "Your booking has been cancelled. "
+                "Rescheduling tokens are only issued for Khalti-paid bookings."
             )
+        else:
+            resp["token_message"] = "Booking cancelled. No rescheduling token issued."
 
         return Response(resp)
 
@@ -229,7 +257,12 @@ class UserBookingsView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        qs = Booking.objects.filter(user=self.request.user).select_related("user", "ground")
+        qs = (
+            Booking.objects
+            .filter(user=self.request.user)
+            .select_related("user", "ground")
+            .prefetch_related("payments")
+        )
         if sf := self.request.query_params.get("status"):
             qs = qs.filter(status=sf.lower())
         return qs
@@ -244,7 +277,12 @@ class OwnerBookingsView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated, IsOwnerOfGround]
 
     def get_queryset(self):
-        qs = Booking.objects.filter(ground__owner=self.request.user).select_related("user", "ground")
+        qs = (
+            Booking.objects
+            .filter(ground__owner=self.request.user)
+            .select_related("user", "ground")
+            .prefetch_related("payments")
+        )
         if gid := self.request.query_params.get("ground_id"):
             qs = qs.filter(ground_id=gid)
         if sf := self.request.query_params.get("status"):

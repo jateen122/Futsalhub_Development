@@ -11,6 +11,8 @@ class BookingSerializer(serializers.ModelSerializer):
     ground_name = serializers.CharField(source="ground.name",  read_only=True)
     can_cancel_with_token = serializers.SerializerMethodField()
     hours_until_slot      = serializers.SerializerMethodField()
+    payment_method        = serializers.SerializerMethodField()
+    can_cancel            = serializers.SerializerMethodField()
 
     class Meta:
         model  = Booking
@@ -19,18 +21,39 @@ class BookingSerializer(serializers.ModelSerializer):
             "date", "start_time", "end_time", "total_price",
             "status", "is_free_booking", "created_at",
             "can_cancel_with_token", "hours_until_slot",
+            "payment_method", "can_cancel",
         ]
         read_only_fields = [
             "id", "user", "user_email", "ground_name",
             "total_price", "status", "is_free_booking", "created_at",
             "can_cancel_with_token", "hours_until_slot",
+            "payment_method", "can_cancel",
         ]
 
     def get_can_cancel_with_token(self, obj):
+        """True only for Khalti-paid confirmed bookings cancelled 4h+ before slot."""
         if obj.status not in [Booking.Status.PENDING, Booking.Status.CONFIRMED]:
             return False
         try:
-            return obj.can_cancel_with_token()
+            can_cancel = obj.can_cancel_with_token()
+        except Exception:
+            return False
+        if not can_cancel:
+            return False
+        # Must be paid via Khalti (not cash, not free)
+        if obj.is_free_booking:
+            return False
+        return obj.payments.filter(status="SUCCESS", payment_method="khalti").exists()
+
+    def get_can_cancel(self, obj):
+        """
+        Cancel button is visible only when the slot is 4+ hours away
+        (regardless of payment method). Once within 4 hours, no cancellation.
+        """
+        if obj.status not in [Booking.Status.PENDING, Booking.Status.CONFIRMED]:
+            return False
+        try:
+            return obj.can_cancel_with_token()  # reuses the 4h window check
         except Exception:
             return False
 
@@ -39,6 +62,22 @@ class BookingSerializer(serializers.ModelSerializer):
             return round(obj.hours_until_slot(), 1)
         except Exception:
             return None
+
+    def get_payment_method(self, obj):
+        """
+        Returns 'khalti', 'cash', 'free', or 'unknown'.
+        Checks the Payment records linked to this booking.
+        """
+        if obj.is_free_booking:
+            return "free"
+        payment = obj.payments.filter(status="SUCCESS").order_by("-created_at").first()
+        if payment:
+            return payment.payment_method
+        # Pending cash bookings may not have a SUCCESS payment yet
+        pending_payment = obj.payments.order_by("-created_at").first()
+        if pending_payment:
+            return pending_payment.payment_method
+        return "unknown"
 
     def validate_date(self, value):
         if value < timezone.localdate():
