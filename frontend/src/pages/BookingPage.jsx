@@ -115,15 +115,10 @@ function LoyaltyPanel({ groundId, useFree, onFreeToggle }) {
             className={`w-9 h-9 rounded-2xl flex items-center justify-center
             ${hasFree ? "bg-amber-500" : "bg-gray-100"}`}
           >
-            <Gift
-              size={18}
-              className={hasFree ? "text-white" : "text-gray-500"}
-            />
+            <Gift size={18} className={hasFree ? "text-white" : "text-gray-500"} />
           </div>
           <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">
-              LOYALTY REWARD
-            </p>
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">LOYALTY REWARD</p>
             <p className="text-base font-bold text-gray-900">Book 5, Get 1 Free</p>
           </div>
         </div>
@@ -149,7 +144,7 @@ function LoyaltyPanel({ groundId, useFree, onFreeToggle }) {
 
       <p className="text-xs text-gray-500">
         {hasFree
-          ? `🎁 You have ${free_bookings_available} free booking${free_bookings_available > 1 ? "s" : ""} available!`
+          ? `You have ${free_bookings_available} free booking${free_bookings_available > 1 ? "s" : ""} available!`
           : `${bookings_until_next_free} more booking${bookings_until_next_free !== 1 ? "s" : ""} until your next free slot`}
       </p>
 
@@ -169,12 +164,7 @@ function LoyaltyPanel({ groundId, useFree, onFreeToggle }) {
   );
 }
 
-function ReschedulingTokenPanel({
-  groundId,
-  activeToken,
-  onTokenApply,
-  onTokenRemove,
-}) {
+function ReschedulingTokenPanel({ groundId, activeToken, onTokenApply, onTokenRemove }) {
   const token = localStorage.getItem("access");
   const [tokens, setTokens] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -208,9 +198,7 @@ function ReschedulingTokenPanel({
           <Tag size={18} className="text-white" />
         </div>
         <div>
-          <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">
-            RESCHEDULING TOKEN
-          </p>
+          <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">RESCHEDULING TOKEN</p>
           <p className="text-base font-bold text-gray-900">
             {tokens.length} token{tokens.length > 1 ? "s" : ""} available
           </p>
@@ -222,9 +210,7 @@ function ReschedulingTokenPanel({
           <p className="text-blue-800 font-semibold text-sm">
             ✓ Token applied — Rs {activeToken.original_price} credit
           </p>
-          <p className="text-blue-600 text-xs mt-1">
-            From {activeToken.original_date}
-          </p>
+          <p className="text-blue-600 text-xs mt-1">From {activeToken.original_date}</p>
           <button
             onClick={onTokenRemove}
             className="w-full mt-4 py-3 text-sm font-semibold border border-blue-300 text-blue-700 rounded-2xl hover:bg-blue-50 transition"
@@ -252,9 +238,7 @@ function ReschedulingTokenPanel({
               }}
               className="w-full text-left p-4 bg-white border border-blue-200 rounded-2xl hover:border-blue-400 hover:bg-blue-50 transition"
             >
-              <p className="text-base font-semibold text-gray-900">
-                Rs {t.original_price} credit
-              </p>
+              <p className="text-base font-semibold text-gray-900">Rs {t.original_price} credit</p>
               <p className="text-xs text-gray-500 mt-1">
                 From {t.original_date} • Expires in {t.days_until_expiry} day
                 {t.days_until_expiry !== 1 ? "s" : ""}
@@ -579,7 +563,7 @@ export default function BookingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-amber-50 pt-20 pb-16">
-      {/* Top Bar */}
+      {/* Top Bar - Full width */}
       <div className="bg-white border-b border-gray-100 px-6 py-4 sticky top-16 z-40 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center gap-2 text-sm">
           <button
@@ -597,7 +581,7 @@ export default function BookingPage() {
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="grid grid-cols-12 gap-8">
-          {/* LEFT: Ground Info */}
+          {/* LEFT: Ground Info Panel - Full height usage */}
           <div className="col-span-12 lg:col-span-4 space-y-6">
             <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden sticky top-28">
               {/* Image */}
@@ -609,7 +593,7 @@ export default function BookingPage() {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-amber-100 to-yellow-100 flex items-center justify-center text-7xl">
+                  <div className="w-full h-full flex items-center justify-center text-7xl bg-gradient-to-br from-amber-100 to-yellow-100">
                     ⚽
                   </div>
                 )}
@@ -650,7 +634,7 @@ export default function BookingPage() {
                 </div>
               </div>
 
-              {/* Loyalty & Token Panels */}
+              {/* Loyalty & Token */}
               <div className="px-6 pb-6 space-y-4">
                 <ReschedulingTokenPanel
                   groundId={ground.id}
@@ -679,7 +663,7 @@ export default function BookingPage() {
             </div>
           </div>
 
-          {/* RIGHT: Booking Flow */}
+          {/* RIGHT: Booking Flow - Full remaining space */}
           <div className="col-span-12 lg:col-span-8">
             {/* Step Indicator */}
             <div className="flex items-center gap-3 mb-8">
@@ -723,7 +707,7 @@ export default function BookingPage() {
 
             {step === 1 && (
               <div className="space-y-6">
-                {/* Date */}
+                {/* Date Picker */}
                 <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
                   <div className="flex items-center gap-2 mb-4">
                     <Calendar size={20} className="text-yellow-500" />
@@ -750,7 +734,7 @@ export default function BookingPage() {
                   </div>
                 )}
 
-                {/* Slots */}
+                {/* Slot Picker */}
                 <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
                   <div className="flex justify-between items-center mb-6">
                     <div className="flex items-center gap-2">
@@ -796,10 +780,10 @@ export default function BookingPage() {
                           badge = "✓ Selected";
                         } else if (priceInfo.isPeak) {
                           btnClass = "bg-amber-50 border-amber-300 hover:bg-amber-100";
-                          badge = "🔥 Peak";
+                          badge = "Peak";
                         } else if (priceInfo.isOffPeak) {
                           btnClass = "bg-blue-50 border-blue-300 hover:bg-blue-100";
-                          badge = "💰 Off-Peak";
+                          badge = "Off-Peak";
                         } else {
                           btnClass = "bg-white border-gray-200 hover:border-yellow-400";
                         }
@@ -933,7 +917,15 @@ export default function BookingPage() {
                             : "bg-green-500 hover:bg-green-600 text-white"
                     }`}
                   >
-                    {submitting ? "Processing..." : activeToken ? "Confirm Rescheduled Booking" : useFree ? "Confirm Free Booking" : method === "khalti" ? `Pay Rs ${totalPrice} via Khalti` : `Confirm Cash Booking`}
+                    {submitting
+                      ? "Processing..."
+                      : activeToken
+                        ? "Confirm Rescheduled Booking"
+                        : useFree
+                          ? "Confirm Free Booking"
+                          : method === "khalti"
+                            ? `Pay Rs ${totalPrice} via Khalti`
+                            : `Confirm Cash Booking`}
                   </button>
                 </div>
               </div>

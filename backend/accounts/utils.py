@@ -18,7 +18,7 @@ def send_otp_email(user, otp: str) -> bool:
     Returns:
         True on success, False on failure.
     """
-    subject    = "🔐 Your FutsalHub Verification Code"
+    subject    = "Your FutsalHub Verification Code"
     from_email = settings.DEFAULT_FROM_EMAIL
     to         = [user.email]
 
@@ -63,7 +63,7 @@ def send_otp_email(user, otp: str) -> bool:
           <tr>
             <td style="background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);
                        padding:32px 40px;text-align:center;">
-              <div style="font-size:32px;margin-bottom:8px;">⚽</div>
+              <div style="font-size:32px;margin-bottom:8px;"></div>
               <h1 style="margin:0;font-size:24px;color:#000;font-weight:900;
                          letter-spacing:-0.5px;">FutsalHub</h1>
               <p style="margin:6px 0 0;font-size:13px;color:rgba(0,0,0,0.6);">
@@ -76,7 +76,7 @@ def send_otp_email(user, otp: str) -> bool:
           <tr>
             <td style="padding:40px;">
               <h2 style="margin:0 0 8px;font-size:20px;color:#fff;font-weight:700;">
-                Hi {user.full_name} 👋
+                Hi {user.full_name} 
               </h2>
               <p style="margin:0 0 28px;font-size:15px;color:#888;line-height:1.6;">
                 Use the code below to verify your email address.
