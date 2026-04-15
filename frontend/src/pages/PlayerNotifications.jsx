@@ -68,7 +68,7 @@ export default function PlayerNotifications() {
       return;
     }
     fetchNotifications();
-  }, []);
+  }, [token]);
 
   const markRead = async (id) => {
     await fetch(`${BASE_URL}/api/notifications/${id}/read/`, {
@@ -100,83 +100,78 @@ export default function PlayerNotifications() {
       : notifications;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-amber-50 pt-20">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-amber-50 pt-24">
 
-      {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-6 py-5 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate("/player-dashboard")}
-              className="flex items-center gap-2 text-gray-500 hover:text-gray-800 transition text-sm font-medium"
-            >
-              <ArrowLeft size={18} />
-              Dashboard
-            </button>
-            <span className="text-gray-300">/</span>
-            <h1 className="text-2xl font-semibold text-gray-900">Notifications</h1>
-          </div>
+      {/* HEADER */}
+      <div className="w-full px-6 md:px-10 lg:px-14 xl:px-20 mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
 
-          {unreadCount > 0 && (
-            <button
-              onClick={markAllRead}
-              disabled={markingAll}
-              className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2.5 rounded-2xl font-semibold text-sm transition disabled:opacity-50"
-            >
-              <CheckCircle size={18} />
-              {markingAll ? "Marking..." : "Mark all read"}
-            </button>
-          )}
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate("/player-dashboard")}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium transition"
+          >
+            <ArrowLeft size={20} />
+            Back to Dashboard
+          </button>
+
+          <span className="text-gray-300">/</span>
+
+          <h1 className="text-3xl font-black text-gray-900">
+            Notifications
+          </h1>
         </div>
+
+        {unreadCount > 0 && (
+          <button
+            onClick={markAllRead}
+            disabled={markingAll}
+            className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-2xl font-semibold shadow-sm transition"
+          >
+            {markingAll ? "Marking..." : "Mark all as read"}
+          </button>
+        )}
       </div>
 
-      <div className="max-w-4xl mx-auto px-6 py-10">
+      {/* MAIN CONTENT */}
+      <div className="w-full px-6 md:px-10 lg:px-14 xl:px-20 space-y-8">
 
-        {/* Stats / Unread Count */}
-        <div className="bg-white rounded-3xl p-8 shadow border border-gray-100 mb-10 flex items-center gap-6">
+        {/* SUMMARY */}
+        <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm flex items-center gap-6">
           <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center">
             <Bell size={32} className="text-amber-600" />
           </div>
           <div>
-            <p className="text-4xl font-bold text-gray-900">{unreadCount}</p>
-            <p className="text-gray-500">Unread notifications</p>
+            <p className="text-4xl font-black text-gray-900">{unreadCount}</p>
+            <p className="text-gray-500">Unread Notifications</p>
           </div>
         </div>
 
-        {/* Filter Tabs */}
-        <div className="flex gap-2 mb-8 bg-white p-1.5 rounded-3xl shadow-sm w-fit">
+        {/* FILTER */}
+        <div className="flex gap-2 bg-white p-2 rounded-2xl border border-gray-100 w-fit">
           {["all", "unread", "read"].map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-8 py-3 rounded-2xl font-semibold capitalize transition-all text-sm
-                ${filter === f
-                  ? "bg-yellow-500 text-white shadow"
-                  : "bg-transparent hover:bg-gray-100 text-gray-600"}`}
+              className={`px-5 py-2 rounded-xl font-medium transition ${
+                filter === f
+                  ? "bg-amber-500 text-white"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
             >
-              {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
-              {f === "unread" && unreadCount > 0 && (
-                <span className="ml-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                  {unreadCount}
-                </span>
-              )}
+              {f}
             </button>
           ))}
         </div>
 
-        {/* Notifications List */}
+        {/* LIST */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-24">
-            <div className="w-10 h-10 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-gray-500 mt-4">Loading notifications...</p>
+          <div className="text-center py-20 text-gray-500">
+            Loading...
           </div>
         ) : filtered.length === 0 ? (
-          <div className="bg-white rounded-3xl py-24 text-center shadow">
-            <div className="mx-auto w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mb-6">
-              <Bell size={42} className="text-gray-400" />
-            </div>
-            <h3 className="text-2xl font-semibold text-gray-800">No notifications yet</h3>
-            <p className="text-gray-500 mt-2">You’ll see updates here</p>
+          <div className="bg-white rounded-3xl py-16 text-center border">
+            <Bell size={40} className="mx-auto text-gray-300 mb-4" />
+            <p className="text-gray-500">No notifications</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -188,28 +183,26 @@ export default function PlayerNotifications() {
                 <div
                   key={n.id}
                   onClick={() => !n.is_read && markRead(n.id)}
-                  className={`bg-white rounded-3xl p-6 border transition-all cursor-pointer hover:shadow-xl
-                    ${n.is_read 
-                      ? "border-gray-100 opacity-75" 
-                      : `${cfg.border} shadow-sm hover:border-yellow-300`}`}
+                  className={`bg-white rounded-2xl p-6 border cursor-pointer transition hover:shadow ${
+                    n.is_read ? "opacity-70" : "border-amber-200"
+                  }`}
                 >
-                  <div className="flex gap-5">
-                    <div className={`w-12 h-12 ${cfg.bg} rounded-2xl flex items-center justify-center flex-shrink-0`}>
-                      <Icon size={26} className={cfg.color} />
+                  <div className="flex gap-4">
+                    <div className={`w-12 h-12 ${cfg.bg} rounded-xl flex items-center justify-center`}>
+                      <Icon size={22} className={cfg.color} />
                     </div>
 
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-base leading-relaxed font-medium ${n.is_read ? "text-gray-600" : "text-gray-900"}`}>
+                    <div className="flex-1">
+                      <p className={`${n.is_read ? "text-gray-600" : "font-semibold text-gray-900"}`}>
                         {n.message}
                       </p>
-                      <p className="text-gray-400 text-xs mt-3 flex items-center gap-1.5">
-                        <Clock size={14} />
+                      <p className="text-sm text-gray-400 mt-1">
                         {timeAgo(n.created_at)}
                       </p>
                     </div>
 
                     {!n.is_read && (
-                      <div className="w-3 h-3 bg-yellow-500 rounded-full flex-shrink-0 mt-2" />
+                      <div className="w-3 h-3 bg-amber-500 rounded-full mt-2" />
                     )}
                   </div>
                 </div>

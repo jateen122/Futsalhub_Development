@@ -310,7 +310,7 @@ export default function PlayerMyBookings() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-amber-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-amber-50 pt-24">
       {cancelTarget && (
         <CancelModal 
           booking={cancelTarget} 
@@ -321,7 +321,7 @@ export default function PlayerMyBookings() {
       )}
 
       {/* Top Navigation - Full Width */}
-      <div className="bg-white border-b border-gray-100 px-4 md:px-8 lg:px-12 xl:px-24 py-6 sticky top-0 z-50 shadow-sm">
+      <div className="bg-white border-b border-gray-100 px-4 md:px-8 lg:px-12 xl:px-24 py-6  shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button 
@@ -345,7 +345,7 @@ export default function PlayerMyBookings() {
         </div>
       </div>
 
-      <div className="w-full px-4 md:px-8 lg:px-12 xl:px-24 py-12 space-y-12">
+      <div className="w-full px-6 md:px-10 lg:px-14 xl:px-20 py-8 space-y-10">
 
         <ResultBanner 
           result={cancelResult} 
@@ -433,7 +433,7 @@ export default function PlayerMyBookings() {
                 )}
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {filtered.map((b, idx) => {
                   const cfg = STATUS_CFG[b.status] || STATUS_CFG.pending;
                   const canCancel = b.can_cancel;
@@ -443,12 +443,12 @@ export default function PlayerMyBookings() {
                     <div key={b.id} className="bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden">
                       <div className="flex">
                         <div className={`w-2 ${cfg.bar}`} />
-                        <div className="flex-1 p-8">
+                        <div className="flex-1 p-3">
                           <div className="flex items-start justify-between">
                             <div className="flex items-center gap-5">
                               <div className="w-11 h-11 bg-gray-100 rounded-2xl flex items-center justify-center font-black text-gray-400">#{idx + 1}</div>
                               <div>
-                                <h3 className="text-2xl font-bold text-gray-900">{b.ground_name}</h3>
+                                <h3 className="text-lg font-semibold text-gray-900">{b.ground_name}</h3>
                                 {b.ground_location && (
                                   <p className="text-gray-500 flex items-center gap-2 mt-1">
                                     <MapPin size={18} /> {b.ground_location}
@@ -457,21 +457,21 @@ export default function PlayerMyBookings() {
                               </div>
                             </div>
 
-                            <span className={`px-6 py-2.5 rounded-2xl text-sm font-bold border ${cfg.pill}`}>
+                            <span className={`px-3 py-1 rounded-lg text-xs font-semibold border ${cfg.pill}`}>
                               {b.status.toUpperCase()}
                             </span>
                           </div>
 
-                          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="bg-gray-50 rounded-2xl p-6">
+                          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div className="bg-gray-50 rounded-lg p-2.5">
                               <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">DATE</p>
-                              <p className="text-xl font-bold text-gray-900 mt-2">{fmtDateShort(b.date)}</p>
+                              <p className="text-sm font-semibold text-gray-900 mt-1">{fmtDateShort(b.date)}</p>
                             </div>
-                            <div className="bg-gray-50 rounded-2xl p-6">
+                            <div className="bg-gray-50 rounded-lg p-2.5">
                               <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">TIME</p>
-                              <p className="text-xl font-bold text-gray-900 mt-2">{fmt12t(b.start_time)} – {fmt12t(b.end_time)}</p>
+                              <p className="text-sm font-semibold text-gray-900 mt-1">{fmt12t(b.start_time)} – {fmt12t(b.end_time)}</p>
                             </div>
-                            <div className="bg-gray-50 rounded-2xl p-6">
+                            <div className="bg-gray-50 rounded-lg p-2.5">
                               <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">AMOUNT</p>
                               <p className={`text-2xl font-bold mt-2 ${b.is_free_booking ? "text-amber-600" : "text-emerald-700"}`}>
                                 {b.is_free_booking ? "FREE" : `Rs ${b.total_price}`}

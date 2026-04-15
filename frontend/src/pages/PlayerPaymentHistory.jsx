@@ -134,11 +134,11 @@ function SparkBars({ data }) {
 // ─────────────────────────────────────────────────────────────────────────────
 function StatCard({ icon, label, value, sub, accent = false }) {
   return (
-    <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300">
-      <div className={`inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-6 ${accent ? "bg-gradient-to-br from-amber-400 to-yellow-500" : "bg-gradient-to-br from-slate-800 to-slate-900"} text-white`}>
+    <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300">
+      <div className={`inline-flex items-center justify-center w-9 h-9 rounded-2xl mb-6 ${accent ? "bg-gradient-to-br from-amber-400 to-yellow-500" : "bg-gradient-to-br from-slate-800 to-slate-900"} text-white`}>
         {icon}
       </div>
-      <p className="text-4xl font-bold tracking-tighter text-gray-900 mb-1">{value}</p>
+      <p className="text-base font-semibold tracking-tighter text-gray-900 mb-1">{value}</p>
       <p className="text-sm font-semibold text-gray-500 uppercase tracking-widest">{label}</p>
       {sub && <p className="text-sm text-gray-400 mt-1">{sub}</p>}
     </div>
@@ -161,9 +161,9 @@ function TransactionRow({ payment, isExpanded, onToggle }) {
     >
       <button
         onClick={onToggle}
-        className="w-full flex items-center gap-6 px-8 py-7 text-left hover:bg-gray-50/80 transition"
+        className="w-full flex items-center gap-6 px-4 py-4 text-left hover:bg-gray-50/80 transition"
       >
-        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 border ${method.bg} ${method.border}`}>
+        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 border ${method.bg} ${method.border}`}>
           {method.icon}
         </div>
 
@@ -186,7 +186,7 @@ function TransactionRow({ payment, isExpanded, onToggle }) {
         </div>
 
         <div className="text-right flex-shrink-0">
-          <p className={`text-3xl font-bold tracking-tight ${isSuccess ? "text-gray-900" : "text-gray-400 line-through"}`}>
+          <p className={`text-lg font-semibold tracking-tight ${isSuccess ? "text-gray-900" : "text-gray-400 line-through"}`}>
             Rs {parseFloat(payment.amount || 0).toLocaleString()}
           </p>
           <p className={`text-base font-semibold mt-1 ${method.color}`}>{method.label}</p>
@@ -226,7 +226,7 @@ function TransactionRow({ payment, isExpanded, onToggle }) {
             )}
             <div>
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Amount</p>
-              <p className="text-3xl font-bold text-gray-900">Rs {parseFloat(payment.amount || 0).toLocaleString()}</p>
+              <p className="text-lg font-semibold text-gray-900">Rs {parseFloat(payment.amount || 0).toLocaleString()}</p>
             </div>
           </div>
 
@@ -360,7 +360,7 @@ export default function PlayerPaymentHistory() {
     .reduce((s, p) => s + parseFloat(p.amount || 0), 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-amber-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-amber-50 pt-20">
       {/* Top Navigation */}
       <div className="bg-white border-b border-gray-100 px-4 md:px-8 lg:px-12 xl:px-24 py-6 sticky top-0 z-50 shadow-sm">
         <div className="flex items-center justify-between">
@@ -372,7 +372,7 @@ export default function PlayerPaymentHistory() {
               <ArrowLeft size={24} /> Dashboard
             </button>
             <span className="text-gray-300 text-2xl">/</span>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Payment History</h1>
+            <h1 className="text-lg font-semibold tracking-tight text-gray-900">Payment History</h1>
           </div>
 
           <button
@@ -389,14 +389,14 @@ export default function PlayerPaymentHistory() {
       {/* Main Content - Full Width Professional Layout */}
       <div className="w-full px-4 md:px-8 lg:px-12 xl:px-24 py-12 space-y-12">
         {/* Hero Summary */}
-        <div className="bg-white rounded-3xl shadow border border-gray-100 p-10 lg:p-14">
+        <div className="bg-white rounded-2xl shadow border border-gray-100 p-6 lg:p-4">
           <div className="flex flex-col lg:flex-row gap-12 items-start justify-between">
             <div>
               <p className="text-amber-600 font-semibold uppercase tracking-widest text-sm">TOTAL AMOUNT SPENT</p>
-              <p className="text-7xl font-bold tracking-tighter text-gray-900 mt-4">
+              <p className="text-base font-semibold tracking-tighter text-gray-900 mt-4">
                 Rs {analytics.totalSpent.toLocaleString()}
               </p>
-              <div className="mt-6 flex items-center gap-6 text-lg text-gray-600">
+              <div className="mt-4 flex items-center gap-4 text-sm text-gray-600">
                 <span>Across <span className="font-semibold text-gray-900">{analytics.successCount}</span> successful bookings</span>
                 {analytics.thisMonthTotal > 0 && (
                   <span className="bg-amber-100 text-amber-700 px-6 py-2 rounded-2xl font-semibold flex items-center gap-2 text-base">
@@ -424,9 +424,9 @@ export default function PlayerPaymentHistory() {
                 sub: analytics.topGround ? `${analytics.topGround[1]} bookings` : "",
               },
             ].map((item, i) => (
-              <div key={i} className="bg-slate-50 border border-gray-100 rounded-3xl p-7">
+              <div key={i} className="bg-slate-50 border border-gray-100 rounded-xl p-4">
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">{item.label}</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{item.value}</p>
+                <p className="text-lg font-semibold text-gray-900 mt-2">{item.value}</p>
                 {item.sub && <p className="text-sm text-gray-500 mt-3">{item.sub}</p>}
               </div>
             ))}
@@ -445,7 +445,7 @@ export default function PlayerPaymentHistory() {
         {analytics.totalSpent > 0 && (
           <div className="bg-white rounded-3xl border border-gray-100 shadow p-10">
             <p className="font-semibold text-gray-500 uppercase tracking-widest text-sm mb-8">PAYMENT METHOD BREAKDOWN</p>
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid md:grid-cols-2 gap-4">
               {[
                 { method: "khalti", spent: analytics.khaltiSpent, count: analytics.khaltiCount },
                 { method: "cash", spent: analytics.cashSpent, count: analytics.cashCount },
@@ -463,7 +463,7 @@ export default function PlayerPaymentHistory() {
                           <p className="text-gray-600 mt-1">{count} transactions</p>
                         </div>
                       </div>
-                      <p className="text-4xl font-bold text-gray-900">Rs {spent.toLocaleString()}</p>
+                      <p className="text-base font-semibold text-gray-900">Rs {spent.toLocaleString()}</p>
                     </div>
 
                     <div className="mt-10 h-3 bg-white rounded-full overflow-hidden">
@@ -481,7 +481,7 @@ export default function PlayerPaymentHistory() {
         <div className="space-y-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight text-gray-900">All Transactions</h2>
+              <h2 className="text-lg font-semibold tracking-tight text-gray-900">All Transactions</h2>
               <p className="text-gray-500 mt-2 text-lg">
                 Showing <span className="font-semibold text-gray-700">{filtered.length}</span> of {payments.length} transactions
               </p>
@@ -497,7 +497,7 @@ export default function PlayerPaymentHistory() {
           </div>
 
           {/* Filters */}
-          <div className="bg-white rounded-3xl border border-gray-100 p-8 flex flex-col lg:flex-row gap-6">
+          <div className="bg-white rounded-3xl border border-gray-100 p-4 flex flex-col lg:flex-row gap-6">
             <div className="flex-1 relative">
               <Search size={20} className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
@@ -514,7 +514,7 @@ export default function PlayerPaymentHistory() {
                 <button
                   key={val}
                   onClick={() => setFilter(val)}
-                  className={`px-8 py-4 rounded-3xl text-base font-semibold border transition ${
+                  className={`px-8 py-2 rounded-lg text-sm font-semibold border transition ${
                     filter === val ? "bg-amber-500 text-white border-amber-500" : "border-gray-200 hover:border-gray-300"
                   }`}
                 >
@@ -528,7 +528,7 @@ export default function PlayerPaymentHistory() {
                 <button
                   key={val}
                   onClick={() => setStatusFilter(val)}
-                  className={`px-8 py-4 rounded-3xl text-base font-semibold border transition ${
+                  className={`px-8 py-2 rounded-lg text-sm font-semibold border transition ${
                     statusFilter === val
                       ? val === "success"
                         ? "bg-emerald-500 text-white border-emerald-500"
@@ -545,13 +545,13 @@ export default function PlayerPaymentHistory() {
           {/* Transaction List */}
           {loading ? (
             <div className="py-28 flex flex-col items-center">
-              <div className="w-14 h-14 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
               <p className="mt-8 text-xl text-gray-500">Loading payment history...</p>
             </div>
           ) : filtered.length === 0 ? (
             <div className="bg-white rounded-3xl py-24 text-center border border-gray-100">
               <Receipt size={64} className="mx-auto text-gray-300 mb-8" />
-              <h3 className="text-3xl font-bold text-gray-900">
+              <h3 className="text-lg font-semibold text-gray-900">
                 {payments.length === 0 ? "No payments yet" : "No results found"}
               </h3>
               <p className="text-gray-500 mt-4 text-lg max-w-md mx-auto">

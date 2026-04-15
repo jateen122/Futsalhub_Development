@@ -513,7 +513,7 @@ export default function OwnerAnalytics() {
                 <div className="space-y-4">
                   {[
                     {
-                      label:   "🔥 Peak Hours",
+                      label:   " Peak Hours",
                       count:   peakCount,
                       rev:     peakRevenue,
                       color:   "bg-amber-500",
@@ -522,7 +522,7 @@ export default function OwnerAnalytics() {
                       border:  "border-amber-200",
                     },
                     {
-                      label:   "💰 Off-Peak Hours",
+                      label:   " Off-Peak Hours",
                       count:   offPeakCount,
                       rev:     offPeakRevenue,
                       color:   "bg-blue-500",
@@ -531,7 +531,7 @@ export default function OwnerAnalytics() {
                       border:  "border-blue-200",
                     },
                     {
-                      label:   "📋 Standard Hours",
+                      label:   " Standard Hours",
                       count:   standardCount,
                       rev:     standardRevenue,
                       color:   "bg-gray-400",
@@ -574,7 +574,7 @@ export default function OwnerAnalytics() {
               {(ground?.peak_pricing_rules || []).length === 0 && (
                 <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3">
                   <p className="text-amber-700 text-xs font-semibold">
-                    💡 Add peak & off-peak pricing rules from the Pricing &amp; Availability page to unlock deeper slot analysis.
+                     Add peak & off-peak pricing rules from the Pricing &amp; Availability page to unlock deeper slot analysis.
                   </p>
                 </div>
               )}
