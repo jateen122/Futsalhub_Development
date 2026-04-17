@@ -18,15 +18,12 @@ import {
   Search,
   BarChart3,
   Receipt,
-  Hash,
   Gift,
+  MapPin,
 } from "lucide-react";
 
 const BASE_URL = "http://127.0.0.1:8000";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Format Helpers
-// ─────────────────────────────────────────────────────────────────────────────
 const fmt12 = (t) => {
   if (!t) return "";
   const [h, m] = t.split(":");
@@ -62,66 +59,97 @@ const fmtRs = (n) => {
   return `Rs ${Math.round(num).toLocaleString()}`;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Status & Method Config
-// ─────────────────────────────────────────────────────────────────────────────
 const STATUS_CFG = {
-  SUCCESS: { label: "Success", icon: <CheckCircle2 size={16} />, cls: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-  success: { label: "Success", icon: <CheckCircle2 size={16} />, cls: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-  FAILED: { label: "Failed", icon: <XCircle size={16} />, cls: "bg-red-100 text-red-600 border-red-200" },
-  failed: { label: "Failed", icon: <XCircle size={16} />, cls: "bg-red-100 text-red-600 border-red-200" },
-  refunded: { label: "Refunded", icon: <RotateCcw size={16} />, cls: "bg-blue-100 text-blue-600 border-blue-200" },
-  REFUNDED: { label: "Refunded", icon: <RotateCcw size={16} />, cls: "bg-blue-100 text-blue-600 border-blue-200" },
-  PENDING: { label: "Pending", icon: <Clock size={16} />, cls: "bg-amber-100 text-amber-700 border-amber-200" },
-  pending: { label: "Pending", icon: <Clock size={16} />, cls: "bg-amber-100 text-amber-700 border-amber-200" },
+  SUCCESS: {
+    label: "Success",
+    icon: <CheckCircle2 size={16} />,
+    cls: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  },
+  success: {
+    label: "Success",
+    icon: <CheckCircle2 size={16} />,
+    cls: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  },
+  FAILED: {
+    label: "Failed",
+    icon: <XCircle size={16} />,
+    cls: "bg-red-100 text-red-600 border-red-200",
+  },
+  failed: {
+    label: "Failed",
+    icon: <XCircle size={16} />,
+    cls: "bg-red-100 text-red-600 border-red-200",
+  },
+  refunded: {
+    label: "Refunded",
+    icon: <RotateCcw size={16} />,
+    cls: "bg-blue-100 text-blue-600 border-blue-200",
+  },
+  REFUNDED: {
+    label: "Refunded",
+    icon: <RotateCcw size={16} />,
+    cls: "bg-blue-100 text-blue-600 border-blue-200",
+  },
+  PENDING: {
+    label: "Pending",
+    icon: <Clock size={16} />,
+    cls: "bg-amber-100 text-amber-700 border-amber-200",
+  },
+  pending: {
+    label: "Pending",
+    icon: <Clock size={16} />,
+    cls: "bg-amber-100 text-amber-700 border-amber-200",
+  },
 };
 
 const METHOD_CFG = {
   khalti: {
     label: "Khalti",
-    icon: <CreditCard size={22} />,
+    icon: <CreditCard size={18} />,
     color: "text-purple-700",
     bg: "bg-purple-100",
     border: "border-purple-200",
   },
   cash: {
     label: "Cash on Ground",
-    icon: <Wallet size={22} />,
+    icon: <Wallet size={18} />,
     color: "text-emerald-700",
     bg: "bg-emerald-100",
     border: "border-emerald-200",
   },
   free: {
     label: "Free Booking",
-    icon: <Gift size={22} />,
+    icon: <Gift size={18} />,
     color: "text-amber-700",
     bg: "bg-amber-100",
     border: "border-amber-200",
   },
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SparkBars Component
-// ─────────────────────────────────────────────────────────────────────────────
 function SparkBars({ data }) {
   if (!data || data.length === 0) return null;
   const max = Math.max(...data.map((d) => d.amount), 1);
 
   return (
-    <div className="flex items-end gap-2 h-20">
+    <div className="flex items-end gap-1.5 h-16">
       {data.map((d, i) => {
         const pct = (d.amount / max) * 100;
         const isLast = i === data.length - 1;
         return (
-          <div key={i} className="flex-1 flex flex-col items-center gap-1.5 group relative">
-            <div className="absolute -top-11 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-3 py-1.5 rounded-2xl opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-20 shadow-xl transition-all">
+          <div
+            key={i}
+            className="flex-1 flex flex-col items-center gap-1 group relative"
+          >
+            <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-20 shadow">
               {d.month}: {fmtRs(d.amount)}
             </div>
             <div
-              className={`w-full rounded-t-2xl transition-all duration-700 ${isLast ? "bg-amber-500" : "bg-amber-200"}`}
-              style={{ height: `${Math.max(pct, 12)}%` }}
+              className={`w-full rounded-t-lg transition-all ${isLast ? "bg-amber-500" : "bg-amber-200"}`}
+              style={{ height: `${Math.max(pct, 8)}%` }}
             />
-            <span className="text-xs font-semibold text-gray-500">{d.month}</span>
+            <span className="text-xs font-semibold text-gray-500">
+              {d.month}
+            </span>
           </div>
         );
       })}
@@ -129,25 +157,28 @@ function SparkBars({ data }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// StatCard - Professional Design
-// ─────────────────────────────────────────────────────────────────────────────
-function StatCard({ icon, label, value, sub, accent = false }) {
-  return (
-    <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300">
-      <div className={`inline-flex items-center justify-center w-9 h-9 rounded-2xl mb-6 ${accent ? "bg-gradient-to-br from-amber-400 to-yellow-500" : "bg-gradient-to-br from-slate-800 to-slate-900"} text-white`}>
-        {icon}
-      </div>
-      <p className="text-base font-semibold tracking-tighter text-gray-900 mb-1">{value}</p>
-      <p className="text-sm font-semibold text-gray-500 uppercase tracking-widest">{label}</p>
-      {sub && <p className="text-sm text-gray-400 mt-1">{sub}</p>}
-    </div>
-  );
+function PaymentBadge({ method }) {
+  if (method === "khalti")
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-lg bg-purple-100 border border-purple-200 text-purple-700">
+        <span className="w-1 h-1 rounded-full bg-purple-600" /> Khalti
+      </span>
+    );
+  if (method === "cash")
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-lg bg-emerald-100 border border-emerald-200 text-emerald-700">
+        <span className="w-1 h-1 rounded-full bg-emerald-600" /> Cash
+      </span>
+    );
+  if (method === "free")
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-lg bg-amber-100 border border-amber-200 text-amber-700">
+        <Gift size={12} /> Free
+      </span>
+    );
+  return null;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Transaction Row - Clean & Professional
-// ─────────────────────────────────────────────────────────────────────────────
 function TransactionRow({ payment, isExpanded, onToggle }) {
   const status = STATUS_CFG[payment.status] || STATUS_CFG.pending;
   const method = METHOD_CFG[payment.payment_method] || METHOD_CFG.cash;
@@ -155,86 +186,112 @@ function TransactionRow({ payment, isExpanded, onToggle }) {
 
   return (
     <div
-      className={`bg-white rounded-3xl border transition-all duration-200 overflow-hidden ${
-        isExpanded ? "border-amber-400 shadow-xl" : "border-gray-100 hover:border-gray-200 hover:shadow-md"
-      }`}
+      className={`bg-white rounded-2xl border transition-all ${isExpanded ? "border-amber-400 shadow-lg" : "border-gray-100 hover:border-gray-200 hover:shadow-sm"}`}
     >
       <button
         onClick={onToggle}
-        className="w-full flex items-center gap-6 px-4 py-4 text-left hover:bg-gray-50/80 transition"
+        className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-gray-50 transition"
       >
-        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 border ${method.bg} ${method.border}`}>
+        <div
+          className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 border ${method.bg} ${method.border}`}
+        >
           {method.icon}
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-xl text-gray-900 tracking-tight truncate">
+          <p className="font-bold text-lg text-gray-900 truncate">
             {payment.ground_name || "Unknown Ground"}
           </p>
-          <div className="flex items-center gap-5 mt-2 text-gray-600 text-base">
+          <div className="flex items-center gap-3 mt-1 text-gray-600 text-xs flex-wrap">
             {payment.booking_date && (
-              <span className="flex items-center gap-2">
-                <Calendar size={18} /> {fmtDateLong(payment.booking_date)}
+              <span className="flex items-center gap-1">
+                <Calendar size={14} /> {fmtDateLong(payment.booking_date)}
               </span>
             )}
             {payment.booking_start_time && payment.booking_end_time && (
-              <span className="flex items-center gap-2">
-                <Clock size={18} /> {fmt12(payment.booking_start_time)} – {fmt12(payment.booking_end_time)}
+              <span className="flex items-center gap-1">
+                <Clock size={14} /> {fmt12(payment.booking_start_time)} –{" "}
+                {fmt12(payment.booking_end_time)}
               </span>
             )}
           </div>
         </div>
 
         <div className="text-right flex-shrink-0">
-          <p className={`text-lg font-semibold tracking-tight ${isSuccess ? "text-gray-900" : "text-gray-400 line-through"}`}>
+          <p
+            className={`font-semibold text-sm ${isSuccess ? "text-gray-900" : "text-gray-400 line-through"}`}
+          >
             Rs {parseFloat(payment.amount || 0).toLocaleString()}
           </p>
-          <p className={`text-base font-semibold mt-1 ${method.color}`}>{method.label}</p>
+          <p className={`text-xs font-semibold mt-1 ${method.color}`}>
+            {method.label}
+          </p>
         </div>
 
-        <div className="text-gray-400 ml-3">
-          {isExpanded ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
+        <div className="text-gray-400 ml-2">
+          {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
         </div>
       </button>
 
       {isExpanded && (
-        <div className="border-t border-gray-100 bg-gray-50 px-8 py-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-8 text-base">
+        <div className="border-t border-gray-100 bg-gray-50 px-6 py-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-sm">
             {payment.transaction_id && (
               <div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Transaction ID</p>
-                <p className="font-mono font-medium text-gray-700 break-all">{payment.transaction_id}</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
+                  Transaction ID
+                </p>
+                <p className="font-mono text-xs text-gray-700 break-all">
+                  {payment.transaction_id}
+                </p>
               </div>
             )}
             <div>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Payment Method</p>
-              <span className={`inline-flex items-center gap-3 px-5 py-2.5 rounded-2xl border text-base font-semibold ${method.bg} ${method.border} ${method.color}`}>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
+                Payment Method
+              </p>
+              <span
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold ${method.bg} ${method.border} ${method.color}`}
+              >
                 {method.icon} {method.label}
               </span>
             </div>
             <div>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Status</p>
-              <span className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl border text-base font-semibold ${status.cls}`}>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
+                Status
+              </p>
+              <span
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold ${status.cls}`}
+              >
                 {status.icon} {status.label}
               </span>
             </div>
             {payment.created_at && (
               <div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Paid At</p>
-                <p className="font-medium text-gray-700">{fmtDateTime(payment.created_at)}</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
+                  Paid At
+                </p>
+                <p className="text-xs text-gray-700">
+                  {fmtDateTime(payment.created_at)}
+                </p>
               </div>
             )}
             <div>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Amount</p>
-              <p className="text-lg font-semibold text-gray-900">Rs {parseFloat(payment.amount || 0).toLocaleString()}</p>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
+                Amount
+              </p>
+              <p className="font-semibold text-gray-900 text-sm">
+                Rs {parseFloat(payment.amount || 0).toLocaleString()}
+              </p>
             </div>
           </div>
 
           {payment.payment_method === "khalti" && payment.khalti_status && (
-            <div className="mt-8 bg-purple-50 border border-purple-200 rounded-2xl p-5 flex items-center gap-4">
-              <CreditCard size={20} className="text-purple-600" />
-              <p className="text-purple-700 font-medium">
-                Khalti Status: <span className="font-bold">{payment.khalti_status}</span>
+            <div className="mt-4 bg-purple-50 border border-purple-200 rounded-lg p-3 flex items-center gap-3">
+              <CreditCard size={16} className="text-purple-600" />
+              <p className="text-purple-700 text-xs font-medium">
+                Khalti Status:{" "}
+                <span className="font-bold">{payment.khalti_status}</span>
               </p>
             </div>
           )}
@@ -244,9 +301,6 @@ function TransactionRow({ payment, isExpanded, onToggle }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MAIN COMPONENT — PROFESSIONAL FULL-WIDTH UI
-// ─────────────────────────────────────────────────────────────────────────────
 export default function PlayerPaymentHistory() {
   const navigate = useNavigate();
   const token = localStorage.getItem("access");
@@ -287,12 +341,25 @@ export default function PlayerPaymentHistory() {
   }, []);
 
   const analytics = useMemo(() => {
-    const successful = payments.filter((p) => ["success", "SUCCESS"].includes(p.status));
-    const totalSpent = successful.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
-    const khaltiSpent = successful.filter((p) => p.payment_method === "khalti").reduce((s, p) => s + parseFloat(p.amount || 0), 0);
-    const cashSpent = successful.filter((p) => p.payment_method === "cash").reduce((s, p) => s + parseFloat(p.amount || 0), 0);
-    const khaltiCount = successful.filter((p) => p.payment_method === "khalti").length;
-    const cashCount = successful.filter((p) => p.payment_method === "cash").length;
+    const successful = payments.filter((p) =>
+      ["success", "SUCCESS"].includes(p.status),
+    );
+    const totalSpent = successful.reduce(
+      (s, p) => s + parseFloat(p.amount || 0),
+      0,
+    );
+    const khaltiSpent = successful
+      .filter((p) => p.payment_method === "khalti")
+      .reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+    const cashSpent = successful
+      .filter((p) => p.payment_method === "cash")
+      .reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+    const khaltiCount = successful.filter(
+      (p) => p.payment_method === "khalti",
+    ).length;
+    const cashCount = successful.filter(
+      (p) => p.payment_method === "cash",
+    ).length;
 
     const now = new Date();
     const monthlyData = [];
@@ -302,7 +369,6 @@ export default function PlayerPaymentHistory() {
       const amount = successful
         .filter((p) => p.created_at?.startsWith(monthKey))
         .reduce((s, p) => s + parseFloat(p.amount || 0), 0);
-
       monthlyData.push({
         month: d.toLocaleDateString("en-US", { month: "short" }),
         amount,
@@ -311,9 +377,12 @@ export default function PlayerPaymentHistory() {
 
     const groundCounts = {};
     successful.forEach((p) => {
-      if (p.ground_name) groundCounts[p.ground_name] = (groundCounts[p.ground_name] || 0) + 1;
+      if (p.ground_name)
+        groundCounts[p.ground_name] = (groundCounts[p.ground_name] || 0) + 1;
     });
-    const topGround = Object.entries(groundCounts).sort((a, b) => b[1] - a[1])[0];
+    const topGround = Object.entries(groundCounts).sort(
+      (a, b) => b[1] - a[1],
+    )[0];
 
     const thisMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     const thisMonthTotal = successful
@@ -327,7 +396,9 @@ export default function PlayerPaymentHistory() {
       khaltiCount,
       cashCount,
       successCount: successful.length,
-      failedCount: payments.filter((p) => ["failed", "FAILED"].includes(p.status)).length,
+      failedCount: payments.filter((p) =>
+        ["failed", "FAILED"].includes(p.status),
+      ).length,
       monthlyData,
       topGround,
       thisMonthTotal,
@@ -337,139 +408,234 @@ export default function PlayerPaymentHistory() {
 
   const filtered = useMemo(() => {
     let list = [...payments];
-    if (filter !== "all") list = list.filter((p) => p.payment_method === filter);
-    if (statusFilter !== "all") list = list.filter((p) => p.status?.toLowerCase() === statusFilter.toLowerCase());
+    if (filter !== "all")
+      list = list.filter((p) => p.payment_method === filter);
+    if (statusFilter !== "all")
+      list = list.filter(
+        (p) => p.status?.toLowerCase() === statusFilter.toLowerCase(),
+      );
 
     if (search.trim()) {
       const q = search.trim().toLowerCase();
-      list = list.filter((p) =>
-        p.ground_name?.toLowerCase().includes(q) ||
-        p.transaction_id?.toLowerCase().includes(q) ||
-        p.booking_date?.includes(q)
+      list = list.filter(
+        (p) =>
+          p.ground_name?.toLowerCase().includes(q) ||
+          p.transaction_id?.toLowerCase().includes(q) ||
+          p.booking_date?.includes(q),
       );
     }
 
-    list.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    list.sort(
+      (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0),
+    );
     if (!sortDesc) list.reverse();
 
     return list;
   }, [payments, filter, statusFilter, search, sortDesc]);
 
-  const totalFilteredAmount = filtered
-    .filter((p) => ["success", "SUCCESS"].includes(p.status))
-    .reduce((s, p) => s + parseFloat(p.amount || 0), 0);
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-amber-50 pt-20">
       {/* Top Navigation */}
-      <div className="bg-white border-b border-gray-100 px-4 md:px-8 lg:px-12 xl:px-24 py-6 sticky top-0 z-50 shadow-sm">
+      <div className="bg-white border-b border-gray-100 px-4 md:px-8 lg:px-12 xl:px-24 py-4 shadow-sm">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => navigate("/player-dashboard")}
-              className="flex items-center gap-3 text-gray-600 hover:text-gray-900 transition font-medium text-lg"
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-semibold text-base transition"
             >
-              <ArrowLeft size={24} /> Dashboard
+              <ArrowLeft size={18} /> Dashboard
             </button>
-            <span className="text-gray-300 text-2xl">/</span>
-            <h1 className="text-lg font-semibold tracking-tight text-gray-900">Payment History</h1>
+            <span className="text-gray-300">/</span>
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+              Payment History
+            </h1>
           </div>
 
           <button
             onClick={() => loadPayments(true)}
             disabled={refreshing}
-            className="flex items-center gap-3 px-7 py-3.5 bg-white border border-gray-200 rounded-2xl hover:bg-gray-50 transition font-medium disabled:opacity-70"
+            className="flex items-center gap-2 px-5 py-2.5 border border-gray-200 rounded-xl hover:bg-gray-50 transition font-medium text-sm"
           >
-            <RefreshCw size={20} className={refreshing ? "animate-spin" : ""} />
+            <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
             Refresh
           </button>
         </div>
       </div>
 
-      {/* Main Content - Full Width Professional Layout */}
-      <div className="w-full px-4 md:px-8 lg:px-12 xl:px-24 py-12 space-y-12">
-        {/* Hero Summary */}
-        <div className="bg-white rounded-2xl shadow border border-gray-100 p-6 lg:p-4">
-          <div className="flex flex-col lg:flex-row gap-12 items-start justify-between">
+      <div className="w-full px-4 md:px-8 lg:px-12 xl:px-24 py-6 space-y-6">
+        {/* Summary Card */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div className="flex flex-col lg:flex-row gap-8 items-start justify-between">
             <div>
-              <p className="text-amber-600 font-semibold uppercase tracking-widest text-sm">TOTAL AMOUNT SPENT</p>
-              <p className="text-base font-semibold tracking-tighter text-gray-900 mt-4">
-                Rs {analytics.totalSpent.toLocaleString()}
+              <p className="text-amber-600 font-semibold uppercase tracking-widest text-xs">
+                Total Amount Spent
               </p>
-              <div className="mt-4 flex items-center gap-4 text-sm text-gray-600">
-                <span>Across <span className="font-semibold text-gray-900">{analytics.successCount}</span> successful bookings</span>
-                {analytics.thisMonthTotal > 0 && (
-                  <span className="bg-amber-100 text-amber-700 px-6 py-2 rounded-2xl font-semibold flex items-center gap-2 text-base">
-                    <TrendingUp size={20} /> Rs {analytics.thisMonthTotal.toLocaleString()} this month
-                  </span>
-                )}
-              </div>
+              <p className="text-4xl font-bold tracking-tighter text-gray-900 mt-3">
+                {fmtRs(analytics.totalSpent)}
+              </p>
+              <p className="text-gray-600 mt-3 text-sm">
+                Across{" "}
+                <span className="font-semibold text-gray-900">
+                  {analytics.successCount}
+                </span>{" "}
+                successful bookings
+              </p>
             </div>
 
-            <div className="lg:w-[380px]">
-              <p className="text-gray-500 font-semibold uppercase tracking-widest text-sm mb-4">MONTHLY SPEND TREND</p>
+            <div className="lg:w-64">
+              <p className="text-gray-500 font-semibold uppercase tracking-widest text-xs mb-3">
+                Monthly Trend
+              </p>
               <SparkBars data={analytics.monthlyData} />
             </div>
           </div>
 
-          {/* Quick Stats */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mt-16">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-8">
             {[
-              { label: "Khalti", value: fmtRs(analytics.khaltiSpent), sub: `${analytics.khaltiCount} payments` },
-              { label: "Cash on Ground", value: fmtRs(analytics.cashSpent), sub: `${analytics.cashCount} payments` },
-              { label: "Average per Booking", value: fmtRs(analytics.avgPerBooking), sub: "" },
               {
-                label: "Favourite Ground",
-                value: analytics.topGround ? analytics.topGround[0].split(" ")[0] : "—",
-                sub: analytics.topGround ? `${analytics.topGround[1]} bookings` : "",
+                label: "Khalti",
+                value: fmtRs(analytics.khaltiSpent),
+                sub: `${analytics.khaltiCount} payments`,
+              },
+              {
+                label: "Cash",
+                value: fmtRs(analytics.cashSpent),
+                sub: `${analytics.cashCount} payments`,
+              },
+              {
+                label: "Avg per Booking",
+                value: fmtRs(analytics.avgPerBooking),
+                sub: "",
+              },
+              {
+                label: "This Month",
+                value: fmtRs(analytics.thisMonthTotal),
+                sub: "current month",
               },
             ].map((item, i) => (
-              <div key={i} className="bg-slate-50 border border-gray-100 rounded-xl p-4">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">{item.label}</p>
-                <p className="text-lg font-semibold text-gray-900 mt-2">{item.value}</p>
-                {item.sub && <p className="text-sm text-gray-500 mt-3">{item.sub}</p>}
+              <div
+                key={i}
+                className="bg-gray-50 border border-gray-100 rounded-lg p-3"
+              >
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                  {item.label}
+                </p>
+                <p className="text-xl font-bold text-gray-900 mt-2">
+                  {item.value}
+                </p>
+                {item.sub && (
+                  <p className="text-xs text-gray-500 mt-1">{item.sub}</p>
+                )}
               </div>
             ))}
           </div>
         </div>
 
-        {/* Statistics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard icon={<IndianRupee size={26} />} label="Total Spent" value={fmtRs(analytics.totalSpent)} sub={`${analytics.successCount} successful payments`} accent />
-          <StatCard icon={<Receipt size={26} />} label="Total Transactions" value={payments.length} sub="including failed & pending" />
-          <StatCard icon={<CheckCircle2 size={26} />} label="Successful" value={analytics.successCount} sub={`${analytics.failedCount} failed`} />
-          <StatCard icon={<BarChart3 size={26} />} label="This Month" value={fmtRs(analytics.thisMonthTotal)} sub="current month" />
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            {
+              icon: <IndianRupee size={20} />,
+              label: "Total Spent",
+              value: fmtRs(analytics.totalSpent),
+              color: "from-slate-700 to-slate-900",
+            },
+            {
+              icon: <Receipt size={20} />,
+              label: "Transactions",
+              value: payments.length,
+              color: "from-blue-500 to-indigo-600",
+            },
+            {
+              icon: <CheckCircle2 size={20} />,
+              label: "Successful",
+              value: analytics.successCount,
+              color: "from-emerald-500 to-teal-600",
+            },
+            {
+              icon: <BarChart3 size={20} />,
+              label: "This Month",
+              value: fmtRs(analytics.thisMonthTotal),
+              color: "from-amber-500 to-orange-500",
+            },
+          ].map((s, i) => (
+            <div
+              key={i}
+              className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-lg transition-all"
+            >
+              <div
+                className={`w-9 h-9 rounded-lg bg-gradient-to-br ${s.color} flex items-center justify-center text-white mb-3`}
+              >
+                {s.icon}
+              </div>
+              <p className="text-3xl font-bold tracking-tighter text-gray-900">
+                {s.value}
+              </p>
+              <p className="text-gray-500 font-semibold mt-1 text-xs tracking-widest">
+                {s.label}
+              </p>
+            </div>
+          ))}
         </div>
 
         {/* Payment Method Breakdown */}
         {analytics.totalSpent > 0 && (
-          <div className="bg-white rounded-3xl border border-gray-100 shadow p-10">
-            <p className="font-semibold text-gray-500 uppercase tracking-widest text-sm mb-8">PAYMENT METHOD BREAKDOWN</p>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <p className="font-semibold text-gray-500 uppercase tracking-widest text-xs mb-6">
+              Payment Method Breakdown
+            </p>
             <div className="grid md:grid-cols-2 gap-4">
               {[
-                { method: "khalti", spent: analytics.khaltiSpent, count: analytics.khaltiCount },
-                { method: "cash", spent: analytics.cashSpent, count: analytics.cashCount },
+                {
+                  method: "khalti",
+                  spent: analytics.khaltiSpent,
+                  count: analytics.khaltiCount,
+                },
+                {
+                  method: "cash",
+                  spent: analytics.cashSpent,
+                  count: analytics.cashCount,
+                },
               ].map(({ method, spent, count }) => {
                 const cfg = METHOD_CFG[method];
-                const pct = analytics.totalSpent > 0 ? Math.round((spent / analytics.totalSpent) * 100) : 0;
+                const pct =
+                  analytics.totalSpent > 0
+                    ? Math.round((spent / analytics.totalSpent) * 100)
+                    : 0;
 
                 return (
-                  <div key={method} className={`rounded-3xl p-10 border ${cfg.bg} ${cfg.border}`}>
+                  <div
+                    key={method}
+                    className={`rounded-2xl p-5 border ${cfg.bg} ${cfg.border}`}
+                  >
                     <div className="flex justify-between items-start">
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-3">
                         {cfg.icon}
                         <div>
-                          <p className={`font-bold text-2xl ${cfg.color}`}>{cfg.label}</p>
-                          <p className="text-gray-600 mt-1">{count} transactions</p>
+                          <p className={`font-bold text-lg ${cfg.color}`}>
+                            {cfg.label}
+                          </p>
+                          <p className="text-gray-600 mt-0.5 text-xs">
+                            {count} transactions
+                          </p>
                         </div>
                       </div>
-                      <p className="text-base font-semibold text-gray-900">Rs {spent.toLocaleString()}</p>
+                      <p className="font-semibold text-sm text-gray-900">
+                        Rs {spent.toLocaleString()}
+                      </p>
                     </div>
 
-                    <div className="mt-10 h-3 bg-white rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full ${method === "khalti" ? "bg-purple-600" : "bg-emerald-600"}`} style={{ width: `${pct}%` }} />
+                    <div className="mt-4 h-2 bg-white rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${method === "khalti" ? "bg-purple-600" : "bg-emerald-600"}`}
+                        style={{ width: `${pct}%` }}
+                      />
                     </div>
-                    <p className={`text-right mt-3 font-medium ${cfg.color}`}>{pct}% of total spend</p>
+                    <p
+                      className={`text-right mt-2 font-medium text-xs ${cfg.color}`}
+                    >
+                      {pct}% of total
+                    </p>
                   </div>
                 );
               })}
@@ -478,65 +644,86 @@ export default function PlayerPaymentHistory() {
         )}
 
         {/* Transactions Section */}
-        <div className="space-y-8">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold tracking-tight text-gray-900">All Transactions</h2>
-              <p className="text-gray-500 mt-2 text-lg">
-                Showing <span className="font-semibold text-gray-700">{filtered.length}</span> of {payments.length} transactions
+              <h2 className="text-lg font-bold text-gray-900">
+                All Transactions
+              </h2>
+              <p className="text-gray-500 mt-1 text-xs">
+                Showing{" "}
+                <span className="font-semibold text-gray-700">
+                  {filtered.length}
+                </span>{" "}
+                of {payments.length} transactions
               </p>
             </div>
 
             <button
               onClick={() => setSortDesc((v) => !v)}
-              className="flex items-center gap-3 px-8 py-4 bg-white border border-gray-200 rounded-2xl hover:bg-gray-50 transition font-medium text-base"
+              className="flex items-center gap-2 px-5 py-2.5 border border-gray-200 rounded-xl hover:bg-gray-50 transition font-medium text-sm"
             >
-              <RefreshCw size={20} />
+              <RefreshCw size={16} />
               {sortDesc ? "Newest First" : "Oldest First"}
             </button>
           </div>
 
           {/* Filters */}
-          <div className="bg-white rounded-3xl border border-gray-100 p-4 flex flex-col lg:flex-row gap-6">
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col lg:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search size={20} className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search
+                size={16}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+              />
               <input
                 type="text"
-                placeholder="Search by ground name or transaction ID..."
+                placeholder="Search ground or transaction ID..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-16 pr-6 py-4 border border-gray-200 rounded-3xl focus:outline-none focus:border-amber-400 text-lg placeholder-gray-400"
+                className="w-full pl-12 pr-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-amber-400 text-sm placeholder-gray-400"
               />
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              {[{ val: "all", label: "All Methods" }, { val: "khalti", label: "Khalti" }, { val: "cash", label: "Cash" }].map(({ val, label }) => (
+            <div className="flex flex-wrap gap-2">
+              {["all", "khalti", "cash"].map((m) => (
                 <button
-                  key={val}
-                  onClick={() => setFilter(val)}
-                  className={`px-8 py-2 rounded-lg text-sm font-semibold border transition ${
-                    filter === val ? "bg-amber-500 text-white border-amber-500" : "border-gray-200 hover:border-gray-300"
+                  key={m}
+                  onClick={() => setFilter(m)}
+                  className={`px-4 py-2 rounded-lg text-xs font-semibold border transition ${
+                    filter === m
+                      ? "bg-amber-500 text-white border-amber-500"
+                      : "border-gray-200 hover:border-gray-300"
                   }`}
                 >
-                  {label}
+                  {m === "all"
+                    ? "All Methods"
+                    : m === "khalti"
+                      ? "Khalti"
+                      : "Cash"}
                 </button>
               ))}
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              {[{ val: "all", label: "Any Status" }, { val: "success", label: "Success" }, { val: "failed", label: "Failed" }].map(({ val, label }) => (
+            <div className="flex flex-wrap gap-2">
+              {["all", "success", "failed"].map((s) => (
                 <button
-                  key={val}
-                  onClick={() => setStatusFilter(val)}
-                  className={`px-8 py-2 rounded-lg text-sm font-semibold border transition ${
-                    statusFilter === val
-                      ? val === "success"
+                  key={s}
+                  onClick={() => setStatusFilter(s)}
+                  className={`px-4 py-2 rounded-lg text-xs font-semibold border transition ${
+                    statusFilter === s
+                      ? s === "success"
                         ? "bg-emerald-500 text-white border-emerald-500"
-                        : "bg-red-500 text-white border-red-500"
+                        : s === "failed"
+                          ? "bg-red-500 text-white border-red-500"
+                          : "bg-amber-500 text-white border-amber-500"
                       : "border-gray-200 hover:border-gray-300"
                   }`}
                 >
-                  {label}
+                  {s === "all"
+                    ? "Any Status"
+                    : s === "success"
+                      ? "Success"
+                      : "Failed"}
                 </button>
               ))}
             </div>
@@ -544,28 +731,36 @@ export default function PlayerPaymentHistory() {
 
           {/* Transaction List */}
           {loading ? (
-            <div className="py-28 flex flex-col items-center">
+            <div className="py-20 flex flex-col items-center">
               <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
-              <p className="mt-8 text-xl text-gray-500">Loading payment history...</p>
+              <p className="mt-6 text-base text-gray-500">
+                Loading payment history...
+              </p>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="bg-white rounded-3xl py-24 text-center border border-gray-100">
-              <Receipt size={64} className="mx-auto text-gray-300 mb-8" />
-              <h3 className="text-lg font-semibold text-gray-900">
+            <div className="bg-white rounded-2xl py-16 text-center border border-gray-100">
+              <Receipt size={48} className="mx-auto text-gray-300 mb-4" />
+              <h3 className="text-lg font-bold text-gray-900">
                 {payments.length === 0 ? "No payments yet" : "No results found"}
               </h3>
-              <p className="text-gray-500 mt-4 text-lg max-w-md mx-auto">
-                {payments.length === 0 ? "Your payment records will appear here after you complete a booking." : "Try adjusting your search or filters."}
+              <p className="text-gray-500 mt-2 text-sm max-w-md mx-auto">
+                {payments.length === 0
+                  ? "Your payment records will appear here after you complete a booking."
+                  : "Try adjusting your search or filters."}
               </p>
             </div>
           ) : (
-            <div className="space-y-5 pb-12">
+            <div className="space-y-3 pb-6">
               {filtered.map((payment) => (
                 <TransactionRow
                   key={payment.id}
                   payment={payment}
                   isExpanded={expanded === payment.id}
-                  onToggle={() => setExpanded((prev) => (prev === payment.id ? null : payment.id))}
+                  onToggle={() =>
+                    setExpanded((prev) =>
+                      prev === payment.id ? null : payment.id,
+                    )
+                  }
                 />
               ))}
             </div>
