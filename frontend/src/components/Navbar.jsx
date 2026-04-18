@@ -94,7 +94,6 @@ export default function Navbar() {
     { to: "/admin-dashboard", label: "Dashboard" },
     { to: "/admin/grounds", label: "Grounds" },
     { to: "/admin/users", label: "Users" },
-    { to: "/admin/bookings", label: "Bookings" },
   ];
 
   const publicLinks = [
