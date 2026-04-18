@@ -1,6 +1,15 @@
 // frontend/src/pages/AdminDashboard.jsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  Users,
+  Home,
+  CheckCircle,
+  Clock,
+  ArrowRight,
+  Building2,
+  Settings,
+} from "lucide-react";
 
 const BASE_URL = "http://127.0.0.1:8000";
 
@@ -9,99 +18,57 @@ async function fetchAllPages(url, token) {
   let results = [];
   let nextUrl = url;
   while (nextUrl) {
-    const res  = await fetch(nextUrl, { headers: { Authorization: `Bearer ${token}` } });
+    const res = await fetch(nextUrl, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     if (!res.ok) break;
     const data = await res.json();
-    if (Array.isArray(data)) { results = results.concat(data); break; }
+    if (Array.isArray(data)) {
+      results = results.concat(data);
+      break;
+    }
     results = results.concat(data.results || []);
     nextUrl = data.next || null;
   }
   return results;
 }
 
-const fmt12 = (t) => {
-  if (!t) return "";
-  const [h, m] = t.split(":");
-  const hour = parseInt(h, 10);
-  return `${hour % 12 || 12}:${m} ${hour >= 12 ? "PM" : "AM"}`;
-};
-
-const STATUS_STYLE = {
-  pending:   { dot: "bg-amber-400",   text: "text-amber-400",   badge: "bg-amber-400/10 border-amber-400/30"    },
-  confirmed: { dot: "bg-emerald-400", text: "text-emerald-400", badge: "bg-emerald-400/10 border-emerald-400/30" },
-  cancelled: { dot: "bg-red-400",     text: "text-red-400",     badge: "bg-red-400/10 border-red-400/30"        },
+const STATUS_COLOR = {
+  pending: "bg-amber-100 text-amber-700 border-amber-200",
+  confirmed: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  cancelled: "bg-red-100 text-red-700 border-red-200",
+  refunded: "bg-gray-100 text-gray-500 border-gray-200",
 };
 
 const ROLE_STYLE = {
-  player: "bg-sky-400/10 border-sky-400/30 text-sky-400",
-  owner:  "bg-amber-400/10 border-amber-400/30 text-amber-400",
-  admin:  "bg-violet-400/10 border-violet-400/30 text-violet-400",
+  player: "bg-sky-100 text-sky-700 border-sky-200",
+  owner: "bg-amber-100 text-amber-700 border-amber-200",
+  admin: "bg-purple-100 text-purple-700 border-purple-200",
 };
 
-function Counter({ value, prefix = "" }) {
-  const [n, setN] = useState(0);
-  useEffect(() => {
-    const target = parseFloat(value) || 0;
-    if (target === 0) { setN(0); return; }
-    const step = target / 28;
-    let cur = 0;
-    const t = setInterval(() => {
-      cur += step;
-      if (cur >= target) { setN(target); clearInterval(t); }
-      else setN(Math.floor(cur));
-    }, 22);
-    return () => clearInterval(t);
-  }, [value]);
-  return <>{prefix}{n.toLocaleString()}</>;
-}
-
-function Empty({ icon, msg }) {
-  return (
-    <div className="py-14 text-center">
-      <p className="text-4xl mb-3">{icon}</p>
-      <p className="text-white/30">{msg}</p>
-    </div>
-  );
-}
-
-function Spin() {
-  return <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />;
-}
-
-function Row({ k, v, vc = "text-white/60" }) {
-  return (
-    <div className="flex justify-between text-sm">
-      <span className="text-white/30">{k}</span>
-      <span className={`font-semibold ${vc}`}>{v}</span>
-    </div>
-  );
-}
-
 export default function AdminDashboard() {
-  const navigate  = useNavigate();
-  const token     = localStorage.getItem("access");
-  const userEmail = localStorage.getItem("email") || "admin@futsalhub.com";
+  const navigate = useNavigate();
+  const token = localStorage.getItem("access");
+  const email = localStorage.getItem("email") || "Admin";
 
-  const [grounds,   setGrounds]   = useState([]);
-  const [users,     setUsers]     = useState([]);
-  const [bookings,  setBookings]  = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [tab,       setTab]       = useState("grounds");
+  const [grounds, setGrounds] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [approving, setApproving] = useState(null);
-  const [toast,     setToast]     = useState("");
 
   const fetchAll = async () => {
-    if (!token) { navigate("/login"); return; }
+    if (!token) {
+      navigate("/login");
+      return;
+    }
     setLoading(true);
     try {
-      const [groundsAll, usersAll, bookingsAll] = await Promise.all([
+      const [groundsAll, usersAll] = await Promise.all([
         fetchAllPages(`${BASE_URL}/api/grounds/admin/all/`, token),
-        fetchAllPages(`${BASE_URL}/api/accounts/users/`,    token),
-        fetchAllPages(`${BASE_URL}/api/bookings/owner/`,    token),
+        fetchAllPages(`${BASE_URL}/api/accounts/users/`, token),
       ]);
       setGrounds(groundsAll);
       setUsers(usersAll);
-      setBookings(bookingsAll);
     } catch (e) {
       console.error(e);
     } finally {
@@ -109,389 +76,350 @@ export default function AdminDashboard() {
     }
   };
 
-  useEffect(() => { fetchAll(); }, []);
-
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
-  const handleLogout = () => { localStorage.clear(); navigate("/login"); };
+  useEffect(() => {
+    fetchAll();
+  }, [token]);
 
   const handleApproval = async (id, approve) => {
     setApproving(id);
     try {
       const res = await fetch(`${BASE_URL}/api/grounds/${id}/approve/`, {
-        method:  "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body:    JSON.stringify({ is_approved: approve }),
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ is_approved: approve }),
       });
       if (res.ok) {
-        setGrounds((prev) => prev.map((g) => g.id === id ? { ...g, is_approved: approve } : g));
-        showToast(approve ? "Ground approved!" : "Ground approval revoked.");
-      } else {
-        showToast("Action failed. Check your permissions.");
+        setGrounds((prev) =>
+          prev.map((g) => (g.id === id ? { ...g, is_approved: approve } : g)),
+        );
       }
-    } catch {
-      showToast("Network error.");
+    } catch (e) {
+      console.error(e);
     } finally {
       setApproving(null);
     }
   };
 
-  const s = {
-    users:     users.length,
-    players:   users.filter((u) => u.role === "player").length,
-    owners:    users.filter((u) => u.role === "owner").length,
-    grounds:   grounds.length,
-    approved:  grounds.filter((g) => g.is_approved).length,
-    pending:   grounds.filter((g) => !g.is_approved).length,
-    bookings:  bookings.length,
-    confirmed: bookings.filter((b) => b.status === "confirmed").length,
-    revenue:   bookings
-      .filter((b) => b.status === "confirmed")
-      .reduce((sum, b) => sum + parseFloat(b.total_price || 0), 0),
+  const stats = {
+    total_users: users.length,
+    players: users.filter((u) => u.role === "player").length,
+    owners: users.filter((u) => u.role === "owner").length,
+    total_grounds: grounds.length,
+    approved: grounds.filter((g) => g.is_approved).length,
+    pending: grounds.filter((g) => !g.is_approved).length,
   };
+
+  const quickActions = [
+    {
+      label: "Ground Approvals",
+      path: "/admin/grounds",
+      color: "from-emerald-500 to-teal-600",
+    },
+    {
+      label: "All Users",
+      path: "/admin/users",
+      color: "from-blue-500 to-indigo-600",
+    },
+    {
+      label: "Notifications",
+      path: "/admin/notifications",
+      color: "from-purple-500 to-violet-600",
+    },
+  ];
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#060a12] flex items-center justify-center">
-        <div className="text-center">
-          <div className="relative w-16 h-16 mx-auto mb-4">
-            <div className="absolute inset-0 rounded-full border-4 border-violet-500/20" />
-            <div className="absolute inset-0 rounded-full border-4 border-violet-400 border-t-transparent animate-spin" />
-          </div>
-          <p className="text-white/25 text-xs tracking-[0.3em] uppercase font-mono">Loading Admin Panel</p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-amber-50 flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#060a12] pt-20 pb-20">
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-[700px] h-[700px] bg-violet-600/4 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-[500px] h-[400px] bg-indigo-600/3 rounded-full blur-3xl" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-amber-50 pt-20">
+      {/* Top Navigation */}
+      <div className="bg-white border-b border-gray-100 px-6 md:px-10 lg:px-14 xl:px-20 py-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+            Admin Dashboard
+          </h1>
+        </div>
       </div>
 
-      {toast && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-[#0f1825] border border-violet-500/30 text-violet-300 px-6 py-3 rounded-2xl shadow-2xl text-sm font-semibold whitespace-nowrap">
-          {toast}
-        </div>
-      )}
-
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
-
-        {/* HEADER */}
-        <div className="flex items-start justify-between mb-10">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
-              <span className="text-violet-400 text-xs font-bold uppercase tracking-[0.2em]">Admin Control Panel</span>
-            </div>
-            <h1 className="text-5xl font-black text-white leading-none">
-              Futsal<span className="text-violet-400">Hub</span>
-            </h1>
-            <p className="text-white/25 text-sm mt-2 font-mono">{userEmail}</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate("/admin/notifications")}
-              className="px-4 py-2.5 bg-white/5 border border-white/8 text-white/50 rounded-xl text-sm hover:bg-white/10 hover:text-white transition">
-              Alerts
-            </button>
-            <button onClick={handleLogout}
-              className="px-4 py-2.5 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-sm hover:bg-red-500/20 transition font-semibold">
-              Sign out
-            </button>
-          </div>
-        </div>
-
-        {/* KPI CARDS */}
-        <div className="grid grid-cols-3 md:grid-cols-9 gap-3 mb-8">
+      <div className="w-full px-6 md:px-10 lg:px-14 xl:px-20 py-8 space-y-8">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {[
-            { label: "Users",     value: s.users,                color: "text-white",       border: "border-white/10"       },
-            { label: "Players",   value: s.players,              color: "text-sky-400",     border: "border-sky-500/15"     },
-            { label: "Owners",    value: s.owners,               color: "text-amber-400",   border: "border-amber-500/15"   },
-            { label: "Grounds",   value: s.grounds,              color: "text-white",       border: "border-white/10"       },
-            { label: "Approved",  value: s.approved,             color: "text-emerald-400", border: "border-emerald-500/15" },
-            { label: "Pending",   value: s.pending,              color: "text-amber-400",   border: "border-amber-500/15"   },
-            { label: "Bookings",  value: s.bookings,             color: "text-white",       border: "border-white/10"       },
-            { label: "Confirmed", value: s.confirmed,            color: "text-emerald-400", border: "border-emerald-500/15" },
-            { label: "Revenue",   value: Math.floor(s.revenue),  color: "text-amber-400",   border: "border-amber-500/15", prefix: "Rs " },
-          ].map((k) => (
-            <div key={k.label} className={`col-span-1 bg-white/3 border ${k.border} rounded-2xl p-4 text-center`}>
-              <p className={`text-2xl font-black ${k.color}`}>
-                <Counter value={k.value} prefix={k.prefix || ""} />
+            {
+              label: "Total Users",
+              value: stats.total_users,
+              icon: <Users size={24} />,
+              color: "from-slate-700 to-slate-900",
+            },
+            {
+              label: "Players",
+              value: stats.players,
+              icon: <Users size={24} />,
+              color: "from-blue-500 to-indigo-600",
+            },
+            {
+              label: "Owners",
+              value: stats.owners,
+              icon: <Home size={24} />,
+              color: "from-amber-500 to-orange-500",
+            },
+            {
+              label: "Total Grounds",
+              value: stats.total_grounds,
+              icon: <Building2 size={24} />,
+              color: "from-emerald-500 to-teal-600",
+            },
+            {
+              label: "Approved",
+              value: stats.approved,
+              icon: <CheckCircle size={24} />,
+              color: "from-emerald-600 to-green-700",
+            },
+            {
+              label: "Pending",
+              value: stats.pending,
+              icon: <Clock size={24} />,
+              color: "from-amber-600 to-yellow-700",
+            },
+          ].map((s) => (
+            <div
+              key={s.label}
+              className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300"
+            >
+              <div
+                className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${s.color} mb-4 text-white`}
+              >
+                {s.icon}
+              </div>
+              <p className="text-4xl font-bold tracking-tighter text-gray-900">
+                {s.value}
               </p>
-              <p className="text-white/30 text-xs mt-1 uppercase tracking-widest leading-tight">{k.label}</p>
+              <p className="text-sm font-semibold text-gray-500 mt-2 tracking-widest">
+                {s.label}
+              </p>
             </div>
           ))}
         </div>
 
-        {/* QUICK NAV */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
-          {[
-            { label: "Ground Approvals", path: "/admin/grounds",       desc: `${s.pending} pending`,   urgent: s.pending > 0 },
-            { label: "All Users",        path: "/admin/users",         desc: `${s.users} registered` },
-            { label: "All Bookings",     path: "/admin/bookings",      desc: `${s.bookings} total`    },
-            { label: "Notifications",    path: "/admin/notifications", desc: "View alerts"            },
-            { label: "Sign Out",         action: handleLogout,         desc: "End session"            },
-          ].map((a) => (
-            <button key={a.label}
-              onClick={() => a.path ? navigate(a.path) : a.action?.()}
-              className="relative p-4 rounded-2xl border text-left transition-all duration-200 bg-white/3 border-white/8 hover:bg-white/6 hover:border-white/15">
-              {a.urgent && (
-                <span className="absolute top-2.5 right-2.5 flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping absolute" />
-                  <span className="w-2 h-2 rounded-full bg-amber-400 relative" />
-                </span>
-              )}
-              <p className="text-white font-bold text-sm">{a.label}</p>
-              <p className="text-white/30 text-xs mt-0.5">{a.desc}</p>
-            </button>
-          ))}
-        </div>
-
-        {/* PENDING ALERT */}
-        {s.pending > 0 && (
-          <div className="bg-amber-400/8 border border-amber-400/20 rounded-2xl p-4 mb-6 flex items-center gap-4">
-            <div className="flex-1">
-              <p className="text-amber-300 font-bold">
-                {s.pending} ground{s.pending > 1 ? "s" : ""} awaiting your approval
-              </p>
-              <p className="text-amber-400/45 text-sm">Review and approve or reject from the table below.</p>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Main Content */}
+          <div className="lg:col-span-8 space-y-6">
+            {/* Quick Actions */}
+            <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                Quick Actions
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {quickActions.map((action) => (
+                  <button
+                    key={action.path}
+                    onClick={() => navigate(action.path)}
+                    className={`group bg-gradient-to-br ${action.color} text-white rounded-2xl p-6 text-left hover:scale-[1.02] active:scale-95 transition-all duration-300 shadow-md flex flex-col justify-between h-full`}
+                  >
+                    <div className="text-3xl mb-4 opacity-90 group-hover:scale-110 transition-transform">
+                      <ArrowRight size={28} />
+                    </div>
+                    <div>
+                      <p className="font-bold text-lg tracking-tight">
+                        {action.label}
+                      </p>
+                      <p className="text-white/70 text-xs mt-1">
+                        Go to section
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
-            <button onClick={() => navigate("/admin/grounds")}
-              className="px-4 py-2 bg-amber-400 text-black font-black rounded-xl text-sm hover:bg-amber-300 transition flex-shrink-0">
-              Review All
-            </button>
-          </div>
-        )}
 
-        {/* TAB PANEL */}
-        <div className="bg-white/3 border border-white/8 rounded-3xl overflow-hidden mb-6">
-          <div className="flex border-b border-white/8">
-            {[
-              { id: "grounds",  label: "Grounds",  count: s.grounds  },
-              { id: "bookings", label: "Bookings", count: s.bookings },
-              { id: "users",    label: "Users",    count: s.users    },
-            ].map((t) => (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-semibold transition-all
-                  ${tab === t.id
-                    ? "text-white border-b-2 border-violet-400 bg-violet-400/5"
-                    : "text-white/30 hover:text-white/60 border-b-2 border-transparent"}`}>
-                {t.label}
-                <span className={`px-2 py-0.5 rounded-full text-xs font-black
-                  ${tab === t.id ? "bg-violet-400 text-black" : "bg-white/8 text-white/35"}`}>
-                  {t.count}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          {/* GROUNDS TAB */}
-          {tab === "grounds" && (
-            <div>
-              {grounds.length === 0 ? <Empty icon="🏟️" msg="No grounds found." /> : (
-                <div className="divide-y divide-white/5">
-                  {grounds.map((g) => {
-                    const imgSrc = g.image
-                      ? g.image.startsWith("http") ? g.image : `${BASE_URL}${g.image}`
-                      : null;
-                    const busy = approving === g.id;
-                    return (
-                      <div key={g.id} className="flex items-center gap-4 px-6 py-4 hover:bg-white/3 transition">
-                        <div className="w-14 h-14 rounded-xl overflow-hidden bg-white/8 flex-shrink-0 border border-white/8">
-                          {imgSrc
-                            ? <img src={imgSrc} alt={g.name} className="w-full h-full object-cover" />
-                            : <div className="w-full h-full flex items-center justify-center text-white/20 text-xl">🏟️</div>}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-white font-bold truncate">{g.name}</p>
-                          <p className="text-white/35 text-xs mt-0.5">📍 {g.location} · Rs {g.price_per_hour}/hr</p>
-                        </div>
-                        <span className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-bold border
-                          ${g.is_approved ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-400" : "bg-amber-400/10 border-amber-400/25 text-amber-400"}`}>
-                          {g.is_approved ? "Approved" : "Pending"}
-                        </span>
-                        <div className="flex gap-2 flex-shrink-0">
-                          {!g.is_approved ? (
-                            <button onClick={() => handleApproval(g.id, true)} disabled={busy}
-                              className="px-4 py-1.5 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 rounded-xl text-xs font-black hover:bg-emerald-500/25 transition disabled:opacity-40 flex items-center gap-1.5">
-                              {busy ? <Spin /> : "Approve"}
-                            </button>
-                          ) : (
-                            <button onClick={() => handleApproval(g.id, false)} disabled={busy}
-                              className="px-4 py-1.5 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-xs font-black hover:bg-red-500/20 transition disabled:opacity-40 flex items-center gap-1.5">
-                              {busy ? <Spin /> : "Revoke"}
-                            </button>
-                          )}
-                          <button onClick={() => navigate(`/admin/ground/${g.id}`)}
-                            className="px-4 py-1.5 bg-white/5 border border-white/10 text-white/45 rounded-xl text-xs font-bold hover:bg-white/10 hover:text-white transition">
-                            Details
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
+            {/* Pending Grounds */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Pending Approvals
+                  </h2>
+                  <p className="text-gray-500 mt-1 text-sm">
+                    {stats.pending} grounds awaiting approval
+                  </p>
                 </div>
-              )}
-              <div className="px-6 py-4 border-t border-white/8">
-                <button onClick={() => navigate("/admin/grounds")}
-                  className="text-violet-400 text-sm hover:text-violet-300 transition">
-                  Full ground management →
+                <button
+                  onClick={() => navigate("/admin/grounds")}
+                  className="flex items-center gap-2 text-amber-600 hover:text-amber-700 font-semibold transition text-sm"
+                >
+                  View All <ArrowRight size={18} />
                 </button>
               </div>
-            </div>
-          )}
 
-          {/* BOOKINGS TAB */}
-          {tab === "bookings" && (
-            <div>
-              <div className="hidden md:grid grid-cols-12 px-6 py-3 border-b border-white/8 text-xs uppercase tracking-widest text-white/20">
-                <div className="col-span-3">Ground</div>
-                <div className="col-span-3">Player</div>
-                <div className="col-span-2">Date</div>
-                <div className="col-span-2">Time</div>
-                <div className="col-span-1">Rs</div>
-                <div className="col-span-1">Status</div>
-              </div>
-              {bookings.length === 0 ? <Empty icon="📋" msg="No bookings yet" /> : (
-                <div className="divide-y divide-white/5">
-                  {bookings.slice(0, 10).map((b) => {
-                    const st = STATUS_STYLE[b.status] || STATUS_STYLE.pending;
-                    return (
-                      <div key={b.id}
-                        className="grid md:grid-cols-12 grid-cols-1 gap-1 md:gap-0 px-6 py-4 hover:bg-white/3 transition items-center">
-                        <div className="md:col-span-3 flex items-center gap-2">
-                          <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${st.dot}`} />
-                          <span className="text-white font-medium text-sm truncate">{b.ground_name}</span>
+              {grounds.filter((g) => !g.is_approved).length === 0 ? (
+                <div className="py-16 text-center">
+                  <div className="mx-auto w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
+                    <CheckCircle size={40} className="text-gray-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    All caught up!
+                  </h3>
+                  <p className="text-gray-500 mt-2 max-w-sm mx-auto text-sm">
+                    All grounds have been reviewed and approved.
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {grounds
+                    .filter((g) => !g.is_approved)
+                    .slice(0, 5)
+                    .map((g) => {
+                      const imgSrc = g.image
+                        ? g.image.startsWith("http")
+                          ? g.image
+                          : `${BASE_URL}${g.image}`
+                        : null;
+                      const busy = approving === g.id;
+                      return (
+                        <div
+                          key={g.id}
+                          className="px-8 py-6 hover:bg-gray-50 transition flex items-center gap-4"
+                        >
+                          <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-200">
+                            {imgSrc ? (
+                              <img
+                                src={imgSrc}
+                                alt={g.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-amber-50">
+                                <Building2
+                                  size={32}
+                                  className="text-amber-400"
+                                />
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-lg text-gray-900 truncate">
+                              {g.name}
+                            </p>
+                            <p className="text-gray-500 mt-1 text-sm">
+                              {g.location} • Rs {g.price_per_hour}/hr
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <button
+                              onClick={() => handleApproval(g.id, true)}
+                              disabled={busy}
+                              className="px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-bold rounded-xl transition disabled:opacity-50 text-sm"
+                            >
+                              {busy ? "..." : "Approve"}
+                            </button>
+                          </div>
                         </div>
-                        <div className="md:col-span-3 text-white/40 text-sm truncate">{b.user_email}</div>
-                        <div className="md:col-span-2 text-white/60 text-sm">{b.date}</div>
-                        <div className="md:col-span-2 text-white/60 text-sm">{fmt12(b.start_time)} – {fmt12(b.end_time)}</div>
-                        <div className="md:col-span-1 text-amber-400 font-bold text-sm">
-                          {b.is_free_booking ? <span className="text-xs">FREE</span> : b.total_price}
-                        </div>
-                        <div className="md:col-span-1">
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${st.badge} ${st.text} capitalize`}>
-                            {b.status}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
                 </div>
               )}
-              {bookings.length > 10 && (
-                <div className="px-6 py-4 border-t border-white/8">
-                  <button onClick={() => navigate("/admin/bookings")}
-                    className="text-violet-400 text-sm hover:text-violet-300 transition">
-                    View all {bookings.length} bookings →
-                  </button>
-                </div>
-              )}
             </div>
-          )}
+          </div>
 
-          {/* USERS TAB */}
-          {tab === "users" && (
-            <div>
-              <div className="hidden md:grid grid-cols-12 px-6 py-3 border-b border-white/8 text-xs uppercase tracking-widest text-white/20">
-                <div className="col-span-1">#</div>
-                <div className="col-span-4">Name</div>
-                <div className="col-span-4">Email</div>
-                <div className="col-span-2">Role</div>
-                <div className="col-span-1">Status</div>
+          {/* Sidebar */}
+          <div className="lg:col-span-4 space-y-6">
+            {/* Users Summary */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <Users size={22} className="text-amber-600" />
+                  <h2 className="text-lg font-bold text-gray-900">Users</h2>
+                </div>
+                <button
+                  onClick={() => navigate("/admin/users")}
+                  className="text-amber-600 hover:text-amber-700 font-semibold text-xs transition flex items-center gap-1"
+                >
+                  View all <ArrowRight size={14} />
+                </button>
               </div>
-              {users.length === 0 ? <Empty icon="👥" msg="No users yet" /> : (
-                <div className="divide-y divide-white/5">
-                  {users.slice(0, 10).map((u, i) => (
-                    <div key={u.id}
-                      className="grid md:grid-cols-12 grid-cols-1 gap-1 md:gap-0 px-6 py-4 hover:bg-white/3 transition items-center">
-                      <div className="md:col-span-1 text-white/20 text-sm font-mono">{i + 1}</div>
-                      <div className="md:col-span-4">
-                        <p className="text-white font-medium text-sm">{u.full_name || "—"}</p>
-                      </div>
-                      <div className="md:col-span-4 text-white/40 text-sm truncate">{u.email}</div>
-                      <div className="md:col-span-2">
-                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full border capitalize ${ROLE_STYLE[u.role] || ROLE_STYLE.player}`}>
+
+              {users.length === 0 ? (
+                <div className="py-10 text-center text-gray-500 text-sm">
+                  No users found
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {users.slice(0, 5).map((u) => (
+                    <div
+                      key={u.id}
+                      className="px-8 py-5 hover:bg-gray-50 transition"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">
+                            {u.full_name || u.email.split("@")[0]}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {u.email}
+                          </p>
+                        </div>
+                        <span
+                          className={`px-3 py-1 rounded-lg text-xs font-bold border capitalize ${ROLE_STYLE[u.role] || ROLE_STYLE.player}`}
+                        >
                           {u.role}
                         </span>
-                      </div>
-                      <div className="md:col-span-1">
-                        {u.is_verified
-                          ? <span className="text-emerald-400 text-xs font-black">✓</span>
-                          : <span className="text-amber-400/50 text-xs">–</span>}
                       </div>
                     </div>
                   ))}
                 </div>
               )}
-              {users.length > 10 && (
-                <div className="px-6 py-4 border-t border-white/8">
-                  <button onClick={() => navigate("/admin/users")}
-                    className="text-violet-400 text-sm hover:text-violet-300 transition">
-                    View all {users.length} users →
-                  </button>
-                </div>
-              )}
             </div>
-          )}
-        </div>
 
-        {/* BOTTOM ROW */}
-        <div className="grid md:grid-cols-3 gap-4">
-          <div className="md:col-span-2 bg-white/3 border border-white/8 rounded-2xl p-6">
-            <p className="text-white/25 text-xs uppercase tracking-[0.2em] mb-5">Platform Health</p>
-            <div className="space-y-5">
-              {[
-                { label: "Ground Approval Rate",
-                  value: s.grounds  > 0 ? Math.round((s.approved  / s.grounds)  * 100) : 0, color: "bg-emerald-400" },
-                { label: "Booking Confirmation Rate",
-                  value: s.bookings > 0 ? Math.round((s.confirmed / s.bookings) * 100) : 0, color: "bg-violet-400" },
-                { label: "Owner Verification Rate",
-                  value: s.owners > 0
-                    ? Math.round((users.filter((u) => u.role === "owner" && u.is_verified).length / s.owners) * 100)
-                    : 0, color: "bg-amber-400" },
-              ].map((bar) => (
-                <div key={bar.label}>
-                  <div className="flex justify-between text-sm mb-2">
-                    <span className="text-white/45">{bar.label}</span>
-                    <span className="text-white font-bold">{bar.value}%</span>
-                  </div>
-                  <div className="h-1.5 bg-white/8 rounded-full overflow-hidden">
-                    <div className={`h-full ${bar.color} rounded-full transition-all duration-1000`}
-                      style={{ width: `${bar.value}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+            {/* Account Summary */}
+            <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
+              <p className="uppercase text-xs font-bold tracking-widest text-gray-400 mb-6">
+                Your Account
+              </p>
 
-          <div className="bg-white/3 border border-white/8 rounded-2xl p-6 flex flex-col">
-            <p className="text-white/25 text-xs uppercase tracking-[0.2em] mb-4">Admin Session</p>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-400 to-indigo-600 flex items-center justify-center text-white font-black text-lg">
-                A
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-indigo-500 rounded-2xl flex items-center justify-center shadow-inner">
+                  <Settings size={28} className="text-white" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-gray-900">Admin</p>
+                  <p className="text-gray-500 text-xs break-all">{email}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-white font-bold">Administrator</p>
-                <p className="text-white/30 text-xs font-mono truncate max-w-[160px]">{userEmail}</p>
+
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <div className="bg-amber-50 rounded-xl p-4 border border-amber-100 text-center">
+                  <p className="text-2xl font-bold text-amber-700">
+                    {stats.pending}
+                  </p>
+                  <p className="text-xs text-amber-600 font-semibold mt-1">
+                    Pending
+                  </p>
+                </div>
+                <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100 text-center">
+                  <p className="text-2xl font-bold text-emerald-700">
+                    {stats.approved}
+                  </p>
+                  <p className="text-xs text-emerald-600 font-semibold mt-1">
+                    Approved
+                  </p>
+                </div>
               </div>
-            </div>
-            <div className="space-y-2 flex-1">
-              <Row k="Role"     v="Admin"     vc="text-violet-400"  />
-              <Row k="Access"   v="Full"      vc="text-emerald-400" />
-              <Row k="Grounds"  v={s.grounds} />
-              <Row k="Users"    v={s.users}   />
-              <Row k="Bookings" v={s.bookings} />
-            </div>
-            <div className="mt-4 pt-4 border-t border-white/8 grid grid-cols-2 gap-2">
-              <button onClick={() => navigate("/admin/users")}
-                className="py-2.5 bg-violet-500/10 border border-violet-500/20 text-violet-400 rounded-xl text-xs font-bold hover:bg-violet-500/20 transition">
-                Users
-              </button>
-              <button onClick={() => navigate("/admin/grounds")}
-                className="py-2.5 bg-white/5 border border-white/10 text-white/50 rounded-xl text-xs font-bold hover:bg-white/10 hover:text-white transition">
-                Grounds
+
+              <button
+                onClick={() => navigate("/admin/grounds")}
+                className="w-full py-3 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 font-semibold rounded-xl transition text-sm"
+              >
+                Review Grounds
               </button>
             </div>
           </div>

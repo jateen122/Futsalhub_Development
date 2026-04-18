@@ -30,7 +30,6 @@ import PlayerLoyalty        from "./pages/PlayerLoyalty";
 // ── Owner ───────────────────────────────────────────────────────────────────
 import OwnerDashboard          from "./pages/OwnerDashboard";
 import OwnerAddGround          from "./pages/OwnerAddGround";
-import OwnerManageGround       from "./pages/OwnerManageGround";
 import OwnerBookings           from "./pages/OwnerBookings";
 import OwnerNotifications      from "./pages/OwnerNotifications";
 import OwnerPricingAndBlocking from "./pages/OwnerPricingAndBlocking";
@@ -71,7 +70,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-black">
+      <div className="min-h-screen bg-white">
         <Navbar />
         <Routes>
 
@@ -114,8 +113,6 @@ export default function App() {
             element={<ProtectedRoute allowedRole="owner"><OwnerDashboard /></ProtectedRoute>} />
           <Route path="/add-ground"
             element={<ProtectedRoute allowedRole="owner"><OwnerAddGround /></ProtectedRoute>} />
-          <Route path="/manage-grounds"
-            element={<ProtectedRoute allowedRole="owner"><OwnerManageGround /></ProtectedRoute>} />
           <Route path="/owner-bookings"
             element={<ProtectedRoute allowedRole="owner"><OwnerBookings /></ProtectedRoute>} />
           <Route path="/owner-notifications"

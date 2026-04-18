@@ -37,8 +37,10 @@ export default function Navbar() {
   // Close menus on outside click
   useEffect(() => {
     const handler = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
-      if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false);
+      if (menuRef.current && !menuRef.current.contains(e.target))
+        setMenuOpen(false);
+      if (profileRef.current && !profileRef.current.contains(e.target))
+        setProfileOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -57,14 +59,18 @@ export default function Navbar() {
   };
 
   const notifPath =
-    role === "owner" ? "/owner-notifications"
-    : role === "admin" ? "/admin/notifications"
-    : "/notifications";
+    role === "owner"
+      ? "/owner-notifications"
+      : role === "admin"
+        ? "/admin/notifications"
+        : "/notifications";
 
   const dashPath =
-    role === "admin" ? "/admin-dashboard"
-    : role === "owner" ? "/owner-dashboard"
-    : "/player-dashboard";
+    role === "admin"
+      ? "/admin-dashboard"
+      : role === "owner"
+        ? "/owner-dashboard"
+        : "/player-dashboard";
 
   const playerLinks = [
     { to: "/", label: "Home" },
@@ -79,7 +85,6 @@ export default function Navbar() {
   const ownerLinks = [
     { to: "/owner-dashboard", label: "Dashboard" },
     { to: "/add-ground", label: "Add Ground" },
-    { to: "/manage-grounds", label: "My Grounds" },
     { to: "/owner-bookings", label: "Bookings" },
     { to: "/owner-pricing", label: "Pricing & Availability" },
     { to: "/owner-analytics", label: "Analytics" },
@@ -99,25 +104,29 @@ export default function Navbar() {
   ];
 
   const links =
-    role === "player" ? playerLinks
-    : role === "owner" ? ownerLinks
-    : role === "admin" ? adminLinks
-    : publicLinks;
+    role === "player"
+      ? playerLinks
+      : role === "owner"
+        ? ownerLinks
+        : role === "admin"
+          ? adminLinks
+          : publicLinks;
 
   const isActive = (to) => location.pathname === to;
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-100 shadow-sm">
       <div className="h-16 flex items-center justify-between px-8">
-
         {/* LEFT: Logo */}
-        <Link to="/" className="text-2xl font-black tracking-tight text-gray-900">
+        <Link
+          to="/"
+          className="text-2xl font-black tracking-tight text-gray-900"
+        >
           Futsal<span className="text-amber-500">Hub</span>
         </Link>
 
         {/* RIGHT: Links + Notification + Profile */}
         <div className="flex items-center gap-6">
-
           {/* Page Links */}
           <div className="hidden md:flex items-center gap-6 text-base font-semibold">
             {links.map((l) => (
@@ -137,7 +146,10 @@ export default function Navbar() {
 
           {!role ? (
             <>
-              <Link to="/login" className="text-gray-700 hover:text-gray-900 text-sm font-medium">
+              <Link
+                to="/login"
+                className="text-gray-700 hover:text-gray-900 text-sm font-medium"
+              >
                 Login
               </Link>
               <Link
@@ -150,7 +162,10 @@ export default function Navbar() {
           ) : (
             <>
               {/* Notifications */}
-              <Link to={notifPath} className="relative text-gray-700 hover:text-amber-600">
+              <Link
+                to={notifPath}
+                className="relative text-gray-700 hover:text-amber-600"
+              >
                 <Bell size={22} />
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full">
@@ -170,10 +185,16 @@ export default function Navbar() {
 
                 {profileOpen && (
                   <div className="absolute right-0 top-12 w-56 bg-white border rounded-2xl shadow-lg py-2">
-                    <Link to="/profile" className="block px-4 py-2 hover:bg-gray-50">
+                    <Link
+                      to="/profile"
+                      className="block px-4 py-2 hover:bg-gray-50"
+                    >
                       Profile
                     </Link>
-                    <Link to={dashPath} className="block px-4 py-2 hover:bg-gray-50">
+                    <Link
+                      to={dashPath}
+                      className="block px-4 py-2 hover:bg-gray-50"
+                    >
                       Dashboard
                     </Link>
                     <div className="border-t my-2" />
@@ -190,7 +211,10 @@ export default function Navbar() {
           )}
 
           {/* Mobile menu */}
-          <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden text-xl">
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="md:hidden text-xl"
+          >
             {menuOpen ? "✕" : "☰"}
           </button>
         </div>
