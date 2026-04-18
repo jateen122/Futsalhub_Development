@@ -94,7 +94,7 @@ export default function AdminGroundDetail() {
           </p>
           <button
             onClick={() => navigate("/admin/grounds")}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-600 transition text-sm"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-amber-500 text-white rounded-xl font-bold hover:bg-amber-600 transition text-sm"
           >
             <ArrowLeft size={16} /> Back to Approvals
           </button>
@@ -312,7 +312,7 @@ export default function AdminGroundDetail() {
                     <button
                       onClick={() => handleApproval(true)}
                       disabled={approving}
-                      className="py-3 bg-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-600 transition disabled:opacity-50 text-sm flex items-center justify-center gap-2 shadow-sm"
+                      className="py-3 bg-amber-500 text-white rounded-xl font-bold hover:bg-amber-600 transition disabled:opacity-50 text-sm flex items-center justify-center gap-2 shadow-sm"
                     >
                       {approving ? (
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -326,11 +326,11 @@ export default function AdminGroundDetail() {
                 </>
               ) : (
                 <>
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-                    <p className="text-emerald-800 font-semibold text-sm flex items-center gap-2">
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                    <p className="text-red-800 font-semibold text-sm flex items-center gap-2">
                       <CheckCircle size={16} /> Ground is Live
                     </p>
-                    <p className="text-emerald-600/70 text-xs mt-1">
+                    <p className="text-red-600/70 text-xs mt-1">
                       Visible to all players on the platform.
                     </p>
                   </div>
