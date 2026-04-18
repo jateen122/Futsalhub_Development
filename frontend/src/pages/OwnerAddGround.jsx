@@ -1,11 +1,17 @@
+// frontend/src/pages/OwnerAddGround.jsx
+// This page handles both viewing/editing the existing ground AND adding a new one.
+// The old OwnerManageGround page is removed; its functionality is merged here.
+
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Upload, MapPin, Clock, DollarSign, Image as ImageIcon } from "lucide-react";
+import {
+  ArrowLeft, Save, Upload, MapPin, Clock, DollarSign,
+  CheckCircle, Edit3, Trash2, AlertTriangle, X, Image,
+} from "lucide-react";
 import LocationPicker from "../components/LocationPicker";
 
 const BASE_URL = "http://127.0.0.1:8000";
 
-/* ─── Time Helpers ───────────────────────────────────────────── */
 const toBackendTime = ({ hour, ampm }) => {
   if (!hour) return "";
   let h = parseInt(hour, 10);
@@ -24,7 +30,6 @@ const fromBackendTime = (val) => {
 
 const toLabel = (t) => (t?.hour ? `${t.hour}:00 ${t.ampm}` : "");
 
-/* ─── Validation ─────────────────────────────────────────────── */
 const validate = (form, isEdit) => {
   const e = {};
   if (!form.name.trim()) e.name = "Ground name is required.";
@@ -33,29 +38,25 @@ const validate = (form, isEdit) => {
   if (!form.facilities.trim()) e.facilities = "List at least one facility.";
   if (!form.opening_time.hour) e.opening_time = "Select opening time.";
   if (!form.closing_time.hour) e.closing_time = "Select closing time.";
-  
   if (form.opening_time.hour && form.closing_time.hour) {
     const o = toBackendTime(form.opening_time);
     const c = toBackendTime(form.closing_time);
     if (o >= c) e.closing_time = "Closing time must be after opening time.";
   }
-
   const price = parseFloat(form.price_per_hour);
   if (!form.price_per_hour || isNaN(price) || price <= 0)
     e.price_per_hour = "Enter a valid price greater than 0.";
-
   if (!form.ground_size) e.ground_size = "Select ground size.";
   if (!form.ground_type) e.ground_type = "Select ground type.";
   if (!isEdit && form.newImages.length === 0)
     e.images = "Upload at least one image.";
-
   return e;
 };
 
 const INIT_FORM = {
   name: "", location: "", description: "", facilities: "",
   opening_time: { hour: "", ampm: "AM" },
-  closing_time: { hour: "", ampm: "PM" },
+  closing_time:  { hour: "", ampm: "PM" },
   price_per_hour: "",
   ground_size: "",
   ground_type: "",
@@ -64,43 +65,51 @@ const INIT_FORM = {
   newImages: [],
 };
 
-/* ─── Reusable Components ────────────────────────────────────── */
+function FieldErr({ msg }) {
+  if (!msg) return null;
+  return (
+    <p className="text-red-500 text-xs mt-1.5 flex items-center gap-1">
+      <AlertTriangle size={12} /> {msg}
+    </p>
+  );
+}
+
 function TimePicker({ label, value, onChange, error }) {
   const hours = ["1","2","3","4","5","6","7","8","9","10","11","12"];
-
   return (
     <div>
       <label className="block text-sm font-semibold text-gray-700 mb-2">{label}</label>
-      <div className={`bg-white border rounded-2xl overflow-hidden transition-all ${error ? "border-red-400" : "border-gray-200"}`}>
-        <div className="px-5 py-3 border-b border-gray-100 flex justify-between text-xs font-medium text-gray-500">
+      <div className={`bg-white border rounded-2xl overflow-hidden transition-all
+        ${error ? "border-red-400" : "border-gray-200 focus-within:border-emerald-500"}`}>
+        <div className="px-5 py-3 border-b border-gray-100 flex justify-between text-xs font-semibold text-gray-400">
           <span>HOUR</span>
-          {value.hour && <span className="text-green-600 font-bold">✓ {toLabel(value)}</span>}
+          {value.hour && (
+            <span className="text-emerald-600 font-bold">{toLabel(value)}</span>
+          )}
         </div>
-        
-        <div className="grid grid-cols-6 gap-1.5 p-4 border-b border-gray-100">
-          {hours.map(h => (
+        <div className="grid grid-cols-6 gap-1.5 p-3 border-b border-gray-100">
+          {hours.map((h) => (
             <button
               key={h}
               type="button"
               onClick={() => onChange({ ...value, hour: h })}
-              className={`h-11 rounded-xl text-sm font-semibold transition-all
-                ${value.hour === h 
-                  ? "bg-green-600 text-white shadow" 
-                  : "bg-gray-50 hover:bg-green-50 text-gray-600 hover:text-green-700 border border-transparent hover:border-green-200"}`}
+              className={`h-10 rounded-xl text-sm font-semibold transition-all
+                ${value.hour === h
+                  ? "bg-emerald-600 text-white shadow-sm"
+                  : "bg-gray-50 hover:bg-emerald-50 text-gray-600 hover:text-emerald-700 border border-transparent hover:border-emerald-200"}`}
             >
               {h}
             </button>
           ))}
         </div>
-
-        <div className="grid grid-cols-2 gap-3 p-4">
-          {["AM", "PM"].map(a => (
+        <div className="grid grid-cols-2 gap-2 p-3">
+          {["AM", "PM"].map((a) => (
             <button
               key={a}
               type="button"
               onClick={() => onChange({ ...value, ampm: a })}
-              className={`py-3 rounded-xl font-semibold text-sm transition-all
-                ${value.ampm === a 
+              className={`py-2.5 rounded-xl font-semibold text-sm transition-all
+                ${value.ampm === a
                   ? a === "AM" ? "bg-sky-500 text-white" : "bg-orange-500 text-white"
                   : "bg-gray-50 hover:bg-gray-100 text-gray-500"}`}
             >
@@ -109,63 +118,96 @@ function TimePicker({ label, value, onChange, error }) {
           ))}
         </div>
       </div>
-      {error && <p className="text-red-500 text-xs mt-1.5">⚠ {error}</p>}
+      {error && <FieldErr msg={error} />}
     </div>
   );
 }
 
-function Err({ children }) {
-  return <p className="text-red-500 text-xs mt-1.5 flex items-center gap-1">⚠ {children}</p>;
-}
-
-function Section({ num, title, subtitle, done, badge, children }) {
+function SectionCard({ number, title, subtitle, done, children }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-3xl shadow-sm overflow-hidden">
-      <div className="px-8 py-5 border-b border-gray-100 bg-gray-50 flex items-center gap-4">
-        <div className={`w-8 h-8 rounded-2xl flex items-center justify-center text-sm font-bold flex-shrink-0
-          ${done ? "bg-green-500 text-white" : "bg-gray-200 text-gray-500"}`}>
-          {done ? "✓" : num}
+    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
+        <div className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0
+          ${done ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-500"}`}>
+          {done ? <CheckCircle size={14} /> : number}
         </div>
-        <div className="flex-1">
-          <h3 className="font-semibold text-gray-900">{title}</h3>
-          <p className="text-xs text-gray-500">{subtitle}</p>
+        <div>
+          <p className="font-bold text-gray-900 text-sm">{title}</p>
+          <p className="text-xs text-gray-400">{subtitle}</p>
         </div>
-        {badge && <span className="text-xs bg-gray-100 px-3 py-1 rounded-full text-gray-500">{badge}</span>}
       </div>
-      <div className="p-8">{children}</div>
+      <div className="p-6">{children}</div>
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   MAIN COMPONENT
-═══════════════════════════════════════════════════════════════ */
+function DeleteModal({ ground, onConfirm, onCancel, deleting }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white border border-gray-200 rounded-2xl p-8 max-w-sm w-full shadow-2xl">
+        <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center">
+          <Trash2 size={22} className="text-red-500" />
+        </div>
+        <h2 className="text-xl font-black text-gray-900 text-center mb-1">Delete Ground?</h2>
+        <p className="text-gray-500 text-sm text-center mb-1">Permanently removing:</p>
+        <p className="text-gray-900 font-black text-center text-base mb-1">{ground.name}</p>
+        <p className="text-gray-400 text-center text-xs mb-5">{ground.location}</p>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-5">
+          <p className="text-red-600 text-xs text-center font-semibold">This cannot be undone.</p>
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-3 bg-gray-100 border border-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition text-sm"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={deleting}
+            className="flex-1 py-3 bg-red-500 text-white font-black rounded-xl hover:bg-red-600 transition disabled:opacity-50 text-sm flex items-center justify-center gap-2"
+          >
+            {deleting ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Trash2 size={15} />
+            )}
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function OwnerAddGround() {
   const navigate = useNavigate();
   const token = localStorage.getItem("access");
   const fileRef = useRef(null);
 
-  const [form, setForm] = useState(INIT_FORM);
-  const [errors, setErrors] = useState({});
+  const [form, setForm]               = useState(INIT_FORM);
+  const [errors, setErrors]           = useState({});
   const [newPreviews, setNewPreviews] = useState([]);
-  const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState("");
-  const [apiError, setApiError] = useState("");
-  const [myGround, setMyGround] = useState(null);
-  const [editMode, setEditMode] = useState(false);
+  const [submitting, setSubmitting]   = useState(false);
+  const [success, setSuccess]         = useState("");
+  const [apiError, setApiError]       = useState("");
+  const [myGround, setMyGround]       = useState(null);
+  const [editMode, setEditMode]       = useState(false);
   const [loadingGround, setLoadingGround] = useState(true);
+  const [showDelete, setShowDelete]   = useState(false);
+  const [deleting, setDeleting]       = useState(false);
+  const [toast, setToast]             = useState("");
 
-  /* Fetch existing ground */
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 3500);
+  };
+
   useEffect(() => {
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-    fetch(`${BASE_URL}/api/grounds/my/`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then(r => r.json())
-      .then(d => {
+    if (!token) { navigate("/login"); return; }
+    fetch(`${BASE_URL}/api/grounds/my/`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((d) => {
         const list = d.results || d || [];
         if (list.length > 0) setMyGround(list[0]);
       })
@@ -176,17 +218,17 @@ export default function OwnerAddGround() {
   const enableEdit = () => {
     if (!myGround) return;
     setForm({
-      name: myGround.name || "",
-      location: myGround.location || "",
-      description: myGround.description || "",
-      facilities: myGround.facilities || "",
-      opening_time: fromBackendTime(myGround.opening_time?.slice(0, 5)),
-      closing_time: fromBackendTime(myGround.closing_time?.slice(0, 5)),
+      name:           myGround.name || "",
+      location:       myGround.location || "",
+      description:    myGround.description || "",
+      facilities:     myGround.facilities || "",
+      opening_time:   fromBackendTime(myGround.opening_time?.slice(0, 5)),
+      closing_time:   fromBackendTime(myGround.closing_time?.slice(0, 5)),
       price_per_hour: myGround.price_per_hour || "",
-      ground_size: myGround.ground_size || "",
-      ground_type: myGround.ground_type || "",
-      lat: myGround.latitude != null ? parseFloat(myGround.latitude) : null,
-      lng: myGround.longitude != null ? parseFloat(myGround.longitude) : null,
+      ground_size:    myGround.ground_size || "",
+      ground_type:    myGround.ground_type || "",
+      lat:  myGround.latitude  != null ? parseFloat(myGround.latitude)  : null,
+      lng:  myGround.longitude != null ? parseFloat(myGround.longitude) : null,
       newImages: [],
     });
     setNewPreviews([]);
@@ -196,49 +238,42 @@ export default function OwnerAddGround() {
     setEditMode(true);
   };
 
-  /* Form Handlers */
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm(f => ({ ...f, [name]: value }));
-    if (errors[name]) setErrors(ex => ({ ...ex, [name]: "" }));
+    setForm((f) => ({ ...f, [name]: value }));
+    if (errors[name]) setErrors((ex) => ({ ...ex, [name]: "" }));
   };
 
-  const setTime = (field, val) => {
-    setForm(f => ({ ...f, [field]: val }));
-    if (errors[field]) setErrors(ex => ({ ...ex, [field]: "" }));
+  const setTime  = (field, val) => {
+    setForm((f) => ({ ...f, [field]: val }));
+    if (errors[field]) setErrors((ex) => ({ ...ex, [field]: "" }));
   };
 
   const setChoice = (field, val) => {
-    setForm(f => ({ ...f, [field]: val }));
-    if (errors[field]) setErrors(ex => ({ ...ex, [field]: "" }));
+    setForm((f) => ({ ...f, [field]: val }));
+    if (errors[field]) setErrors((ex) => ({ ...ex, [field]: "" }));
   };
 
   const handleImages = (e) => {
-    const files = Array.from(e.target.files);
+    const files  = Array.from(e.target.files);
     const merged = [...form.newImages, ...files].slice(0, 3);
-    setForm(f => ({ ...f, newImages: merged }));
-    setNewPreviews(merged.map(file => URL.createObjectURL(file)));
-    if (errors.images) setErrors(ex => ({ ...ex, images: "" }));
-  };
-
-  const removeNewImage = (idx) => {
-    const updatedImages = form.newImages.filter((_, i) => i !== idx);
-    setForm(f => ({ ...f, newImages: updatedImages }));
-    setNewPreviews(updatedImages.map(file => URL.createObjectURL(file)));
+    setForm((f) => ({ ...f, newImages: merged }));
+    setNewPreviews(merged.map((file) => URL.createObjectURL(file)));
+    if (errors.images) setErrors((ex) => ({ ...ex, images: "" }));
   };
 
   const buildFD = () => {
     const fd = new FormData();
-    fd.append("name", form.name.trim());
-    fd.append("location", form.location.trim());
-    fd.append("description", form.description.trim());
-    fd.append("facilities", form.facilities.trim());
-    fd.append("opening_time", toBackendTime(form.opening_time));
-    fd.append("closing_time", toBackendTime(form.closing_time));
+    fd.append("name",           form.name.trim());
+    fd.append("location",       form.location.trim());
+    fd.append("description",    form.description.trim());
+    fd.append("facilities",     form.facilities.trim());
+    fd.append("opening_time",   toBackendTime(form.opening_time));
+    fd.append("closing_time",   toBackendTime(form.closing_time));
     fd.append("price_per_hour", String(form.price_per_hour));
-    fd.append("ground_size", form.ground_size);
-    fd.append("ground_type", form.ground_type);
-    if (form.lat != null) fd.append("latitude", String(form.lat));
+    fd.append("ground_size",    form.ground_size);
+    fd.append("ground_type",    form.ground_type);
+    if (form.lat != null) fd.append("latitude",  String(form.lat));
     if (form.lng != null) fd.append("longitude", String(form.lng));
     if (form.newImages[0]) fd.append("image", form.newImages[0]);
     return fd;
@@ -248,23 +283,17 @@ export default function OwnerAddGround() {
     e.preventDefault();
     setApiError("");
     const errs = validate(form, false);
-    if (Object.keys(errs).length > 0) {
-      setErrors(errs);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
-    }
-
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setSubmitting(true);
     try {
-      const res = await fetch(`${BASE_URL}/api/grounds/create/`, {
-        method: "POST",
+      const res  = await fetch(`${BASE_URL}/api/grounds/create/`, {
+        method:  "POST",
         headers: { Authorization: `Bearer ${token}` },
-        body: buildFD(),
+        body:    buildFD(),
       });
       const data = await res.json();
-
       if (res.ok) {
-        setSuccess("Ground listed successfully! Awaiting admin approval.");
+        setSuccess("Ground listed. Awaiting admin approval.");
         setMyGround(data.ground || data);
         setForm(INIT_FORM);
         setNewPreviews([]);
@@ -273,7 +302,7 @@ export default function OwnerAddGround() {
         setApiError(data.detail || "Failed to create ground.");
       }
     } catch {
-      setApiError("Network error. Please check if server is running.");
+      setApiError("Network error. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -283,22 +312,17 @@ export default function OwnerAddGround() {
     e.preventDefault();
     setApiError("");
     const errs = validate(form, true);
-    if (Object.keys(errs).length > 0) {
-      setErrors(errs);
-      return;
-    }
-
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setSubmitting(true);
     try {
-      const res = await fetch(`${BASE_URL}/api/grounds/${myGround.id}/update/`, {
-        method: "PATCH",
+      const res  = await fetch(`${BASE_URL}/api/grounds/${myGround.id}/update/`, {
+        method:  "PATCH",
         headers: { Authorization: `Bearer ${token}` },
-        body: buildFD(),
+        body:    buildFD(),
       });
       const data = await res.json();
-
       if (res.ok) {
-        setSuccess("Ground updated successfully!");
+        showToast("Ground updated successfully!");
         setMyGround(data.ground || data);
         setEditMode(false);
         setNewPreviews([]);
@@ -312,156 +336,37 @@ export default function OwnerAddGround() {
     }
   };
 
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await fetch(`${BASE_URL}/api/grounds/${myGround.id}/delete/`, {
+        method:  "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setMyGround(null);
+      setShowDelete(false);
+      setEditMode(false);
+      showToast("Ground deleted.");
+    } catch {
+      showToast("Delete failed.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loadingGround) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
-  /* View Mode */
-/* ── VIEW MODE ──────────────────────────────────────────────── */
-if (myGround && !editMode) {
-  const imgSrc = myGround.image
-    ? myGround.image.startsWith("http") 
-      ? myGround.image 
-      : `${BASE_URL}${myGround.image}`
+  const isEdit       = editMode && !!myGround;
+  const imgSrc       = myGround?.image
+    ? myGround.image.startsWith("http") ? myGround.image : `${BASE_URL}${myGround.image}`
     : null;
-
-  const hasLocation = myGround.latitude != null && myGround.longitude != null;
-
-  return (
-    <div className="min-h-screen bg-gray-50 pt-20 pb-16">
-      <div className="max-w-5xl mx-auto px-6">
-        
-        {/* Back Button */}
-        <button 
-          onClick={() => navigate("/owner-dashboard")}
-          className="flex items-center gap-2 text-gray-500 hover:text-gray-700 mb-8 transition-colors"
-        >
-          <ArrowLeft size={20} />
-          <span className="font-medium">Back to Dashboard</span>
-        </button>
-
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-          
-          {/* Header */}
-          <div className="px-10 pt-10 pb-6 border-b border-gray-100 flex items-start justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-gray-900 tracking-tight">
-                {myGround.name}
-              </h1>
-              <div className="flex items-center gap-2 mt-3 text-gray-500">
-                <MapPin size={20} className="text-gray-400" />
-                <span className="text-lg">{myGround.location}</span>
-              </div>
-            </div>
-
-            <div className={`px-6 py-2 rounded-full text-sm font-semibold border 
-              ${myGround.is_approved 
-                ? "bg-emerald-100 text-emerald-700 border-emerald-200" 
-                : "bg-amber-100 text-amber-700 border-amber-200"}`}>
-              {myGround.is_approved ? "Approved" : "Pending Approval"}
-            </div>
-          </div>
-
-          <div className="grid lg:grid-cols-5 gap-10 p-10">
-            
-            {/* Image Section - Better Proportion */}
-            <div className="lg:col-span-3">
-              <div className="rounded-2xl overflow-hidden shadow-md border border-gray-100 aspect-video bg-gray-100">
-                {imgSrc ? (
-                  <img 
-                    src={imgSrc} 
-                    alt={myGround.name} 
-                    className="w-full h-full object-cover" 
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-8xl text-gray-300">
-                    ⚽
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Details Sidebar */}
-            <div className="lg:col-span-2 space-y-8">
-              
-              {/* Details Card */}
-              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-8">
-                <h3 className="uppercase text-xs tracking-widest font-semibold text-gray-500 mb-6">Ground Details</h3>
-                
-                <div className="space-y-6">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3 text-gray-600">
-                      <DollarSign size={22} />
-                      <span className="font-medium">Price per hour</span>
-                    </div>
-                    <span className="font-semibold text-xl text-gray-900">
-                      Rs {parseFloat(myGround.price_per_hour).toLocaleString()}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3 text-gray-600">
-                      <Clock size={22} />
-                      <span className="font-medium">Opens</span>
-                    </div>
-                    <span className="font-semibold text-gray-900">
-                      {toLabel(fromBackendTime(myGround.opening_time?.slice(0, 5)))}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3 text-gray-600">
-                      <Clock size={22} />
-                      <span className="font-medium">Closes</span>
-                    </div>
-                    <span className="font-semibold text-gray-900">
-                      {toLabel(fromBackendTime(myGround.closing_time?.slice(0, 5)))}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3 text-gray-600">
-                      <MapPin size={22} />
-                      <span className="font-medium">Type</span>
-                    </div>
-                    <span className="font-semibold capitalize text-gray-900">
-                      {myGround.ground_type}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Button */}
-              <button 
-                onClick={enableEdit}
-                className="w-full bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-semibold py-4 rounded-2xl transition-all flex items-center justify-center gap-3 text-lg shadow-sm"
-              >
-                Edit Ground Information
-              </button>
-
-              {/* Note */}
-              <div className="text-center">
-                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 px-5 py-3 rounded-2xl">
-                  Only one ground is allowed per owner account
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-  /* Form Mode */
-  const isEdit = editMode && !!myGround;
-  const existingImgSrc = isEdit && myGround?.image 
-    ? myGround.image.startsWith("http") ? myGround.image : `${BASE_URL}${myGround.image}` 
-    : null;
+  const existingImgSrc = isEdit && imgSrc ? imgSrc : null;
 
   const doneSteps = [
     !!(form.name && form.location && form.description && form.facilities),
@@ -471,214 +376,397 @@ if (myGround && !editMode) {
     newPreviews.length > 0 || (isEdit && !!existingImgSrc),
     form.lat != null && form.lng != null,
   ];
-
   const progress = Math.round((doneSteps.filter(Boolean).length / 6) * 100);
 
-  return (
-    <div className="min-h-screen bg-gray-50 pt-20">
-      <div className="max-w-7xl mx-auto px-6 py-10">
-        <div className="flex items-center gap-4 mb-10">
-          <button 
-            onClick={() => isEdit ? setEditMode(false) : navigate("/owner-dashboard")}
-            className="flex items-center gap-2 text-gray-500 hover:text-gray-700"
-          >
-            <ArrowLeft size={20} />
-            <span>{isEdit ? "Cancel Edit" : "Back to Dashboard"}</span>
-          </button>
-          <h1 className="text-3xl font-bold text-gray-900 ml-4">
-            {isEdit ? "Edit Your Ground" : "List New Futsal Ground"}
-          </h1>
+  const inputCls = (field) =>
+    `w-full border rounded-xl px-4 py-3 text-sm text-gray-800 bg-white placeholder-gray-400 focus:outline-none transition-all
+     ${errors[field]
+       ? "border-red-400 focus:border-red-400"
+       : "border-gray-200 hover:border-gray-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-100"}`;
+
+  /* ── VIEW MODE ── */
+  if (myGround && !editMode) {
+    return (
+      <div className="min-h-screen bg-gray-50 pt-16">
+        {toast && (
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-white border border-emerald-200 text-emerald-700 px-6 py-3 rounded-2xl shadow-xl text-sm font-semibold whitespace-nowrap">
+            {toast}
+          </div>
+        )}
+        {showDelete && (
+          <DeleteModal
+            ground={myGround}
+            onConfirm={handleDelete}
+            onCancel={() => setShowDelete(false)}
+            deleting={deleting}
+          />
+        )}
+
+        {/* Header */}
+        <div className="bg-white border-b border-gray-100 shadow-sm sticky top-16 z-30">
+          <div className="w-full px-6 md:px-10 lg:px-14 xl:px-20 py-5 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => navigate("/owner-dashboard")}
+                className="flex items-center gap-2 text-gray-500 hover:text-gray-800 font-medium transition text-sm"
+              >
+                <ArrowLeft size={18} /> Dashboard
+              </button>
+              <div className="h-5 w-px bg-gray-200" />
+              <h1 className="text-xl font-black text-gray-900">My Ground</h1>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowDelete(true)}
+                className="flex items-center gap-2 px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-xl text-sm font-semibold transition"
+              >
+                <Trash2 size={15} /> Delete
+              </button>
+              <button
+                onClick={enableEdit}
+                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm transition shadow-sm"
+              >
+                <Edit3 size={15} /> Edit Ground
+              </button>
+            </div>
+          </div>
         </div>
 
+        <div className="w-full px-6 md:px-10 lg:px-14 xl:px-20 py-8">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+
+            {/* Image */}
+            <div className="relative h-72 bg-gray-100">
+              {imgSrc ? (
+                <img src={imgSrc} alt={myGround.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-emerald-50 to-teal-100 flex items-center justify-center">
+                  <Image size={48} className="text-emerald-300" />
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+              <div className="absolute bottom-6 left-8">
+                <h2 className="text-3xl font-black text-white">{myGround.name}</h2>
+                <p className="text-white/70 flex items-center gap-1.5 mt-1">
+                  <MapPin size={14} /> {myGround.location}
+                </p>
+              </div>
+              <div className="absolute top-4 right-4">
+                <span className={`px-3 py-1.5 rounded-xl text-xs font-bold border
+                  ${myGround.is_approved
+                    ? "bg-emerald-500/90 text-white border-emerald-400"
+                    : "bg-amber-500/90 text-white border-amber-400"}`}>
+                  {myGround.is_approved ? "Approved & Live" : "Pending Approval"}
+                </span>
+              </div>
+            </div>
+
+            {/* Details grid */}
+            <div className="p-8 grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[
+                { label: "Price per Hour",  value: `Rs ${parseFloat(myGround.price_per_hour).toLocaleString()}` },
+                { label: "Opens",           value: toLabel(fromBackendTime(myGround.opening_time?.slice(0, 5))) || "—" },
+                { label: "Closes",          value: toLabel(fromBackendTime(myGround.closing_time?.slice(0, 5))) || "—" },
+                { label: "Type",            value: myGround.ground_type ? myGround.ground_type.charAt(0).toUpperCase() + myGround.ground_type.slice(1) : "—" },
+                { label: "Size",            value: myGround.ground_size ? `${myGround.ground_size}-a-side` : "—" },
+                { label: "Facilities",      value: myGround.facilities || "—" },
+              ].map(({ label, value }) => (
+                <div key={label} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">{label}</p>
+                  <p className="text-gray-900 font-semibold text-sm">{value}</p>
+                </div>
+              ))}
+            </div>
+
+            {myGround.description && (
+              <div className="px-8 pb-6">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Description</p>
+                <p className="text-gray-700 text-sm leading-relaxed">{myGround.description}</p>
+              </div>
+            )}
+
+            <div className="px-8 pb-8 border-t border-gray-100 pt-6">
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-4 py-2.5 rounded-xl inline-block font-medium text-center">
+                Only one ground is allowed per owner account
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── FORM MODE (add or edit) ── */
+  return (
+    <div className="min-h-screen bg-gray-50 pt-16">
+
+      {/* Header */}
+      <div className="bg-white border-b border-gray-100 shadow-sm sticky top-16 z-30">
+        <div className="w-full px-6 md:px-10 lg:px-14 xl:px-20 py-5 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => isEdit ? setEditMode(false) : navigate("/owner-dashboard")}
+              className="flex items-center gap-2 text-gray-500 hover:text-gray-800 font-medium transition text-sm"
+            >
+              <ArrowLeft size={18} />
+              {isEdit ? "Cancel Edit" : "Dashboard"}
+            </button>
+            <div className="h-5 w-px bg-gray-200" />
+            <h1 className="text-xl font-black text-gray-900">
+              {isEdit ? "Edit Ground" : "List New Ground"}
+            </h1>
+          </div>
+        </div>
+      </div>
+
+      <div className="w-full px-6 md:px-10 lg:px-14 xl:px-20 py-8">
         <div className="grid grid-cols-12 gap-8">
-          {/* Progress Sidebar */}
+
+          {/* Progress sidebar */}
           <div className="col-span-12 lg:col-span-3">
-            <div className="bg-white border border-gray-200 rounded-3xl p-8 sticky top-24">
-              <h3 className="font-semibold text-lg mb-6">Progress</h3>
-              <div className="space-y-6">
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 sticky top-28 shadow-sm">
+              <h3 className="font-bold text-gray-900 mb-5 text-sm">Progress</h3>
+              <div className="space-y-4">
                 {[
                   "Basic Information",
                   "Operating Hours",
                   "Pricing",
                   "Specifications",
                   "Photos",
-                  "Location"
+                  "Location",
                 ].map((label, i) => (
-                  <div key={i} className="flex items-center gap-4">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${doneSteps[i] ? "bg-green-500 text-white" : "bg-gray-200 text-gray-400"}`}>
-                      {doneSteps[i] ? "✓" : i + 1}
+                  <div key={i} className="flex items-center gap-3">
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs flex-shrink-0
+                      ${doneSteps[i] ? "bg-emerald-500 text-white" : "bg-gray-100 text-gray-400"}`}>
+                      {doneSteps[i] ? <CheckCircle size={13} /> : i + 1}
                     </div>
-                    <span className={doneSteps[i] ? "text-gray-900" : "text-gray-400"}>{label}</span>
+                    <span className={`text-sm ${doneSteps[i] ? "text-gray-900 font-medium" : "text-gray-400"}`}>
+                      {label}
+                    </span>
                   </div>
                 ))}
               </div>
-
-              <div className="mt-10">
-                <div className="flex justify-between text-xs mb-2 font-medium">
+              <div className="mt-6">
+                <div className="flex justify-between text-xs mb-2 font-semibold text-gray-400">
                   <span>Completion</span>
-                  <span className="text-green-600">{progress}%</span>
+                  <span className="text-emerald-600">{progress}%</span>
                 </div>
                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-green-500 transition-all" style={{ width: `${progress}%` }} />
+                  <div
+                    className="h-full bg-emerald-500 transition-all duration-500"
+                    style={{ width: `${progress}%` }}
+                  />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Main Form */}
-          <div className="col-span-12 lg:col-span-9 space-y-8">
+          {/* Form */}
+          <div className="col-span-12 lg:col-span-9">
             {apiError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 p-5 rounded-2xl">
-                {apiError}
+              <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl mb-6 flex items-center gap-2 text-sm">
+                <AlertTriangle size={16} /> {apiError}
               </div>
             )}
             {success && (
-              <div className="bg-green-50 border border-green-200 text-green-700 p-5 rounded-2xl">
-                {success}
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 p-4 rounded-2xl mb-6 flex items-center gap-2 text-sm">
+                <CheckCircle size={16} /> {success}
               </div>
             )}
 
-            <form onSubmit={isEdit ? handleUpdate : handleSubmit} className="space-y-8">
+            <form onSubmit={isEdit ? handleUpdate : handleSubmit} className="space-y-5">
+
               {/* Basic Info */}
-              <Section num={1} title="Basic Information" subtitle="Name, location & description" done={doneSteps[0]}>
-                <div className="grid md:grid-cols-2 gap-6">
+              <SectionCard number={1} title="Basic Information" subtitle="Name, location & description" done={doneSteps[0]}>
+                <div className="grid md:grid-cols-2 gap-5">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Ground Name *</label>
-                    <input name="name" value={form.name} onChange={handleChange} placeholder="e.g. Thamel Futsal Arena" className="w-full px-5 py-3.5 border border-gray-300 rounded-2xl focus:border-green-500 focus:ring-1 focus:ring-green-200" />
-                    {errors.name && <Err>{errors.name}</Err>}
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Ground Name *</label>
+                    <input name="name" value={form.name} onChange={handleChange}
+                      placeholder="e.g. Thamel Futsal Arena" className={inputCls("name")} />
+                    <FieldErr msg={errors.name} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Location *</label>
-                    <input name="location" value={form.location} onChange={handleChange} placeholder="e.g. Thamel, Kathmandu" className="w-full px-5 py-3.5 border border-gray-300 rounded-2xl focus:border-green-500 focus:ring-1 focus:ring-green-200" />
-                    {errors.location && <Err>{errors.location}</Err>}
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Location *</label>
+                    <input name="location" value={form.location} onChange={handleChange}
+                      placeholder="e.g. Thamel, Kathmandu" className={inputCls("location")} />
+                    <FieldErr msg={errors.location} />
                   </div>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
-                  <textarea name="description" value={form.description} onChange={handleChange} rows={4} placeholder="Describe your ground..." className="w-full px-5 py-3.5 border border-gray-300 rounded-2xl focus:border-green-500 focus:ring-1 focus:ring-green-200 resize-y" />
-                  {errors.description && <Err>{errors.description}</Err>}
+                <div className="mt-5">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Description *</label>
+                  <textarea name="description" value={form.description} onChange={handleChange}
+                    rows={4} placeholder="Describe your ground..."
+                    className={`${inputCls("description")} resize-none`} />
+                  <FieldErr msg={errors.description} />
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Facilities * <span className="text-xs text-gray-400">(comma separated)</span></label>
-                  <input name="facilities" value={form.facilities} onChange={handleChange} placeholder="Parking, Changing Room, Restroom, Water" className="w-full px-5 py-3.5 border border-gray-300 rounded-2xl focus:border-green-500 focus:ring-1 focus:ring-green-200" />
-                  {errors.facilities && <Err>{errors.facilities}</Err>}
+                <div className="mt-5">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Facilities * <span className="text-xs font-normal text-gray-400">(comma separated)</span>
+                  </label>
+                  <input name="facilities" value={form.facilities} onChange={handleChange}
+                    placeholder="Parking, Changing Room, Restroom, Water" className={inputCls("facilities")} />
+                  <FieldErr msg={errors.facilities} />
                 </div>
-              </Section>
+              </SectionCard>
 
               {/* Operating Hours */}
-              <Section num={2} title="Operating Hours" subtitle="When is your ground open?" done={doneSteps[1]}>
-                <div className="grid md:grid-cols-2 gap-8">
-                  <TimePicker label="Opening Time" value={form.opening_time} onChange={(v) => setTime("opening_time", v)} error={errors.opening_time} />
-                  <TimePicker label="Closing Time" value={form.closing_time} onChange={(v) => setTime("closing_time", v)} error={errors.closing_time} />
+              <SectionCard number={2} title="Operating Hours" subtitle="When is your ground open?" done={doneSteps[1]}>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <TimePicker label="Opening Time" value={form.opening_time}
+                    onChange={(v) => setTime("opening_time", v)} error={errors.opening_time} />
+                  <TimePicker label="Closing Time" value={form.closing_time}
+                    onChange={(v) => setTime("closing_time", v)} error={errors.closing_time} />
                 </div>
-              </Section>
+                {form.opening_time.hour && form.closing_time.hour && (
+                  <div className="mt-4 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
+                    <Clock size={15} className="text-emerald-600" />
+                    <p className="text-emerald-700 font-semibold text-sm">
+                      {toLabel(form.opening_time)} – {toLabel(form.closing_time)}
+                    </p>
+                    <CheckCircle size={14} className="ml-auto text-emerald-500" />
+                  </div>
+                )}
+              </SectionCard>
 
               {/* Pricing */}
-              <Section num={3} title="Pricing" subtitle="Set hourly rate" done={doneSteps[2]}>
-                <div className="max-w-md">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Price per Hour (Rs) *</label>
-                  <div className="flex border border-gray-300 rounded-2xl overflow-hidden focus-within:border-green-500">
-                    <span className="px-6 py-4 bg-gray-50 text-gray-500 font-medium">Rs</span>
-                    <input type="number" name="price_per_hour" value={form.price_per_hour} onChange={handleChange} placeholder="1500" className="flex-1 px-5 py-4 focus:outline-none text-lg font-semibold" />
+              <SectionCard number={3} title="Pricing" subtitle="Set your hourly rate" done={doneSteps[2]}>
+                <div className="max-w-sm">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Price per Hour (Rs) *</label>
+                  <div className={`flex border rounded-xl overflow-hidden transition-all
+                    ${errors.price_per_hour
+                      ? "border-red-400"
+                      : "border-gray-200 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-100"}`}>
+                    <span className="px-4 py-3.5 bg-gray-50 text-gray-500 font-semibold text-sm border-r border-gray-200">
+                      Rs
+                    </span>
+                    <input type="number" name="price_per_hour" value={form.price_per_hour}
+                      onChange={handleChange} placeholder="1500"
+                      className="flex-1 px-4 py-3.5 text-gray-900 font-bold text-lg focus:outline-none bg-white" />
+                    <span className="px-4 py-3.5 bg-gray-50 text-gray-400 text-sm border-l border-gray-200">/hr</span>
                   </div>
-                  {errors.price_per_hour && <Err>{errors.price_per_hour}</Err>}
+                  <FieldErr msg={errors.price_per_hour} />
                 </div>
-              </Section>
+              </SectionCard>
 
               {/* Specifications */}
-              <Section num={4} title="Ground Specifications" subtitle="Size and type" done={doneSteps[3]}>
+              <SectionCard number={4} title="Ground Specifications" subtitle="Size and surface type" done={doneSteps[3]}>
                 <div className="grid md:grid-cols-2 gap-8">
-                  {/* Ground Size */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-4">Ground Size *</label>
-                    <div className="grid grid-cols-3 gap-4">
-                      {["5", "6", "7"].map(size => (
-                        <button key={size} type="button" onClick={() => setChoice("ground_size", size)}
-                          className={`py-6 rounded-2xl border-2 transition-all ${form.ground_size === size ? "border-green-600 bg-green-50" : "border-gray-200 hover:border-gray-300"}`}>
-                          <div className="text-2xl font-bold">{size}v{size}</div>
-                          <div className="text-xs text-gray-500 mt-1">a-side</div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">Ground Size *</label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {["5", "6", "7"].map((size) => (
+                        <button
+                          key={size} type="button" onClick={() => setChoice("ground_size", size)}
+                          className={`py-5 rounded-xl border-2 transition-all text-center
+                            ${form.ground_size === size
+                              ? "border-emerald-600 bg-emerald-50"
+                              : "border-gray-200 hover:border-gray-300 bg-white"}`}
+                        >
+                          <div className="text-xl font-black text-gray-900">{size}v{size}</div>
+                          <div className="text-xs text-gray-400 mt-0.5">a-side</div>
                         </button>
                       ))}
                     </div>
-                    {errors.ground_size && <Err>{errors.ground_size}</Err>}
+                    <FieldErr msg={errors.ground_size} />
                   </div>
-
-                  {/* Ground Type */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-4">Ground Type *</label>
-                    <div className="grid grid-cols-2 gap-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">Ground Type *</label>
+                    <div className="grid grid-cols-2 gap-3">
                       {[
-                        { value: "indoor", label: "Indoor", icon: "🏠" },
-                        { value: "outdoor", label: "Outdoor", icon: "☀️" }
-                      ].map(t => (
-                        <button key={t.value} type="button" onClick={() => setChoice("ground_type", t.value)}
-                          className={`p-8 rounded-2xl border-2 text-center transition-all ${form.ground_type === t.value ? "border-green-600 bg-green-50" : "border-gray-200 hover:border-gray-300"}`}>
-                          <div className="text-4xl mb-3">{t.icon}</div>
-                          <div className="font-semibold">{t.label}</div>
+                        { value: "indoor",  label: "Indoor"  },
+                        { value: "outdoor", label: "Outdoor" },
+                      ].map((t) => (
+                        <button
+                          key={t.value} type="button" onClick={() => setChoice("ground_type", t.value)}
+                          className={`py-5 rounded-xl border-2 text-center transition-all font-semibold text-sm
+                            ${form.ground_type === t.value
+                              ? "border-emerald-600 bg-emerald-50 text-emerald-800"
+                              : "border-gray-200 hover:border-gray-300 bg-white text-gray-700"}`}
+                        >
+                          {t.label}
                         </button>
                       ))}
                     </div>
-                    {errors.ground_type && <Err>{errors.ground_type}</Err>}
+                    <FieldErr msg={errors.ground_type} />
                   </div>
                 </div>
-              </Section>
+              </SectionCard>
 
               {/* Photos */}
-              <Section num={5} title="Ground Photos" subtitle="Upload clear images" done={doneSteps[4]} badge={`${newPreviews.length}/3`}>
+              <SectionCard number={5} title="Ground Photos" subtitle="Upload clear images of your ground" done={doneSteps[4]}>
                 {isEdit && existingImgSrc && newPreviews.length === 0 && (
-                  <div className="mb-6">
-                    <p className="text-xs uppercase text-gray-500 mb-3">Current Image</p>
-                    <img src={existingImgSrc} alt="current" className="rounded-2xl max-h-64 w-full object-cover" />
+                  <div className="mb-5">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Current Photo</p>
+                    <div className="rounded-xl overflow-hidden border border-gray-200 h-48">
+                      <img src={existingImgSrc} alt="current" className="w-full h-full object-cover" />
+                    </div>
                   </div>
                 )}
 
                 {newPreviews.length > 0 && (
-                  <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="grid grid-cols-3 gap-3 mb-5">
                     {newPreviews.map((src, i) => (
-                      <div key={i} className="relative rounded-2xl overflow-hidden border border-green-200">
-                        <img src={src} alt="" className="w-full h-40 object-cover" />
-                        <button type="button" onClick={() => removeNewImage(i)} className="absolute top-2 right-2 bg-red-500 text-white w-7 h-7 rounded-full text-xs">✕</button>
+                      <div key={i} className="relative rounded-xl overflow-hidden border-2 border-emerald-300 h-36">
+                        <img src={src} alt="" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const u = form.newImages.filter((_, j) => j !== i);
+                            setForm((f) => ({ ...f, newImages: u }));
+                            setNewPreviews(u.map((file) => URL.createObjectURL(file)));
+                          }}
+                          className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center"
+                        >
+                          <X size={12} />
+                        </button>
                       </div>
                     ))}
                   </div>
                 )}
 
-                <button type="button" onClick={() => fileRef.current.click()} className="w-full border-2 border-dashed border-gray-300 hover:border-green-400 rounded-3xl py-12 flex flex-col items-center gap-3 transition">
-                  <Upload className="text-gray-400" size={40} />
+                <button
+                  type="button"
+                  onClick={() => fileRef.current.click()}
+                  className="w-full border-2 border-dashed border-gray-300 hover:border-emerald-400 hover:bg-emerald-50 rounded-2xl py-12 flex flex-col items-center gap-3 transition-all"
+                >
+                  <Upload size={32} className="text-gray-400" />
                   <div>
-                    <p className="font-semibold text-gray-700">Click to upload photos</p>
-                    <p className="text-xs text-gray-400">JPG or PNG • Max 3 images</p>
+                    <p className="font-semibold text-gray-700 text-sm">Click to upload photos</p>
+                    <p className="text-xs text-gray-400 mt-0.5">JPG or PNG · Max 3 images</p>
                   </div>
                 </button>
                 <input ref={fileRef} type="file" multiple accept="image/*" className="hidden" onChange={handleImages} />
-                {errors.images && <Err>{errors.images}</Err>}
-              </Section>
+                <FieldErr msg={errors.images} />
+              </SectionCard>
 
-              {/* Map Location */}
-              <Section num={6} title="Location on Map" subtitle="Help players find you easily (optional)" done={doneSteps[5]}>
+              {/* Location */}
+              <SectionCard number={6} title="Location on Map" subtitle="Help players find your ground (optional)" done={doneSteps[5]}>
                 <LocationPicker
                   lat={form.lat}
                   lng={form.lng}
-                  onChange={({ lat, lng }) => setForm(f => ({ ...f, lat, lng }))}
-                  height="380px"
+                  onChange={({ lat, lng }) => setForm((f) => ({ ...f, lat, lng }))}
+                  height="360px"
                 />
-              </Section>
+              </SectionCard>
 
-              {/* Submit Button */}
-              <div className="pt-6">
+              {/* Submit */}
+              <div className="flex gap-4 pt-2">
+                <button
+                  type="button"
+                  onClick={() => isEdit ? setEditMode(false) : navigate("/owner-dashboard")}
+                  className="px-8 py-4 border border-gray-200 text-gray-700 font-semibold rounded-2xl hover:bg-gray-50 transition text-sm"
+                >
+                  Cancel
+                </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full py-5 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-bold text-lg rounded-3xl transition flex items-center justify-center gap-3"
+                  className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-bold text-base rounded-2xl transition flex items-center justify-center gap-3 shadow-sm"
                 >
                   {submitting ? (
-                    <>Processing...</>
-                  ) : isEdit ? (
-                    <>Save Changes</>
+                    <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Processing...</>
                   ) : (
-                    <>Publish Ground</>
+                    <><Save size={18} /> {isEdit ? "Save Changes" : "Publish Ground"}</>
                   )}
                 </button>
               </div>
