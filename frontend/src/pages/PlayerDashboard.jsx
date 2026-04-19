@@ -364,7 +364,6 @@ export default function PlayerDashboard() {
 
               <div className="flex items-center gap-4 mb-6">
                 <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-2xl flex items-center justify-center text-4xl shadow-inner">
-                  👟
                 </div>
                 <div>
                   <p className="text-xl font-bold text-gray-900 capitalize">

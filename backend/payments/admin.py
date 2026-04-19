@@ -1,5 +1,4 @@
 from django.contrib import admin
-from django.utils.html import format_html
 from .models import Payment
 
 
@@ -7,11 +6,13 @@ from .models import Payment
 class PaymentAdmin(admin.ModelAdmin):
     list_display  = (
         "id", "user_email", "ground_name", "amount",
-        "payment_method", "status_badge", "transaction_id", "created_at",
+        "payment_method", "status", "transaction_id", "created_at",
     )
-    list_filter   = ("status", "payment_method", "created_at")
-    search_fields = ("user__email", "booking__ground__name", "transaction_id", "pidx")
+    # ✅ removed status_badge with format_html — show raw status
+    list_filter   = ("status", "payment_method")
+    search_fields = ("user__email", "transaction_id", "pidx")
     ordering      = ("-created_at",)
+    # ✅ NO date_hierarchy
     readonly_fields = (
         "pidx", "purchase_order_id", "transaction_id",
         "khalti_status", "created_at", "updated_at",
@@ -19,32 +20,37 @@ class PaymentAdmin(admin.ModelAdmin):
 
     @admin.display(description="User")
     def user_email(self, obj):
-        return obj.user.email
+        return obj.user.email if obj.user else "—"
 
     @admin.display(description="Ground")
     def ground_name(self, obj):
-        return obj.booking.ground.name
-
-    @admin.display(description="Status")
-    def status_badge(self, obj):
-        colors = {
-            "success":  "#10b981",
-            "pending":  "#f59e0b",
-            "failed":   "#ef4444",
-            "refunded": "#6366f1",
-        }
-        color = colors.get(obj.status, "#6b7280")
-        return format_html(
-            '<span style="color:{};font-weight:bold;">{}</span>',
-            color, obj.get_status_display(),
-        )
+        try:
+            if obj.booking and obj.booking.ground:
+                return obj.booking.ground.name
+        except Exception:
+            pass
+        extra = obj.extra_data or {}
+        ground_id = extra.get("ground_id")
+        if ground_id:
+            try:
+                from grounds.models import Ground
+                return Ground.objects.get(pk=ground_id).name
+            except Exception:
+                pass
+        return "—"
 
     fieldsets = (
         ("Payment Info", {
-            "fields": ("user", "booking", "amount", "payment_method", "status"),
+            "fields": (
+                "user", "booking", "amount",
+                "payment_method", "status",
+            ),
         }),
         ("Khalti Details", {
-            "fields": ("pidx", "purchase_order_id", "transaction_id", "khalti_status"),
+            "fields": (
+                "pidx", "purchase_order_id",
+                "transaction_id", "khalti_status",
+            ),
         }),
         ("Timestamps", {
             "fields": ("created_at", "updated_at"),

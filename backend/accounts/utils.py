@@ -50,23 +50,22 @@ def send_otp_email(user, otp: str) -> bool:
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>OTP Verification</title>
+  <title>FutsalHub - OTP Verification</title>
 </head>
-<body style="margin:0;padding:0;background:#0a0a0f;font-family:'Segoe UI',Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0f;padding:48px 0;">
+<body style="margin:0;padding:0;background:#f8f9f5;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9f5;padding:40px 0;">
     <tr>
       <td align="center">
-        <table width="520" cellpadding="0" cellspacing="0"
-               style="background:#111118;border:1px solid #1e1e2e;border-radius:20px;overflow:hidden;">
-
+        <!-- Full width container -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:620px;background:#ffffff;border:1px solid #f0e6d2;border-radius:24px;overflow:hidden;">
+          
           <!-- Header -->
           <tr>
-            <td style="background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);
-                       padding:32px 40px;text-align:center;">
-              <div style="font-size:32px;margin-bottom:8px;"></div>
-              <h1 style="margin:0;font-size:24px;color:#000;font-weight:900;
-                         letter-spacing:-0.5px;">FutsalHub</h1>
-              <p style="margin:6px 0 0;font-size:13px;color:rgba(0,0,0,0.6);">
+            <td style="background:linear-gradient(135deg,#fbbf24 0%,#f59e0b 100%);padding:32px 40px;text-align:center;">
+              <h1 style="margin:0;font-size:28px;color:#000;font-weight:700;letter-spacing:-0.5px;">
+                FutsalHub
+              </h1>
+              <p style="margin:8px 0 0;font-size:15px;color:rgba(0,0,0,0.75);font-weight:500;">
                 Email Verification
               </p>
             </td>
@@ -74,39 +73,35 @@ def send_otp_email(user, otp: str) -> bool:
 
           <!-- Body -->
           <tr>
-            <td style="padding:40px;">
-              <h2 style="margin:0 0 8px;font-size:20px;color:#fff;font-weight:700;">
-                Hi {user.full_name} 
+            <td style="padding:48px 40px;">
+              <h2 style="margin:0 0 12px;font-size:22px;color:#111827;font-weight:600;">
+                Hi {user.full_name},
               </h2>
-              <p style="margin:0 0 28px;font-size:15px;color:#888;line-height:1.6;">
-                Use the code below to verify your email address.
-                This code is valid for <strong style="color:#f59e0b;">5 minutes</strong>.
+              <p style="margin:0 0 32px;font-size:16px;color:#4b5563;line-height:1.6;">
+                Use the code below to verify your email address.<br>
+                This code is valid for <strong style="color:#d97706;">5 minutes</strong>.
               </p>
 
-              <!-- OTP digits -->
-              <table cellpadding="0" cellspacing="0" style="margin:0 auto 28px;">
+              <!-- OTP Boxes -->
+              <table cellpadding="0" cellspacing="0" style="margin:0 auto 32px;">
                 <tr>
                   {otp_boxes}
                 </tr>
               </table>
 
-              <!-- Divider -->
-              <hr style="border:none;border-top:1px solid #1e1e2e;margin:28px 0;"/>
-
               <!-- Warning -->
-              <table cellpadding="0" cellspacing="0" width="100%">
+              <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:24px;">
                 <tr>
-                  <td style="background:#1a1206;border:1px solid #3d2b06;border-radius:10px;
-                             padding:14px 18px;">
-                    <p style="margin:0;font-size:13px;color:#f59e0b;line-height:1.5;">
-                      🔒 <strong>Never share this code</strong> with anyone.
+                  <td style="background:#fffbeb;border:1px solid #fde68c;border-radius:16px;padding:16px 20px;">
+                    <p style="margin:0;font-size:14px;color:#854d0e;line-height:1.5;">
+                      <strong>Never share this code</strong> with anyone.<br>
                       FutsalHub staff will never ask for your OTP.
                     </p>
                   </td>
                 </tr>
               </table>
 
-              <p style="margin:24px 0 0;font-size:13px;color:#444;line-height:1.5;">
+              <p style="margin:0;font-size:14px;color:#6b7280;line-height:1.5;">
                 Didn't request this? You can safely ignore this email.
                 Someone may have entered your email by mistake.
               </p>
@@ -115,9 +110,8 @@ def send_otp_email(user, otp: str) -> bool:
 
           <!-- Footer -->
           <tr>
-            <td style="background:#0c0c14;padding:20px 40px;text-align:center;
-                       border-top:1px solid #1e1e2e;">
-              <p style="margin:0;font-size:12px;color:#333;">
+            <td style="background:#f8f9f5;padding:24px 40px;text-align:center;border-top:1px solid #f0e6d2;">
+              <p style="margin:0;font-size:13px;color:#6b7280;">
                 © 2026 FutsalHub · Final Year Project
               </p>
             </td>

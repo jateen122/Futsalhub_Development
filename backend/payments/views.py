@@ -39,7 +39,6 @@ def _parse_time_str(t_str):
 
 # ─────────────────────────────────────────────────────────────────────────────
 # POST /api/payments/initiate/
-# Validates slot + starts Khalti. Does NOT create a booking yet.
 # ─────────────────────────────────────────────────────────────────────────────
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -73,7 +72,6 @@ def initiate_payment(request):
     if start_t >= end_t:
         return Response({"detail": "end_time must be after start_time."}, status=400)
 
-    # 30-minute advance booking check
     from datetime import timedelta as td
     slot_dt = timezone.make_aware(dt_datetime.combine(booking_date, start_t))
     if slot_dt < timezone.now() + td(minutes=30):
@@ -82,7 +80,6 @@ def initiate_payment(request):
             status=400,
         )
 
-    # Blocked slots check
     is_blocked, block_reason = ground.is_slot_blocked(booking_date, start_t.hour)
     if is_blocked:
         return Response(
@@ -90,7 +87,6 @@ def initiate_payment(request):
             status=400,
         )
 
-    # Only truly confirmed bookings block the slot
     conflicts = Booking.objects.filter(
         ground=ground,
         date=booking_date,
@@ -104,7 +100,6 @@ def initiate_payment(request):
             status=400,
         )
 
-    # Dynamic pricing (supports off-peak discounts too)
     effective_price = ground.get_price_for_slot(booking_date, start_t.hour)
     start_dt    = dt_datetime.combine(booking_date, start_t)
     end_dt      = dt_datetime.combine(booking_date, end_t)
@@ -167,7 +162,6 @@ def initiate_payment(request):
 
     pidx = khalti_data.get("pidx", "")
 
-    # Store payment with slot data so verify can create booking
     Payment.objects.create(
         booking           = None,
         user              = request.user,
@@ -197,7 +191,6 @@ def initiate_payment(request):
 
 # ─────────────────────────────────────────────────────────────────────────────
 # POST /api/payments/verify/
-# Called after Khalti redirect. Looks up status and creates booking on success.
 # ─────────────────────────────────────────────────────────────────────────────
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -213,7 +206,6 @@ def verify_payment(request):
             status=404,
         )
 
-    # Already successfully processed
     if payment.status == Payment.Status.SUCCESS and payment.booking_id:
         try:
             booking = payment.booking
@@ -232,7 +224,6 @@ def verify_payment(request):
         except Exception:
             pass
 
-    # Call Khalti Lookup API
     headers = {
         "Authorization": f"Key {KHALTI_SECRET_KEY}",
         "Content-Type":  "application/json",
@@ -253,7 +244,7 @@ def verify_payment(request):
                 "status": "failed",
                 "detail": f"Network error contacting Khalti: {exc}. Please try again in a moment.",
             },
-            status=200,  # Return 200 so frontend shows proper message, not raw network error
+            status=200,
         )
 
     khalti_status  = khalti_data.get("status", "")
@@ -284,7 +275,6 @@ def verify_payment(request):
                 status=500,
             )
 
-        # Final conflict check
         conflicts = Booking.objects.filter(
             ground=ground,
             date=booking_date,
@@ -304,16 +294,17 @@ def verify_payment(request):
                 ),
             }, status=200)
 
-        # Create confirmed booking
+        # Create confirmed booking — mark payment_received=True immediately
         booking = Booking.objects.create(
-            user            = request.user,
-            ground          = ground,
-            date            = booking_date,
-            start_time      = start_t,
-            end_time        = end_t,
-            total_price     = payment.amount,
-            status          = Booking.Status.CONFIRMED,
-            is_free_booking = False,
+            user             = request.user,
+            ground           = ground,
+            date             = booking_date,
+            start_time       = start_t,
+            end_time         = end_t,
+            total_price      = payment.amount,
+            status           = Booking.Status.CONFIRMED,
+            is_free_booking  = False,
+            payment_received = True,   # ← Khalti payment confirmed; never revert this
         )
 
         payment.booking        = booking
@@ -400,7 +391,6 @@ def simulate_payment(request):
 
     booking = get_object_or_404(Booking, pk=booking_id, user=request.user)
 
-    # Prevent duplicate
     existing = Payment.objects.filter(
         booking=booking,
         payment_method=Payment.Method.CASH,

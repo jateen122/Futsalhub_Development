@@ -95,52 +95,36 @@ export default function Register() {
   };
 
   const inputCls = (field) =>
-    `w-full bg-black/40 border p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 text-white transition
-     ${errors[field] ? "border-red-500" : "border-white/10"}`;
+    `w-full bg-white border p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 text-zinc-950 placeholder:text-zinc-400 transition
+     ${errors[field] ? "border-red-500" : "border-zinc-300"}`;
 
   return (
-    <div className="min-h-screen flex bg-black text-white pt-16">
+    <div className="min-h-screen flex bg-zinc-50 text-zinc-950 pt-16">
 
-      {/* Left image slider */}
+      {/* Left image slider - light theme overlay (NO promotional card) */}
       <div className="hidden lg:flex w-1/2 h-[calc(100vh-64px)] relative overflow-hidden">
         {images.map((img, i) => (
           <img key={i} src={img} alt="register"
             className={`absolute w-full h-full object-cover transition-opacity duration-1000
               ${i === current ? "opacity-100" : "opacity-0"}`} />
         ))}
-        <div className="absolute inset-0 bg-black/40" />
-
-        {/* Overlay text */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-12">
-          <div className="bg-black/60 backdrop-blur-sm border border-white/10 rounded-2xl p-8 max-w-sm">
-            <p className="text-5xl mb-4">⚽</p>
-            <h2 className="text-2xl font-black text-white mb-3">Join FutsalHub</h2>
-            <p className="text-white/60 text-sm leading-relaxed">
-              Book futsal grounds instantly. Real-time availability.
-              Pay with Khalti or Cash.
-            </p>
-            <div className="mt-4 flex items-center justify-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-              <span className="text-amber-400 text-xs font-semibold">OTP email verification required</span>
-            </div>
-          </div>
-        </div>
+        <div className="absolute inset-0 bg-black/30" />
       </div>
 
-      {/* Right form */}
+      {/* Right form - light theme */}
       <div className="w-full lg:w-1/2 h-[calc(100vh-64px)] flex items-center justify-center px-8 lg:px-16 overflow-y-auto">
         <div className="w-full max-w-lg py-8">
 
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-10 shadow-2xl">
+          <div className="bg-white border border-zinc-200 rounded-2xl p-10 shadow-2xl">
 
-            <h2 className="text-3xl font-bold text-center mb-2">Create Account</h2>
-            <p className="text-white/40 text-sm text-center mb-8">
+            <h2 className="text-3xl font-bold text-center mb-2 text-zinc-950">Create Account</h2>
+            <p className="text-zinc-500 text-sm text-center mb-8">
               We'll send a 6-digit OTP to verify your email
             </p>
 
-            {/* General API error */}
+            {/* General API error - light theme */}
             {apiError && (
-              <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl p-4 mb-5 text-sm flex items-center gap-2">
+              <div className="bg-red-100 border border-red-300 text-red-600 rounded-xl p-4 mb-5 text-sm flex items-center gap-2">
                 <span>⚠</span> {apiError}
               </div>
             )}
@@ -152,7 +136,7 @@ export default function Register() {
                 <input type="email" name="email" placeholder="Email address"
                   value={formData.email} onChange={handleChange}
                   className={inputCls("email")} />
-                {errors.email && <p className="text-red-400 text-xs mt-1 ml-1">⚠ {errors.email}</p>}
+                {errors.email && <p className="text-red-600 text-xs mt-1 ml-1">⚠ {errors.email}</p>}
               </div>
 
               {/* Full name */}
@@ -160,7 +144,7 @@ export default function Register() {
                 <input type="text" name="full_name" placeholder="Full name"
                   value={formData.full_name} onChange={handleChange}
                   className={inputCls("full_name")} />
-                {errors.full_name && <p className="text-red-400 text-xs mt-1 ml-1">⚠ {errors.full_name}</p>}
+                {errors.full_name && <p className="text-red-600 text-xs mt-1 ml-1">⚠ {errors.full_name}</p>}
               </div>
 
               {/* Phone */}
@@ -173,8 +157,8 @@ export default function Register() {
               {/* Role */}
               <div>
                 <select name="role" value={formData.role} onChange={handleChange}
-                  className="w-full bg-black/40 border border-white/10 p-4 rounded-lg
-                             focus:outline-none focus:ring-2 focus:ring-amber-400 text-white">
+                  className="w-full bg-white border border-zinc-300 p-4 rounded-lg
+                             focus:outline-none focus:ring-2 focus:ring-amber-400 text-zinc-950">
                   <option value="player">Player</option>
                   <option value="owner">Ground Owner</option>
                 </select>
@@ -185,7 +169,7 @@ export default function Register() {
                 <input type="password" name="password" placeholder="Password (min 8 chars)"
                   value={formData.password} onChange={handleChange}
                   className={inputCls("password")} />
-                {errors.password && <p className="text-red-400 text-xs mt-1 ml-1">⚠ {errors.password}</p>}
+                {errors.password && <p className="text-red-600 text-xs mt-1 ml-1">⚠ {errors.password}</p>}
               </div>
 
               {/* Confirm Password */}
@@ -193,7 +177,7 @@ export default function Register() {
                 <input type="password" name="password2" placeholder="Confirm password"
                   value={formData.password2} onChange={handleChange}
                   className={inputCls("password2")} />
-                {errors.password2 && <p className="text-red-400 text-xs mt-1 ml-1">⚠ {errors.password2}</p>}
+                {errors.password2 && <p className="text-red-600 text-xs mt-1 ml-1">⚠ {errors.password2}</p>}
               </div>
 
               {/* Submit */}
@@ -213,7 +197,7 @@ export default function Register() {
 
             </form>
 
-            <p className="text-center mt-6 text-white/40 text-sm">
+            <p className="text-center mt-6 text-zinc-500 text-sm">
               Already have an account?{" "}
               <span onClick={() => navigate("/login")}
                 className="text-amber-400 cursor-pointer hover:underline font-semibold">

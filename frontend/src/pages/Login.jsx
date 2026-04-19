@@ -73,16 +73,16 @@ export default function Login() {
       window.location.reload();
 
     } catch {
-      setMessage("Invalid email or password ❌");
+      setMessage("Invalid email or password");
     }
 
     setLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex bg-black text-white pt-16">
+    <div className="min-h-screen flex bg-zinc-50 text-zinc-950 pt-16">
 
-      {/* LEFT IMAGE */}
+      {/* LEFT IMAGE - unchanged except very light overlay for light theme balance */}
       <div className="hidden lg:flex w-1/2 h-[calc(100vh-64px)] relative overflow-hidden">
         {images.map((img, index) => (
           <img
@@ -94,23 +94,23 @@ export default function Login() {
             }`}
           />
         ))}
-        <div className="absolute inset-0 bg-black/40" />
+        <div className="absolute inset-0 bg-black/30" />
       </div>
 
-      {/* RIGHT SIDE (FULL SPACE USED) */}
+      {/* RIGHT SIDE (FULL SPACE USED) - unchanged structure */}
       <div className="w-full lg:w-1/2 h-[calc(100vh-64px)] flex items-center justify-center px-10 lg:px-20">
 
-        {/* FORM (WIDER + CLEAN) */}
+        {/* FORM (WIDER + CLEAN) - unchanged structure */}
         <div className="w-full max-w-lg">
 
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-12 shadow-2xl">
+          <div className="bg-white border border-zinc-200 rounded-2xl p-12 shadow-2xl">
 
-            <h2 className="text-4xl font-bold text-center mb-8">
+            <h2 className="text-4xl font-bold text-center mb-8 text-zinc-950">
               Login
             </h2>
 
             {message && (
-              <p className="text-center text-red-400 mb-4">
+              <p className="text-center text-red-600 mb-4">
                 {message}
               </p>
             )}
@@ -118,24 +118,24 @@ export default function Login() {
             <form onSubmit={handleSubmit} className="space-y-6">
 
               <div>
-                <label className="block mb-2 text-gray-300">Email</label>
+                <label className="block mb-2 text-zinc-600">Email</label>
                 <input
                   type="email"
                   name="email"
                   placeholder="Enter your email"
-                  className="w-full bg-black/40 border border-white/10 p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  className="w-full bg-white border border-zinc-300 p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 text-zinc-950 placeholder:text-zinc-400"
                   onChange={handleChange}
                   required
                 />
               </div>
 
               <div>
-                <label className="block mb-2 text-gray-300">Password</label>
+                <label className="block mb-2 text-zinc-600">Password</label>
                 <input
                   type="password"
                   name="password"
                   placeholder="Enter your password"
-                  className="w-full bg-black/40 border border-white/10 p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  className="w-full bg-white border border-zinc-300 p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 text-zinc-950 placeholder:text-zinc-400"
                   onChange={handleChange}
                   required
                 />
@@ -151,7 +151,7 @@ export default function Login() {
 
             </form>
 
-            <p className="text-center mt-6 text-gray-400">
+            <p className="text-center mt-6 text-zinc-500">
               Don’t have an account?{" "}
               <span
                 onClick={() => navigate("/register")}

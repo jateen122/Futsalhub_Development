@@ -36,6 +36,14 @@ class Booking(models.Model):
         verbose_name="Free Booking",
         help_text="True for loyalty-free or rescheduling-token bookings. Does NOT earn loyalty points.",
     )
+    payment_received = models.BooleanField(
+        default=False,
+        verbose_name="Payment Received",
+        help_text=(
+            "True once a successful Khalti payment is confirmed. "
+            "Never reverted on cancellation — the money stays with the owner."
+        ),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -45,9 +53,10 @@ class Booking(models.Model):
 
     def __str__(self):
         tag = " [FREE]" if self.is_free_booking else ""
+        paid = " [PAID]" if self.payment_received else ""
         return (
             f"{self.user.email} → {self.ground.name} "
-            f"on {self.date} ({self.start_time}–{self.end_time}) [{self.status}]{tag}"
+            f"on {self.date} ({self.start_time}–{self.end_time}) [{self.status}]{tag}{paid}"
         )
 
     def clean(self):
@@ -151,8 +160,9 @@ class LoyaltyRecord(models.Model):
 
     def decrease_confirmed_booking(self):
         """
-        Reverse one loyalty point when a confirmed PAID booking is cancelled.
-        Never goes below 0.
+        Reverse one loyalty point when a confirmed PAID booking is cancelled
+        WITHOUT a rescheduling token (e.g. cash booking cancelled by owner).
+        For Khalti-paid cancellations that issue a token, do NOT call this.
         """
         if self.confirmed_count <= 0:
             return
@@ -186,7 +196,7 @@ class LoyaltyRecord(models.Model):
 
 class ReschedulingToken(models.Model):
     """
-    Issued when a player cancels a confirmed PAID booking 4+ hours before the slot.
+    Issued when a player cancels a confirmed PAID Khalti booking 4+ hours before the slot.
     Valid for 30 days at the same ground.
     Bookings made with a token are is_free_booking=True and do NOT earn loyalty points.
     """

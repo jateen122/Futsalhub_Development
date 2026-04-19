@@ -1,12 +1,9 @@
 // frontend/src/pages/OwnerAddGround.jsx
-// This page handles both viewing/editing the existing ground AND adding a new one.
-// The old OwnerManageGround page is removed; its functionality is merged here.
-
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Save, Upload, MapPin, Clock, DollarSign,
-  CheckCircle, Edit3, Trash2, AlertTriangle, X, Image,
+  CheckCircle, Edit3, Trash2, AlertTriangle, X,
 } from "lucide-react";
 import LocationPicker from "../components/LocationPicker";
 
@@ -78,13 +75,13 @@ function TimePicker({ label, value, onChange, error }) {
   const hours = ["1","2","3","4","5","6","7","8","9","10","11","12"];
   return (
     <div>
-      <label className="block text-sm font-semibold text-gray-700 mb-2">{label}</label>
+      <label className="block text-base font-semibold text-gray-700 mb-2">{label}</label>
       <div className={`bg-white border rounded-2xl overflow-hidden transition-all
-        ${error ? "border-red-400" : "border-gray-200 focus-within:border-emerald-500"}`}>
+        ${error ? "border-red-400" : "border-gray-200 focus-within:border-amber-500"}`}>
         <div className="px-5 py-3 border-b border-gray-100 flex justify-between text-xs font-semibold text-gray-400">
           <span>HOUR</span>
           {value.hour && (
-            <span className="text-emerald-600 font-bold">{toLabel(value)}</span>
+            <span className="text-amber-600 font-semibold">{toLabel(value)}</span>
           )}
         </div>
         <div className="grid grid-cols-6 gap-1.5 p-3 border-b border-gray-100">
@@ -95,8 +92,8 @@ function TimePicker({ label, value, onChange, error }) {
               onClick={() => onChange({ ...value, hour: h })}
               className={`h-10 rounded-xl text-sm font-semibold transition-all
                 ${value.hour === h
-                  ? "bg-emerald-600 text-white shadow-sm"
-                  : "bg-gray-50 hover:bg-emerald-50 text-gray-600 hover:text-emerald-700 border border-transparent hover:border-emerald-200"}`}
+                  ? "bg-amber-500 text-white shadow-sm"
+                  : "bg-gray-50 hover:bg-amber-50 text-gray-600 hover:text-amber-700 border border-transparent hover:border-amber-200"}`}
             >
               {h}
             </button>
@@ -110,7 +107,7 @@ function TimePicker({ label, value, onChange, error }) {
               onClick={() => onChange({ ...value, ampm: a })}
               className={`py-2.5 rounded-xl font-semibold text-sm transition-all
                 ${value.ampm === a
-                  ? a === "AM" ? "bg-sky-500 text-white" : "bg-orange-500 text-white"
+                  ? a === "AM" ? "bg-sky-500 text-white" : "bg-amber-500 text-white"
                   : "bg-gray-50 hover:bg-gray-100 text-gray-500"}`}
             >
               {a}
@@ -125,14 +122,14 @@ function TimePicker({ label, value, onChange, error }) {
 
 function SectionCard({ number, title, subtitle, done, children }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+    <div className="bg-white border border-gray-200 rounded-3xl shadow-sm overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
-        <div className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0
-          ${done ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-500"}`}>
+        <div className={`w-7 h-7 rounded-2xl flex items-center justify-center text-xs font-semibold flex-shrink-0
+          ${done ? "bg-amber-500 text-white" : "bg-gray-100 text-gray-500"}`}>
           {done ? <CheckCircle size={14} /> : number}
         </div>
         <div>
-          <p className="font-bold text-gray-900 text-sm">{title}</p>
+          <p className="font-semibold text-gray-900 text-base">{title}</p>
           <p className="text-xs text-gray-400">{subtitle}</p>
         </div>
       </div>
@@ -144,28 +141,28 @@ function SectionCard({ number, title, subtitle, done, children }) {
 function DeleteModal({ ground, onConfirm, onCancel, deleting }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white border border-gray-200 rounded-2xl p-8 max-w-sm w-full shadow-2xl">
-        <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center">
+      <div className="bg-white border border-gray-200 rounded-3xl p-8 max-w-sm w-full shadow-2xl">
+        <div className="w-12 h-12 mx-auto mb-4 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center">
           <Trash2 size={22} className="text-red-500" />
         </div>
-        <h2 className="text-xl font-black text-gray-900 text-center mb-1">Delete Ground?</h2>
+        <h2 className="text-xl font-semibold text-gray-900 text-center mb-1">Delete Ground?</h2>
         <p className="text-gray-500 text-sm text-center mb-1">Permanently removing:</p>
-        <p className="text-gray-900 font-black text-center text-base mb-1">{ground.name}</p>
+        <p className="text-gray-900 font-semibold text-center text-base mb-1">{ground.name}</p>
         <p className="text-gray-400 text-center text-xs mb-5">{ground.location}</p>
-        <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-5">
-          <p className="text-red-600 text-xs text-center font-semibold">This cannot be undone.</p>
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-3 mb-5">
+          <p className="text-red-600 text-xs text-center font-medium">This cannot be undone.</p>
         </div>
         <div className="flex gap-3">
           <button
             onClick={onCancel}
-            className="flex-1 py-3 bg-gray-100 border border-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition text-sm"
+            className="flex-1 py-3 bg-gray-100 border border-gray-200 text-gray-700 rounded-2xl font-semibold hover:bg-gray-200 transition text-sm"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
             disabled={deleting}
-            className="flex-1 py-3 bg-red-500 text-white font-black rounded-xl hover:bg-red-600 transition disabled:opacity-50 text-sm flex items-center justify-center gap-2"
+            className="flex-1 py-3 bg-red-500 text-white font-semibold rounded-2xl hover:bg-red-600 transition disabled:opacity-50 text-sm flex items-center justify-center gap-2"
           >
             {deleting ? (
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -260,6 +257,13 @@ export default function OwnerAddGround() {
     setForm((f) => ({ ...f, newImages: merged }));
     setNewPreviews(merged.map((file) => URL.createObjectURL(file)));
     if (errors.images) setErrors((ex) => ({ ...ex, images: "" }));
+  };
+
+  // Remove single image (X button)
+  const removeImage = (index) => {
+    const updatedImages = form.newImages.filter((_, i) => i !== index);
+    setForm((f) => ({ ...f, newImages: updatedImages }));
+    setNewPreviews(updatedImages.map((file) => URL.createObjectURL(file)));
   };
 
   const buildFD = () => {
@@ -357,7 +361,7 @@ export default function OwnerAddGround() {
   if (loadingGround) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -379,17 +383,17 @@ export default function OwnerAddGround() {
   const progress = Math.round((doneSteps.filter(Boolean).length / 6) * 100);
 
   const inputCls = (field) =>
-    `w-full border rounded-xl px-4 py-3 text-sm text-gray-800 bg-white placeholder-gray-400 focus:outline-none transition-all
+    `w-full border rounded-2xl px-4 py-3 text-base text-gray-800 bg-white placeholder-gray-400 focus:outline-none transition-all
      ${errors[field]
        ? "border-red-400 focus:border-red-400"
-       : "border-gray-200 hover:border-gray-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-100"}`;
+       : "border-gray-200 hover:border-amber-400 focus:border-amber-500 focus:ring-1 focus:ring-amber-100"}`;
 
   /* ── VIEW MODE ── */
   if (myGround && !editMode) {
     return (
-      <div className="min-h-screen bg-gray-50 pt-16">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-amber-50 w-full pt-20">
         {toast && (
-          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-white border border-emerald-200 text-emerald-700 px-6 py-3 rounded-2xl shadow-xl text-sm font-semibold whitespace-nowrap">
+          <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-white border border-amber-200 text-amber-700 px-6 py-3 rounded-3xl shadow-xl text-sm font-semibold whitespace-nowrap">
             {toast}
           </div>
         )}
@@ -402,66 +406,62 @@ export default function OwnerAddGround() {
           />
         )}
 
-        {/* Header */}
-        <div className="bg-white border-b border-gray-100 shadow-sm sticky top-16 z-30">
-          <div className="w-full px-6 md:px-10 lg:px-14 xl:px-20 py-5 flex items-center justify-between">
+        <div className="bg-white border-b border-gray-100 shadow-sm sticky top-20 z-40 w-full">
+          <div className="max-w-screen-2xl mx-auto px-6 md:px-10 lg:px-14 py-5 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => navigate("/owner-dashboard")}
-                className="flex items-center gap-2 text-gray-500 hover:text-gray-800 font-medium transition text-sm"
+                className="flex items-center gap-2 text-gray-500 hover:text-gray-900 font-medium transition text-sm"
               >
                 <ArrowLeft size={18} /> Dashboard
               </button>
               <div className="h-5 w-px bg-gray-200" />
-              <h1 className="text-xl font-black text-gray-900">My Ground</h1>
+              <h1 className="text-2xl font-semibold text-gray-900">My Ground</h1>
             </div>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowDelete(true)}
-                className="flex items-center gap-2 px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-xl text-sm font-semibold transition"
+                className="flex items-center gap-2 px-5 py-2.5 border border-red-200 text-red-600 hover:bg-red-50 rounded-2xl text-sm font-semibold transition"
               >
-                <Trash2 size={15} /> Delete
+                <Trash2 size={16} /> Delete
               </button>
               <button
                 onClick={enableEdit}
-                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm transition shadow-sm"
+                className="flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-2xl text-sm transition shadow-sm"
               >
-                <Edit3 size={15} /> Edit Ground
+                <Edit3 size={16} /> Edit Ground
               </button>
             </div>
           </div>
         </div>
 
-        <div className="w-full px-6 md:px-10 lg:px-14 xl:px-20 py-8">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-
-            {/* Image */}
+        <div className="w-full max-w-screen-2xl mx-auto px-6 md:px-10 lg:px-14 py-8">
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="relative h-72 bg-gray-100">
               {imgSrc ? (
                 <img src={imgSrc} alt={myGround.name} className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full bg-gradient-to-br from-emerald-50 to-teal-100 flex items-center justify-center">
-                  <Image size={48} className="text-emerald-300" />
+                <div className="w-full h-full bg-gradient-to-br from-amber-50 to-yellow-100 flex items-center justify-center">
+                  <MapPin size={48} className="text-amber-300" />
                 </div>
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
               <div className="absolute bottom-6 left-8">
-                <h2 className="text-3xl font-black text-white">{myGround.name}</h2>
+                <h2 className="text-3xl font-semibold text-white">{myGround.name}</h2>
                 <p className="text-white/70 flex items-center gap-1.5 mt-1">
                   <MapPin size={14} /> {myGround.location}
                 </p>
               </div>
               <div className="absolute top-4 right-4">
-                <span className={`px-3 py-1.5 rounded-xl text-xs font-bold border
+                <span className={`px-4 py-1.5 rounded-2xl text-xs font-semibold border
                   ${myGround.is_approved
-                    ? "bg-emerald-500/90 text-white border-emerald-400"
-                    : "bg-amber-500/90 text-white border-amber-400"}`}>
+                    ? "bg-emerald-500 text-white border-emerald-400"
+                    : "bg-amber-500 text-white border-amber-400"}`}>
                   {myGround.is_approved ? "Approved & Live" : "Pending Approval"}
                 </span>
               </div>
             </div>
 
-            {/* Details grid */}
             <div className="p-8 grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
                 { label: "Price per Hour",  value: `Rs ${parseFloat(myGround.price_per_hour).toLocaleString()}` },
@@ -471,22 +471,22 @@ export default function OwnerAddGround() {
                 { label: "Size",            value: myGround.ground_size ? `${myGround.ground_size}-a-side` : "—" },
                 { label: "Facilities",      value: myGround.facilities || "—" },
               ].map(({ label, value }) => (
-                <div key={label} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">{label}</p>
-                  <p className="text-gray-900 font-semibold text-sm">{value}</p>
+                <div key={label} className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-1">{label}</p>
+                  <p className="text-gray-900 font-semibold text-base">{value}</p>
                 </div>
               ))}
             </div>
 
             {myGround.description && (
               <div className="px-8 pb-6">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Description</p>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-2">Description</p>
                 <p className="text-gray-700 text-sm leading-relaxed">{myGround.description}</p>
               </div>
             )}
 
             <div className="px-8 pb-8 border-t border-gray-100 pt-6">
-              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-4 py-2.5 rounded-xl inline-block font-medium text-center">
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-4 py-2.5 rounded-2xl inline-block font-medium text-center">
                 Only one ground is allowed per owner account
               </p>
             </div>
@@ -498,34 +498,32 @@ export default function OwnerAddGround() {
 
   /* ── FORM MODE (add or edit) ── */
   return (
-    <div className="min-h-screen bg-gray-50 pt-16">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-amber-50 w-full pt-20">
 
-      {/* Header */}
-      <div className="bg-white border-b border-gray-100 shadow-sm sticky top-16 z-30">
-        <div className="w-full px-6 md:px-10 lg:px-14 xl:px-20 py-5 flex items-center justify-between">
+      <div className="bg-white border-b border-gray-100 shadow-sm sticky top-20 z-40 w-full">
+        <div className="max-w-screen-2xl mx-auto px-6 md:px-10 lg:px-14 py-5 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => isEdit ? setEditMode(false) : navigate("/owner-dashboard")}
-              className="flex items-center gap-2 text-gray-500 hover:text-gray-800 font-medium transition text-sm"
+              className="flex items-center gap-2 text-gray-500 hover:text-gray-900 font-medium transition text-sm"
             >
               <ArrowLeft size={18} />
               {isEdit ? "Cancel Edit" : "Dashboard"}
             </button>
             <div className="h-5 w-px bg-gray-200" />
-            <h1 className="text-xl font-black text-gray-900">
+            <h1 className="text-2xl font-semibold text-gray-900">
               {isEdit ? "Edit Ground" : "List New Ground"}
             </h1>
           </div>
         </div>
       </div>
 
-      <div className="w-full px-6 md:px-10 lg:px-14 xl:px-20 py-8">
+      <div className="w-full max-w-screen-2xl mx-auto px-6 md:px-10 lg:px-14 py-8">
         <div className="grid grid-cols-12 gap-8">
 
-          {/* Progress sidebar */}
           <div className="col-span-12 lg:col-span-3">
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 sticky top-28 shadow-sm">
-              <h3 className="font-bold text-gray-900 mb-5 text-sm">Progress</h3>
+            <div className="bg-white border border-gray-200 rounded-3xl p-6 sticky top-28 shadow-sm">
+              <h3 className="font-semibold text-gray-900 mb-5 text-base">Progress</h3>
               <div className="space-y-4">
                 {[
                   "Basic Information",
@@ -536,24 +534,24 @@ export default function OwnerAddGround() {
                   "Location",
                 ].map((label, i) => (
                   <div key={i} className="flex items-center gap-3">
-                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs flex-shrink-0
-                      ${doneSteps[i] ? "bg-emerald-500 text-white" : "bg-gray-100 text-gray-400"}`}>
+                    <div className={`w-6 h-6 rounded-2xl flex items-center justify-center text-xs flex-shrink-0
+                      ${doneSteps[i] ? "bg-amber-500 text-white" : "bg-gray-100 text-gray-400"}`}>
                       {doneSteps[i] ? <CheckCircle size={13} /> : i + 1}
                     </div>
-                    <span className={`text-sm ${doneSteps[i] ? "text-gray-900 font-medium" : "text-gray-400"}`}>
+                    <span className={`text-base ${doneSteps[i] ? "text-gray-900 font-medium" : "text-gray-400"}`}>
                       {label}
                     </span>
                   </div>
                 ))}
               </div>
               <div className="mt-6">
-                <div className="flex justify-between text-xs mb-2 font-semibold text-gray-400">
+                <div className="flex justify-between text-xs mb-2 font-medium text-gray-400">
                   <span>Completion</span>
-                  <span className="text-emerald-600">{progress}%</span>
+                  <span className="text-amber-600">{progress}%</span>
                 </div>
                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-emerald-500 transition-all duration-500"
+                    className="h-full bg-amber-500 transition-all duration-500"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
@@ -561,15 +559,14 @@ export default function OwnerAddGround() {
             </div>
           </div>
 
-          {/* Form */}
           <div className="col-span-12 lg:col-span-9">
             {apiError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl mb-6 flex items-center gap-2 text-sm">
+              <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-3xl mb-6 flex items-center gap-2 text-sm">
                 <AlertTriangle size={16} /> {apiError}
               </div>
             )}
             {success && (
-              <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 p-4 rounded-2xl mb-6 flex items-center gap-2 text-sm">
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 p-4 rounded-3xl mb-6 flex items-center gap-2 text-sm">
                 <CheckCircle size={16} /> {success}
               </div>
             )}
@@ -580,31 +577,31 @@ export default function OwnerAddGround() {
               <SectionCard number={1} title="Basic Information" subtitle="Name, location & description" done={doneSteps[0]}>
                 <div className="grid md:grid-cols-2 gap-5">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Ground Name *</label>
+                    <label className="block text-base font-semibold text-gray-700 mb-2">Ground Name *</label>
                     <input name="name" value={form.name} onChange={handleChange}
-                      placeholder="e.g. Thamel Futsal Arena" className={inputCls("name")} />
+                      placeholder="Ground name" className={inputCls("name")} />
                     <FieldErr msg={errors.name} />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Location *</label>
+                    <label className="block text-base font-semibold text-gray-700 mb-2">Location *</label>
                     <input name="location" value={form.location} onChange={handleChange}
-                      placeholder="e.g. Thamel, Kathmandu" className={inputCls("location")} />
+                      placeholder="Location" className={inputCls("location")} />
                     <FieldErr msg={errors.location} />
                   </div>
                 </div>
                 <div className="mt-5">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Description *</label>
+                  <label className="block text-base font-semibold text-gray-700 mb-2">Description *</label>
                   <textarea name="description" value={form.description} onChange={handleChange}
-                    rows={4} placeholder="Describe your ground..."
+                    rows={4} placeholder="Describe your ground..." 
                     className={`${inputCls("description")} resize-none`} />
                   <FieldErr msg={errors.description} />
                 </div>
                 <div className="mt-5">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-base font-semibold text-gray-700 mb-2">
                     Facilities * <span className="text-xs font-normal text-gray-400">(comma separated)</span>
                   </label>
                   <input name="facilities" value={form.facilities} onChange={handleChange}
-                    placeholder="Parking, Changing Room, Restroom, Water" className={inputCls("facilities")} />
+                    placeholder="Parking, Shower, WiFi..." className={inputCls("facilities")} />
                   <FieldErr msg={errors.facilities} />
                 </div>
               </SectionCard>
@@ -618,12 +615,12 @@ export default function OwnerAddGround() {
                     onChange={(v) => setTime("closing_time", v)} error={errors.closing_time} />
                 </div>
                 {form.opening_time.hour && form.closing_time.hour && (
-                  <div className="mt-4 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
-                    <Clock size={15} className="text-emerald-600" />
-                    <p className="text-emerald-700 font-semibold text-sm">
+                  <div className="mt-4 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-2.5 flex items-center gap-2">
+                    <Clock size={15} className="text-amber-600" />
+                    <p className="text-amber-700 font-semibold text-sm">
                       {toLabel(form.opening_time)} – {toLabel(form.closing_time)}
                     </p>
-                    <CheckCircle size={14} className="ml-auto text-emerald-500" />
+                    <CheckCircle size={14} className="ml-auto text-amber-500" />
                   </div>
                 )}
               </SectionCard>
@@ -631,17 +628,17 @@ export default function OwnerAddGround() {
               {/* Pricing */}
               <SectionCard number={3} title="Pricing" subtitle="Set your hourly rate" done={doneSteps[2]}>
                 <div className="max-w-sm">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Price per Hour (Rs) *</label>
-                  <div className={`flex border rounded-xl overflow-hidden transition-all
+                  <label className="block text-base font-semibold text-gray-700 mb-2">Price per Hour (Rs) *</label>
+                  <div className={`flex border rounded-2xl overflow-hidden transition-all
                     ${errors.price_per_hour
                       ? "border-red-400"
-                      : "border-gray-200 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-100"}`}>
+                      : "border-gray-200 focus-within:border-amber-500 focus-within:ring-1 focus-within:ring-amber-100"}`}>
                     <span className="px-4 py-3.5 bg-gray-50 text-gray-500 font-semibold text-sm border-r border-gray-200">
                       Rs
                     </span>
                     <input type="number" name="price_per_hour" value={form.price_per_hour}
                       onChange={handleChange} placeholder="1500"
-                      className="flex-1 px-4 py-3.5 text-gray-900 font-bold text-lg focus:outline-none bg-white" />
+                      className="flex-1 px-4 py-3.5 text-gray-900 font-semibold text-xl focus:outline-none bg-white" />
                     <span className="px-4 py-3.5 bg-gray-50 text-gray-400 text-sm border-l border-gray-200">/hr</span>
                   </div>
                   <FieldErr msg={errors.price_per_hour} />
@@ -652,17 +649,17 @@ export default function OwnerAddGround() {
               <SectionCard number={4} title="Ground Specifications" subtitle="Size and surface type" done={doneSteps[3]}>
                 <div className="grid md:grid-cols-2 gap-8">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-3">Ground Size *</label>
+                    <label className="block text-base font-semibold text-gray-700 mb-3">Ground Size *</label>
                     <div className="grid grid-cols-3 gap-3">
                       {["5", "6", "7"].map((size) => (
                         <button
                           key={size} type="button" onClick={() => setChoice("ground_size", size)}
-                          className={`py-5 rounded-xl border-2 transition-all text-center
+                          className={`py-5 rounded-2xl border-2 transition-all text-center
                             ${form.ground_size === size
-                              ? "border-emerald-600 bg-emerald-50"
-                              : "border-gray-200 hover:border-gray-300 bg-white"}`}
+                              ? "border-amber-500 bg-amber-50"
+                              : "border-gray-200 hover:border-amber-400 bg-white"}`}
                         >
-                          <div className="text-xl font-black text-gray-900">{size}v{size}</div>
+                          <div className="text-xl font-semibold text-gray-900">{size}v{size}</div>
                           <div className="text-xs text-gray-400 mt-0.5">a-side</div>
                         </button>
                       ))}
@@ -670,7 +667,7 @@ export default function OwnerAddGround() {
                     <FieldErr msg={errors.ground_size} />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-3">Ground Type *</label>
+                    <label className="block text-base font-semibold text-gray-700 mb-3">Ground Type *</label>
                     <div className="grid grid-cols-2 gap-3">
                       {[
                         { value: "indoor",  label: "Indoor"  },
@@ -678,10 +675,10 @@ export default function OwnerAddGround() {
                       ].map((t) => (
                         <button
                           key={t.value} type="button" onClick={() => setChoice("ground_type", t.value)}
-                          className={`py-5 rounded-xl border-2 text-center transition-all font-semibold text-sm
+                          className={`py-5 rounded-2xl border-2 text-center transition-all font-semibold text-sm
                             ${form.ground_type === t.value
-                              ? "border-emerald-600 bg-emerald-50 text-emerald-800"
-                              : "border-gray-200 hover:border-gray-300 bg-white text-gray-700"}`}
+                              ? "border-amber-500 bg-amber-50 text-amber-800"
+                              : "border-gray-200 hover:border-amber-400 bg-white text-gray-700"}`}
                         >
                           {t.label}
                         </button>
@@ -692,12 +689,12 @@ export default function OwnerAddGround() {
                 </div>
               </SectionCard>
 
-              {/* Photos */}
+              {/* Photos with X delete button */}
               <SectionCard number={5} title="Ground Photos" subtitle="Upload clear images of your ground" done={doneSteps[4]}>
                 {isEdit && existingImgSrc && newPreviews.length === 0 && (
                   <div className="mb-5">
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Current Photo</p>
-                    <div className="rounded-xl overflow-hidden border border-gray-200 h-48">
+                    <div className="rounded-2xl overflow-hidden border border-gray-200 h-48">
                       <img src={existingImgSrc} alt="current" className="w-full h-full object-cover" />
                     </div>
                   </div>
@@ -706,18 +703,15 @@ export default function OwnerAddGround() {
                 {newPreviews.length > 0 && (
                   <div className="grid grid-cols-3 gap-3 mb-5">
                     {newPreviews.map((src, i) => (
-                      <div key={i} className="relative rounded-xl overflow-hidden border-2 border-emerald-300 h-36">
+                      <div key={i} className="relative rounded-2xl overflow-hidden border-2 border-amber-400 h-36 group">
                         <img src={src} alt="" className="w-full h-full object-cover" />
+                        {/* X button to delete image */}
                         <button
                           type="button"
-                          onClick={() => {
-                            const u = form.newImages.filter((_, j) => j !== i);
-                            setForm((f) => ({ ...f, newImages: u }));
-                            setNewPreviews(u.map((file) => URL.createObjectURL(file)));
-                          }}
-                          className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center"
+                          onClick={() => removeImage(i)}
+                          className="absolute top-2 right-2 w-7 h-7 bg-red-500 hover:bg-red-600 text-white rounded-2xl flex items-center justify-center shadow transition-all opacity-80 group-hover:opacity-100"
                         >
-                          <X size={12} />
+                          <X size={16} />
                         </button>
                       </div>
                     ))}
@@ -727,11 +721,11 @@ export default function OwnerAddGround() {
                 <button
                   type="button"
                   onClick={() => fileRef.current.click()}
-                  className="w-full border-2 border-dashed border-gray-300 hover:border-emerald-400 hover:bg-emerald-50 rounded-2xl py-12 flex flex-col items-center gap-3 transition-all"
+                  className="w-full border-2 border-dashed border-gray-300 hover:border-amber-400 hover:bg-amber-50 rounded-3xl py-12 flex flex-col items-center gap-3 transition-all"
                 >
-                  <Upload size={32} className="text-gray-400" />
+                  <Upload size={32} className="text-amber-300" />
                   <div>
-                    <p className="font-semibold text-gray-700 text-sm">Click to upload photos</p>
+                    <p className="font-semibold text-gray-700 text-base">Click to upload photos</p>
                     <p className="text-xs text-gray-400 mt-0.5">JPG or PNG · Max 3 images</p>
                   </div>
                 </button>
@@ -740,7 +734,7 @@ export default function OwnerAddGround() {
               </SectionCard>
 
               {/* Location */}
-              <SectionCard number={6} title="Location on Map" subtitle="Help players find your ground (optional)" done={doneSteps[5]}>
+              <SectionCard number={6} title="Location on Map" subtitle="Help players find your ground" done={doneSteps[5]}>
                 <LocationPicker
                   lat={form.lat}
                   lng={form.lng}
@@ -749,19 +743,18 @@ export default function OwnerAddGround() {
                 />
               </SectionCard>
 
-              {/* Submit */}
               <div className="flex gap-4 pt-2">
                 <button
                   type="button"
                   onClick={() => isEdit ? setEditMode(false) : navigate("/owner-dashboard")}
-                  className="px-8 py-4 border border-gray-200 text-gray-700 font-semibold rounded-2xl hover:bg-gray-50 transition text-sm"
+                  className="px-8 py-4 border border-gray-200 text-gray-700 font-semibold rounded-3xl hover:bg-gray-50 transition text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-bold text-base rounded-2xl transition flex items-center justify-center gap-3 shadow-sm"
+                  className="flex-1 py-4 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-400 text-white font-semibold text-base rounded-3xl transition flex items-center justify-center gap-3 shadow-sm"
                 >
                   {submitting ? (
                     <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Processing...</>

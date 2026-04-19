@@ -7,29 +7,33 @@ from .models import Ground, Favorite, PeakPricingRule, BlockedSlot
 @admin.register(Ground)
 class GroundAdmin(admin.ModelAdmin):
     list_display  = ("name", "owner_email", "location", "ground_size",
-                      "ground_type", "price_per_hour", "approval_badge", "created_at")
+                     "ground_type", "price_per_hour", "approval_badge", "created_at")
     list_filter   = ("is_approved", "ground_size", "ground_type", "created_at")
     search_fields = ("name", "location", "owner__email")
     ordering      = ("-created_at",)
 
     @admin.display(description="Owner")
     def owner_email(self, obj):
-        return obj.owner.email
+        return obj.owner.email if obj.owner else "—"   # ← guard against None
 
     @admin.display(description="Approved")
     def approval_badge(self, obj):
         if obj.is_approved:
-            return format_html('<span style="color:green;font-weight:bold;">✔ Approved</span>')
-        return format_html('<span style="color:orange;font-weight:bold;">⏳ Pending</span>')
+            return format_html(
+                '<span style="color:green;font-weight:bold;">&#10004; Approved</span>'
+            )
+        return format_html(
+            '<span style="color:orange;font-weight:bold;">&#9203; Pending</span>'
+        )
 
     actions = ["approve_grounds", "disapprove_grounds"]
 
-    @admin.action(description="✅ Approve selected grounds")
+    @admin.action(description="Approve selected grounds")
     def approve_grounds(self, request, queryset):
         updated = queryset.update(is_approved=True)
         self.message_user(request, f"{updated} ground(s) approved.")
 
-    @admin.action(description="❌ Disapprove selected grounds")
+    @admin.action(description="Disapprove selected grounds")
     def disapprove_grounds(self, request, queryset):
         updated = queryset.update(is_approved=False)
         self.message_user(request, f"{updated} ground(s) disapproved.")
@@ -47,19 +51,19 @@ class GroundAdmin(admin.ModelAdmin):
 
 @admin.register(Favorite)
 class FavoriteAdmin(admin.ModelAdmin):
-    list_display  = ("user_email", "ground_name", "created_at")
-    list_filter   = ("created_at",)
-    search_fields = ("user__email", "ground__name")
-    ordering      = ("-created_at",)
+    list_display    = ("user_email", "ground_name", "created_at")
+    list_filter     = ("created_at",)
+    search_fields   = ("user__email", "ground__name")
+    ordering        = ("-created_at",)
     readonly_fields = ("created_at",)
 
     @admin.display(description="User")
     def user_email(self, obj):
-        return obj.user.email
+        return obj.user.email if obj.user else "—"
 
     @admin.display(description="Ground")
     def ground_name(self, obj):
-        return obj.ground.name
+        return obj.ground.name if obj.ground else "—"
 
 
 @admin.register(PeakPricingRule)
@@ -71,10 +75,11 @@ class PeakPricingRuleAdmin(admin.ModelAdmin):
     list_filter   = ("is_active", "day_of_week", "ground")
     search_fields = ("ground__name", "label")
     ordering      = ("ground", "start_hour")
+    # ← REMOVE date_hierarchy — PeakPricingRule has no DateField suitable for it
 
     @admin.display(description="Ground")
     def ground_name(self, obj):
-        return obj.ground.name
+        return obj.ground.name if obj.ground else "—"
 
     @admin.display(description="Day")
     def day_display(self, obj):
@@ -103,12 +108,12 @@ class BlockedSlotAdmin(admin.ModelAdmin):
 
     @admin.display(description="Ground")
     def ground_name(self, obj):
-        return obj.ground.name
+        return obj.ground.name if obj.ground else "—"
 
     @admin.display(description="Date / Day")
     def date_or_day(self, obj):
         if obj.block_type == 'date':
-            return str(obj.blocked_date)
+            return str(obj.blocked_date) if obj.blocked_date else "—"
         return dict(BlockedSlot.DAY_CHOICES).get(obj.day_of_week, "?")
 
     @admin.display(description="Time Range")
@@ -119,12 +124,12 @@ class BlockedSlotAdmin(admin.ModelAdmin):
 
     actions = ["activate_blocks", "deactivate_blocks"]
 
-    @admin.action(description="✅ Activate selected blocks")
+    @admin.action(description="Activate selected blocks")
     def activate_blocks(self, request, queryset):
         updated = queryset.update(is_active=True)
         self.message_user(request, f"{updated} block(s) activated.")
 
-    @admin.action(description="🚫 Deactivate selected blocks")
+    @admin.action(description="Deactivate selected blocks")
     def deactivate_blocks(self, request, queryset):
         updated = queryset.update(is_active=False)
         self.message_user(request, f"{updated} block(s) deactivated.")

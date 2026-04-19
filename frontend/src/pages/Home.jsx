@@ -103,10 +103,6 @@ export default function Home() {
 
       </section>
 
-      <footer className="bg-black text-white text-center py-3">
-        © 2026 FutsalHub | Final Year Project
-      </footer>
-
     </div>
   );
 }

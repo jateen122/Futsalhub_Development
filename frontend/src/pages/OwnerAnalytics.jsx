@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, TrendingUp, TrendingDown, Clock,
   RefreshCw, Calendar, DollarSign, BarChart2, Activity,
-  ArrowUpRight, ArrowDownRight, Minus, MapPin,
+  MapPin,
 } from "lucide-react";
 
 const BASE_URL = "http://127.0.0.1:8000";
@@ -64,11 +64,11 @@ function BarChart({ data, labelKey, valueKey, colorFn, maxBars = 30 }) {
 function HeatCell({ count, max, hour, label }) {
   const pct = max > 0 ? count / max : 0;
   let bg, text;
-  if (pct === 0)       { bg = "bg-gray-100";         text = "text-gray-400"; }
-  else if (pct < 0.25) { bg = "bg-emerald-100";       text = "text-emerald-600"; }
-  else if (pct < 0.55) { bg = "bg-emerald-300";       text = "text-emerald-900"; }
-  else if (pct < 0.80) { bg = "bg-emerald-500";       text = "text-white"; }
-  else                 { bg = "bg-emerald-700";        text = "text-white"; }
+  if (pct === 0)       { bg = "bg-gray-100";   text = "text-gray-400"; }
+  else if (pct < 0.25) { bg = "bg-emerald-100"; text = "text-emerald-600"; }
+  else if (pct < 0.55) { bg = "bg-emerald-300"; text = "text-emerald-900"; }
+  else if (pct < 0.80) { bg = "bg-emerald-500"; text = "text-white"; }
+  else                 { bg = "bg-emerald-700";  text = "text-white"; }
 
   return (
     <div className={`rounded-xl p-2 text-center cursor-default group relative ${bg} border border-white/60`}
@@ -136,8 +136,13 @@ export default function OwnerAnalytics() {
   useEffect(() => { fetchData(); }, []);
 
   const analytics = useMemo(() => {
-    const confirmed = bookings.filter((b) => b.status === "confirmed");
-    const revOf     = (list) => list.reduce((s, b) => s + parseFloat(b.total_price || 0), 0);
+    // ── KEY FIX: revenue = bookings where payment_received is true.
+    // This includes Khalti-paid bookings that were later cancelled
+    // (player gets a rescheduling token, owner keeps the money).
+    const paidBookings = bookings.filter((b) => b.payment_received === true);
+    const confirmed    = bookings.filter((b) => b.status === "confirmed");
+
+    const revOf = (list) => list.reduce((s, b) => s + parseFloat(b.total_price || 0), 0);
 
     const todayStart = startOf("day");
     const weekStart  = startOf("week");
@@ -148,13 +153,17 @@ export default function OwnerAnalytics() {
       return d >= start && (end ? d < end : true);
     };
 
-    const totalRevenue  = revOf(confirmed);
-    const todayRevenue  = revOf(confirmed.filter((b) => inRange(b, todayStart)));
-    const weekRevenue   = revOf(confirmed.filter((b) => inRange(b, weekStart)));
-    const monthRevenue  = revOf(confirmed.filter((b) => inRange(b, monthStart)));
+    // Revenue uses payment_received bookings (money actually received by owner)
+    const totalRevenue  = revOf(paidBookings);
+    const todayRevenue  = revOf(paidBookings.filter((b) => inRange(b, todayStart)));
+    const weekRevenue   = revOf(paidBookings.filter((b) => inRange(b, weekStart)));
+    const monthRevenue  = revOf(paidBookings.filter((b) => inRange(b, monthStart)));
+
+    // Counts use confirmed status (active bookings)
     const weekCount     = confirmed.filter((b) => inRange(b, weekStart)).length;
     const monthCount    = confirmed.filter((b) => inRange(b, monthStart)).length;
 
+    // Hourly heatmap based on confirmed bookings (active schedule)
     const hourMap = {};
     for (let h = 0; h < 24; h++) hourMap[h] = 0;
     confirmed.forEach((b) => {
@@ -169,13 +178,14 @@ export default function OwnerAnalytics() {
     const top5    = [...hourData].sort((a, b) => b.count - a.count).slice(0, 5);
     const bottom5 = [...hourData].filter((d) => d.count > 0).sort((a, b) => a.count - b.count).slice(0, 5);
 
+    // Revenue chart uses payment_received bookings
     const now    = new Date();
     const last30 = [];
     for (let i = 29; i >= 0; i--) {
       const d   = new Date(now);
       d.setDate(d.getDate() - i);
       const key = d.toISOString().split("T")[0];
-      const rev = revOf(confirmed.filter((b) => b.date === key));
+      const rev = revOf(paidBookings.filter((b) => b.date === key));
       last30.push({ label: d.getDate().toString(), fullDate: key, revenue: rev });
     }
 
@@ -186,7 +196,7 @@ export default function OwnerAnalytics() {
       wStart.setHours(0, 0, 0, 0);
       const wEnd = new Date(wStart);
       wEnd.setDate(wStart.getDate() + 7);
-      const rev = revOf(confirmed.filter((b) => inRange(b, wStart, wEnd)));
+      const rev = revOf(paidBookings.filter((b) => inRange(b, wStart, wEnd)));
       last12w.push({ label: `W${12 - i}`, revenue: rev });
     }
 
@@ -201,9 +211,10 @@ export default function OwnerAnalytics() {
       return "standard";
     };
 
-    const peakB     = confirmed.filter((b) => classify(b) === "peak");
-    const offPeakB  = confirmed.filter((b) => classify(b) === "off_peak");
-    const standardB = confirmed.filter((b) => classify(b) === "standard");
+    // Slot type breakdown uses payment_received bookings for accurate revenue
+    const peakB     = paidBookings.filter((b) => classify(b) === "peak");
+    const offPeakB  = paidBookings.filter((b) => classify(b) === "off_peak");
+    const standardB = paidBookings.filter((b) => classify(b) === "standard");
 
     return {
       totalRevenue, todayRevenue, weekRevenue, monthRevenue,
@@ -216,6 +227,7 @@ export default function OwnerAnalytics() {
       offPeakCount:    offPeakB.length,
       standardCount:   standardB.length,
       totalConfirmed:  confirmed.length,
+      totalPaid:       paidBookings.length,
     };
   }, [bookings, ground]);
 
@@ -238,7 +250,7 @@ export default function OwnerAnalytics() {
     totalRevenue, todayRevenue, weekRevenue, monthRevenue,
     weekCount, monthCount, hourData, maxHour, top5, bottom5,
     last30, last12w, peakRevenue, offPeakRevenue, standardRevenue,
-    peakCount, offPeakCount, standardCount, totalConfirmed,
+    peakCount, offPeakCount, standardCount, totalConfirmed, totalPaid,
   } = analytics;
 
   const chartData  = activeChart === "daily" ? last30 : last12w;
@@ -318,20 +330,28 @@ export default function OwnerAnalytics() {
               </div>
               <div className="text-center">
                 <p className="font-black text-emerald-600 text-lg">{fmtRs(totalRevenue)}</p>
-                <p className="text-gray-400 text-xs">Revenue</p>
+                <p className="text-gray-400 text-xs">Revenue received</p>
               </div>
             </div>
           </div>
         )}
 
+        {/* Revenue note */}
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-3 mb-6 flex items-center gap-3 text-sm">
+          <span className="text-emerald-600 text-lg">💡</span>
+          <p className="text-emerald-700">
+            <strong>Revenue</strong> counts all Khalti payments received — including bookings later cancelled by players (they receive a rescheduling token, you keep the money).
+          </p>
+        </div>
+
         {/* KPI Row */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-          <KpiCard label="All-Time Revenue" value={fmtRs(totalRevenue)} sub={`${totalConfirmed} confirmed`} icon={<DollarSign size={18} />} accent />
-          <KpiCard label="Today"        value={fmtRs(todayRevenue)} sub="so far"               icon={<Calendar size={18} />} />
-          <KpiCard label="This Week"    value={fmtRs(weekRevenue)}  sub={`${weekCount} bookings`}  icon={<Activity size={18} />} />
-          <KpiCard label="This Month"   value={fmtRs(monthRevenue)} sub={`${monthCount} bookings`} icon={<TrendingUp size={18} />} />
-          <KpiCard label="Bookings"     value={totalConfirmed}      sub="confirmed only"          icon={<BarChart2 size={18} />} />
-          <KpiCard label="Avg / Booking" value={totalConfirmed > 0 ? fmtRs(totalRevenue / totalConfirmed) : "Rs 0"} sub="revenue avg" icon={<Clock size={18} />} />
+          <KpiCard label="Total Revenue"  value={fmtRs(totalRevenue)}  sub={`${totalPaid} paid bookings`}  icon={<DollarSign size={18} />} accent />
+          <KpiCard label="Today"          value={fmtRs(todayRevenue)}  sub="so far"                       icon={<Calendar size={18} />} />
+          <KpiCard label="This Week"      value={fmtRs(weekRevenue)}   sub={`${weekCount} confirmed`}     icon={<Activity size={18} />} />
+          <KpiCard label="This Month"     value={fmtRs(monthRevenue)}  sub={`${monthCount} confirmed`}    icon={<TrendingUp size={18} />} />
+          <KpiCard label="Confirmed"      value={totalConfirmed}       sub="active bookings"              icon={<BarChart2 size={18} />} />
+          <KpiCard label="Avg / Booking"  value={totalPaid > 0 ? fmtRs(totalRevenue / totalPaid) : "Rs 0"} sub="revenue avg" icon={<Clock size={18} />} />
         </div>
 
         {/* Main content */}
@@ -346,7 +366,7 @@ export default function OwnerAnalytics() {
                 <div>
                   <h3 className="font-black text-gray-900 text-base">{chartLabel}</h3>
                   <p className="text-sm text-gray-400 mt-0.5">
-                    {activeChart === "daily" ? "Each bar = one day" : "Each bar = one week"}
+                    {activeChart === "daily" ? "Each bar = one day (Khalti payments received)" : "Each bar = one week"}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -375,15 +395,15 @@ export default function OwnerAnalytics() {
               <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
                 <div>
                   <h3 className="font-black text-gray-900 text-base">Booking Activity by Hour</h3>
-                  <p className="text-sm text-gray-400 mt-0.5">When your ground gets booked most</p>
+                  <p className="text-sm text-gray-400 mt-0.5">When your ground gets booked most (confirmed bookings)</p>
                 </div>
                 <div className="flex items-center gap-3 text-[10px] text-gray-400">
                   {[
-                    { bg: "bg-gray-100",     label: "None" },
-                    { bg: "bg-emerald-100",  label: "Low"  },
-                    { bg: "bg-emerald-300",  label: "Med"  },
-                    { bg: "bg-emerald-500",  label: "High" },
-                    { bg: "bg-emerald-700",  label: "Peak" },
+                    { bg: "bg-gray-100",    label: "None" },
+                    { bg: "bg-emerald-100", label: "Low"  },
+                    { bg: "bg-emerald-300", label: "Med"  },
+                    { bg: "bg-emerald-500", label: "High" },
+                    { bg: "bg-emerald-700", label: "Peak" },
                   ].map((l) => (
                     <span key={l.label} className="flex items-center gap-1">
                       <span className={`w-3 h-3 rounded ${l.bg} border border-gray-200`} />
@@ -409,11 +429,11 @@ export default function OwnerAnalytics() {
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
               <div className="mb-5">
                 <h3 className="font-black text-gray-900 text-base">Revenue by Slot Type</h3>
-                <p className="text-sm text-gray-400 mt-0.5">How dynamic pricing affects your earnings</p>
+                <p className="text-sm text-gray-400 mt-0.5">Based on all received Khalti payments</p>
               </div>
 
-              {totalConfirmed === 0 ? (
-                <div className="flex items-center justify-center h-24 text-gray-400 text-sm">No confirmed bookings yet.</div>
+              {totalPaid === 0 ? (
+                <div className="flex items-center justify-center h-24 text-gray-400 text-sm">No paid bookings yet.</div>
               ) : (
                 <div className="space-y-4">
                   {[
@@ -421,15 +441,15 @@ export default function OwnerAnalytics() {
                     { label: "Off-Peak Hours", count: offPeakCount,  rev: offPeakRevenue,  color: "bg-blue-500",    text: "text-blue-700",   bg: "bg-blue-50",   border: "border-blue-200"  },
                     { label: "Standard Hours", count: standardCount, rev: standardRevenue, color: "bg-emerald-400", text: "text-emerald-700",bg: "bg-emerald-50",border: "border-emerald-200" },
                   ].map((item) => {
-                    const pctRev   = totalRevenue   > 0 ? Math.round((item.rev   / totalRevenue)   * 100) : 0;
-                    const pctCount = totalConfirmed > 0 ? Math.round((item.count / totalConfirmed) * 100) : 0;
+                    const pctRev   = totalRevenue > 0 ? Math.round((item.rev   / totalRevenue)   * 100) : 0;
+                    const pctCount = totalPaid    > 0 ? Math.round((item.count / totalPaid)       * 100) : 0;
                     return (
                       <div key={item.label} className={`rounded-xl border p-4 ${item.bg} ${item.border}`}>
                         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                           <div className="flex items-center gap-3">
                             <span className={`font-bold text-sm ${item.text}`}>{item.label}</span>
                             <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${item.text} ${item.bg} ${item.border}`}>
-                              {item.count} bookings
+                              {item.count} paid
                             </span>
                           </div>
                           <span className={`text-lg font-black ${item.text}`}>
@@ -441,18 +461,10 @@ export default function OwnerAnalytics() {
                           <div className={`h-full rounded-full ${item.color} transition-all duration-700`}
                             style={{ width: `${pctCount}%` }} />
                         </div>
-                        <p className={`text-xs mt-1.5 opacity-60 ${item.text}`}>{pctCount}% of all bookings</p>
+                        <p className={`text-xs mt-1.5 opacity-60 ${item.text}`}>{pctCount}% of paid bookings</p>
                       </div>
                     );
                   })}
-                </div>
-              )}
-
-              {(ground?.peak_pricing_rules || []).length === 0 && (
-                <div className="mt-4 bg-emerald-50 border border-emerald-200 rounded-xl p-3">
-                  <p className="text-emerald-700 text-xs font-semibold">
-                    Add peak & off-peak pricing rules from the Pricing page to unlock deeper slot analysis.
-                  </p>
                 </div>
               )}
             </div>
@@ -540,12 +552,12 @@ export default function OwnerAnalytics() {
               <h3 className="font-black text-gray-900 text-sm mb-4">Quick Summary</h3>
               <div className="space-y-3">
                 {[
-                  { label: "Today's Revenue", value: fmtRs(todayRevenue),  accent: todayRevenue > 0 },
-                  { label: "Week Revenue",    value: fmtRs(weekRevenue)  },
-                  { label: "Week Bookings",   value: weekCount            },
-                  { label: "Month Revenue",   value: fmtRs(monthRevenue) },
-                  { label: "Month Bookings",  value: monthCount           },
-                  { label: "Avg / Booking",   value: totalConfirmed > 0 ? fmtRs(totalRevenue / totalConfirmed) : "—" },
+                  { label: "Today's Revenue",  value: fmtRs(todayRevenue),  accent: todayRevenue > 0 },
+                  { label: "Week Revenue",      value: fmtRs(weekRevenue)  },
+                  { label: "Week Bookings",     value: weekCount            },
+                  { label: "Month Revenue",     value: fmtRs(monthRevenue) },
+                  { label: "Month Bookings",    value: monthCount           },
+                  { label: "Avg / Paid Booking",value: totalPaid > 0 ? fmtRs(totalRevenue / totalPaid) : "—" },
                 ].map(({ label, value, accent }) => (
                   <div key={label} className="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0">
                     <span className="text-sm text-gray-500">{label}</span>
@@ -560,9 +572,9 @@ export default function OwnerAnalytics() {
               <h3 className="font-black text-gray-900 text-sm mb-4">Booking Status</h3>
               <div className="space-y-3">
                 {[
-                  { label: "Confirmed", count: bookings.filter((b) => b.status === "confirmed").length, color: "bg-emerald-500", text: "text-emerald-700" },
-                  { label: "Pending",   count: bookings.filter((b) => b.status === "pending").length,   color: "bg-amber-500",   text: "text-amber-700"  },
-                  { label: "Cancelled", count: bookings.filter((b) => b.status === "cancelled").length, color: "bg-red-400",     text: "text-red-600"    },
+                  { label: "Confirmed",  count: bookings.filter((b) => b.status === "confirmed").length,  color: "bg-emerald-500", text: "text-emerald-600" },
+                  { label: "Pending",    count: bookings.filter((b) => b.status === "pending").length,    color: "bg-amber-500",   text: "text-amber-600"  },
+                  { label: "Cancelled",  count: bookings.filter((b) => b.status === "cancelled").length,  color: "bg-red-400",     text: "text-red-500"    },
                 ].map((s) => {
                   const total = bookings.length || 1;
                   const pct   = Math.round((s.count / total) * 100);
@@ -583,6 +595,10 @@ export default function OwnerAnalytics() {
               <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between text-xs text-gray-400">
                 <span>Total bookings</span>
                 <span className="font-black text-gray-700">{bookings.length}</span>
+              </div>
+              <div className="mt-2 pt-2 border-t border-gray-100 flex justify-between text-xs text-gray-400">
+                <span>Khalti paid (revenue secured)</span>
+                <span className="font-black text-emerald-600">{totalPaid}</span>
               </div>
             </div>
           </div>

@@ -31,7 +31,6 @@ class CreateBookingView(generics.CreateAPIView):
         if not ground.is_approved:
             raise ValidationError("This ground is not yet approved and cannot be booked.")
 
-        # Check blocked slots
         if start_time and booking_date:
             is_blocked, block_reason = ground.is_slot_blocked(booking_date, start_time.hour)
             if is_blocked:
@@ -43,7 +42,6 @@ class CreateBookingView(generics.CreateAPIView):
         token_uuid = self.request.data.get("rescheduling_token")
         token_obj  = None
 
-        # Rescheduling token takes priority
         if token_uuid:
             try:
                 token_obj = ReschedulingToken.objects.get(
@@ -57,14 +55,12 @@ class CreateBookingView(generics.CreateAPIView):
             except ReschedulingToken.DoesNotExist:
                 raise ValidationError("Invalid rescheduling token for this ground.")
 
-        # Loyalty-free booking
         if is_free and not token_obj:
             record = LoyaltyRecord.get_or_create_for(self.request.user, ground)
             if record.free_bookings_available <= 0:
                 raise ValidationError("No free bookings available for this ground.")
             record.redeem_free_booking()
 
-        # Price calculation (dynamic pricing applies for paid bookings)
         if is_free:
             total_price = Decimal("0.00")
         else:
@@ -116,16 +112,12 @@ class CancelBookingView(generics.UpdateAPIView):
     def patch(self, request, *args, **kwargs):
         booking = self.get_object()
 
-        # Already cancelled/refunded
         if booking.status in [Booking.Status.CANCELLED, Booking.Status.REFUNDED]:
             return Response(
                 {"detail": f"Booking is already {booking.status}."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # ── Enforce 4-hour cancellation window ─────────────────────────────
-        # Players can only cancel if the slot is still 4+ hours away.
-        # We reuse can_cancel_with_token() which checks the 4h window.
         if not booking.can_cancel_with_token():
             hours_left = round(booking.hours_until_slot(), 1) if hasattr(booking, 'hours_until_slot') else 0
             return Response(
@@ -143,8 +135,11 @@ class CancelBookingView(generics.UpdateAPIView):
         was_confirmed  = (booking.status == Booking.Status.CONFIRMED)
         is_paid        = not booking.is_free_booking and booking.total_price > 0
 
-        # ── Determine if a rescheduling token should be issued ──────────────
-        # Token is ONLY issued for Khalti-paid bookings (not cash, not free)
+        # A rescheduling token is ONLY issued for Khalti-paid bookings.
+        # The key insight: when a Khalti-paid booking is cancelled and a token is
+        # issued, the owner already HAS the money. We must NOT decrease loyalty
+        # points either, because the player already "earned" those points by
+        # paying real money. The rescheduling token is the player's compensation.
         is_khalti_paid = booking.payments.filter(
             status="SUCCESS",
             payment_method="khalti",
@@ -155,15 +150,21 @@ class CancelBookingView(generics.UpdateAPIView):
         booking.status = Booking.Status.CANCELLED
         booking.save(update_fields=["status"])
 
-        # Decrease loyalty ONLY for confirmed paid bookings
-        if was_confirmed and is_paid:
+        # ── Loyalty adjustment rules ──────────────────────────────────────────
+        # For Khalti-paid bookings: the owner keeps the money, so we DO NOT
+        # decrease loyalty points. The player paid real money and earned those
+        # points — the rescheduling token is their compensation.
+        #
+        # For non-Khalti confirmed paid bookings (e.g. cash confirmed by owner):
+        # decrease loyalty since the booking is truly being undone.
+        if was_confirmed and is_paid and not is_khalti_paid:
             try:
                 record = LoyaltyRecord.objects.get(user=booking.user, ground=booking.ground)
                 record.decrease_confirmed_booking()
             except LoyaltyRecord.DoesNotExist:
                 pass
 
-        # Issue rescheduling token if eligible (Khalti only)
+        # Issue rescheduling token if eligible
         token_issued = None
         if eligible_token:
             token_obj    = ReschedulingToken.create_for_booking(booking)
@@ -234,13 +235,19 @@ class UpdateBookingStatusView(generics.UpdateAPIView):
                 record = LoyaltyRecord.get_or_create_for(booking.user, booking.ground)
                 record.record_confirmed_booking()
 
-        # Reverse loyalty for cancelled confirmed paid booking
+        # Reverse loyalty for owner-cancelled confirmed non-Khalti paid bookings
+        # (Khalti paid bookings would only reach here if owner cancels after payment,
+        #  which is unusual — in that case we also preserve loyalty since money was paid)
         if new_status == "cancelled" and old_status == "confirmed" and is_paid:
-            try:
-                record = LoyaltyRecord.objects.get(user=booking.user, ground=booking.ground)
-                record.decrease_confirmed_booking()
-            except LoyaltyRecord.DoesNotExist:
-                pass
+            is_khalti = booking.payments.filter(
+                status="SUCCESS", payment_method="khalti",
+            ).exists()
+            if not is_khalti:
+                try:
+                    record = LoyaltyRecord.objects.get(user=booking.user, ground=booking.ground)
+                    record.decrease_confirmed_booking()
+                except LoyaltyRecord.DoesNotExist:
+                    pass
 
         return Response({
             "message": f"Booking {new_status}.",

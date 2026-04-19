@@ -19,13 +19,13 @@ class BookingSerializer(serializers.ModelSerializer):
         fields = [
             "id", "user", "user_email", "ground", "ground_name",
             "date", "start_time", "end_time", "total_price",
-            "status", "is_free_booking", "created_at",
+            "status", "is_free_booking", "payment_received", "created_at",
             "can_cancel_with_token", "hours_until_slot",
             "payment_method", "can_cancel",
         ]
         read_only_fields = [
             "id", "user", "user_email", "ground_name",
-            "total_price", "status", "is_free_booking", "created_at",
+            "total_price", "status", "is_free_booking", "payment_received", "created_at",
             "can_cancel_with_token", "hours_until_slot",
             "payment_method", "can_cancel",
         ]
@@ -40,20 +40,16 @@ class BookingSerializer(serializers.ModelSerializer):
             return False
         if not can_cancel:
             return False
-        # Must be paid via Khalti (not cash, not free)
         if obj.is_free_booking:
             return False
         return obj.payments.filter(status="SUCCESS", payment_method="khalti").exists()
 
     def get_can_cancel(self, obj):
-        """
-        Cancel button is visible only when the slot is 4+ hours away
-        (regardless of payment method). Once within 4 hours, no cancellation.
-        """
+        """Cancel button is visible only when the slot is 4+ hours away."""
         if obj.status not in [Booking.Status.PENDING, Booking.Status.CONFIRMED]:
             return False
         try:
-            return obj.can_cancel_with_token()  # reuses the 4h window check
+            return obj.can_cancel_with_token()
         except Exception:
             return False
 
@@ -64,16 +60,12 @@ class BookingSerializer(serializers.ModelSerializer):
             return None
 
     def get_payment_method(self, obj):
-        """
-        Returns 'khalti', 'cash', 'free', or 'unknown'.
-        Checks the Payment records linked to this booking.
-        """
+        """Returns 'khalti', 'cash', 'free', or 'unknown'."""
         if obj.is_free_booking:
             return "free"
         payment = obj.payments.filter(status="SUCCESS").order_by("-created_at").first()
         if payment:
             return payment.payment_method
-        # Pending cash bookings may not have a SUCCESS payment yet
         pending_payment = obj.payments.order_by("-created_at").first()
         if pending_payment:
             return pending_payment.payment_method
@@ -96,7 +88,6 @@ class BookingSerializer(serializers.ModelSerializer):
                     {"end_time": "End time must be after start time."}
                 )
 
-            # 30-minute advance booking rule
             if date:
                 slot_dt = timezone.make_aware(datetime.combine(date, start))
                 cutoff  = timezone.now() + timedelta(minutes=30)
@@ -122,8 +113,8 @@ class BookingSerializer(serializers.ModelSerializer):
 class BookingStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model            = Booking
-        fields           = ["id", "status", "ground", "date", "start_time", "end_time", "is_free_booking"]
-        read_only_fields = ["id", "ground", "date", "start_time", "end_time", "is_free_booking"]
+        fields           = ["id", "status", "ground", "date", "start_time", "end_time", "is_free_booking", "payment_received"]
+        read_only_fields = ["id", "ground", "date", "start_time", "end_time", "is_free_booking", "payment_received"]
 
 
 class ReschedulingTokenSerializer(serializers.ModelSerializer):
